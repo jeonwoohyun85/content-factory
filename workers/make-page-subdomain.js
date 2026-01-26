@@ -407,7 +407,6 @@ function generate00001Page() {
     <header>
         <div class="header-content">
             <h1 class="business-name">상상피아노</h1>
-            <p class="business-category">피아노 학원 · 서울 강남</p>
         </div>
     </header>
 
