@@ -398,59 +398,10 @@ function generate00001Page() {
             border-top: 1px solid #4a5568;
         }
 
-        /* Desktop */
+        /* Desktop - 모바일과 동일한 레이아웃 유지 */
         @media (min-width: 768px) {
-            section {
-                padding: 80px 24px;
-            }
-
-            .section-title {
-                font-size: 32px;
-            }
-
-            .profile-section {
-                padding: 80px 24px;
-            }
-
             .contact-info {
                 flex-direction: row;
-            }
-
-            .quick-links {
-                max-width: 500px;
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .quick-link-item {
-                padding: 24px 20px;
-            }
-
-            .quick-link-icon {
-                font-size: 40px;
-            }
-
-            .quick-link-text {
-                font-size: 14px;
-            }
-
-            .blog-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 32px;
-            }
-
-            .blog-image {
-                height: 280px;
-            }
-
-            .gallery-grid {
-                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-                gap: 24px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .blog-grid {
-                grid-template-columns: repeat(3, 1fr);
             }
         }
     </style>
