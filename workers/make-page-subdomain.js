@@ -58,11 +58,76 @@ async function getClientFromSheets(clientId) {
     const csvText = await response.text();
     const clients = parseCSV(csvText);
 
-    return clients.find(client => client.서브도메인 === clientId);
+    return clients.find(client => client.subdomain === clientId);
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
     return null;
   }
+}
+
+// URL에서 바로가기 정보 추출 (아이콘 + 텍스트)
+function getLinkInfo(url) {
+  if (!url) return null;
+
+  url = url.trim();
+
+  // 전화번호
+  if (url.startsWith('tel:')) {
+    return { icon: '📞', text: '전화하기', url };
+  }
+
+  // Instagram
+  if (url.includes('instagram.com')) {
+    return { icon: '📷', text: '인스타그램', url };
+  }
+
+  // YouTube
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    return { icon: '▶️', text: '유튜브', url };
+  }
+
+  // Facebook
+  if (url.includes('facebook.com')) {
+    return { icon: '👥', text: '페이스북', url };
+  }
+
+  // 카카오톡
+  if (url.includes('pf.kakao.com') || url.includes('talk.kakao')) {
+    return { icon: '💬', text: '카카오톡', url };
+  }
+
+  // 네이버 지도
+  if (url.includes('map.naver.com') || url.includes('naver.me')) {
+    return { icon: '📍', text: '위치보기', url };
+  }
+
+  // 구글 지도
+  if (url.includes('maps.google.com') || url.includes('goo.gl/maps')) {
+    return { icon: '📍', text: '위치보기', url };
+  }
+
+  // 카카오맵
+  if (url.includes('map.kakao.com')) {
+    return { icon: '📍', text: '위치보기', url };
+  }
+
+  // 네이버 블로그
+  if (url.includes('blog.naver.com')) {
+    return { icon: '📝', text: '블로그', url };
+  }
+
+  // 티스토리
+  if (url.includes('tistory.com')) {
+    return { icon: '📝', text: '블로그', url };
+  }
+
+  // 예약 관련
+  if (url.includes('booking') || url.includes('reserve')) {
+    return { icon: '📅', text: '예약하기', url };
+  }
+
+  // 기타
+  return { icon: '🔗', text: '링크', url };
 }
 
 // 구독 종료 페이지 생성
@@ -152,16 +217,25 @@ function generateSuspendedPage() {
 </html>`;
 }
 
-// 동적 거래처 페이지 생성 (Supabase 데이터 기반)
+// 동적 거래처 페이지 생성 (Google Sheets 데이터 기반)
 function generateClientPage(client) {
-  // Info 이미지는 제거됨 (새 구조)
+  // Links 파싱 (쉼표 구분)
+  const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(getLinkInfo).filter(l => l);
+
+  // Info 이미지 파싱 (쉼표 구분)
+  const infoImages = (client.info_images || '').split(',').map(i => i.trim()).filter(i => i);
+
+  // 전화번호 링크 추가
+  if (client.phone && !links.some(l => l.url.includes(client.phone))) {
+    links.unshift({ icon: '📞', text: '전화하기', url: `tel:${client.phone}` });
+  }
 
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>${escapeHtml(client.상호명)}</title>
+    <title>${escapeHtml(client.business_name)}</title>
     <style>
         * {
             margin: 0;
@@ -374,65 +448,60 @@ function generateClientPage(client) {
     <!-- Header -->
     <header>
         <div class="header-content">
-            <h1 class="business-name">${escapeHtml(client.상호명)}</h1>
+            <h1 class="business-name">${escapeHtml(client.business_name)}</h1>
         </div>
     </header>
 
     <!-- Profile Section -->
     <section class="profile-section">
         <div class="profile-content">
-            <h2 class="profile-title">${escapeHtml(client.상호명)}</h2>
+            <h2 class="profile-title">${escapeHtml(client.business_name)}</h2>
+            ${client.description ? `<p style="font-size: 16px; color: #666; margin-bottom: 24px; max-width: 600px; margin-left: auto; margin-right: auto;">${escapeHtml(client.description)}</p>` : ''}
             <div class="contact-info">
-                ${client.주소 ? `<div class="contact-item">
+                ${client.address ? `<div class="contact-item">
                     <span class="contact-icon">📍</span>
-                    <span>${escapeHtml(client.주소)}</span>
+                    <span>${escapeHtml(client.address)}</span>
                 </div>` : ''}
-                ${client.전화번호 ? `<div class="contact-item">
+                ${client.phone ? `<div class="contact-item">
                     <span class="contact-icon">📞</span>
-                    <span>${escapeHtml(client.전화번호)}</span>
+                    <span>${escapeHtml(client.phone)}</span>
+                </div>` : ''}
+                ${client.business_hours ? `<div class="contact-item">
+                    <span class="contact-icon">🕐</span>
+                    <span>${escapeHtml(client.business_hours)}</span>
                 </div>` : ''}
             </div>
 
             <!-- Quick Links -->
-            <div class="quick-links">
-                ${client.전화번호 ? `<a href="tel:${escapeHtml(client.전화번호)}" class="quick-link-item">
-                    <div class="quick-link-icon">📞</div>
-                    <div class="quick-link-text">전화하기</div>
-                </a>` : ''}
-                <a href="https://map.naver.com" target="_blank" class="quick-link-item">
-                    <div class="quick-link-icon">📍</div>
-                    <div class="quick-link-text">위치보기</div>
-                </a>
-                <a href="#" class="quick-link-item">
-                    <div class="quick-link-icon">📅</div>
-                    <div class="quick-link-text">예약하기</div>
-                </a>
-                <a href="https://instagram.com" target="_blank" class="quick-link-item">
-                    <div class="quick-link-icon">📷</div>
-                    <div class="quick-link-text">인스타그램</div>
-                </a>
-                <a href="https://facebook.com" target="_blank" class="quick-link-item">
-                    <div class="quick-link-icon">💬</div>
-                    <div class="quick-link-text">카카오톡</div>
-                </a>
-                <a href="#" class="quick-link-item">
-                    <div class="quick-link-icon">📧</div>
-                    <div class="quick-link-text">문의하기</div>
-                </a>
+            ${links.length > 0 ? `<div class="quick-links">
+                ${links.map(link => `<a href="${escapeHtml(link.url)}" class="quick-link-item" ${link.url.startsWith('http') ? 'target="_blank"' : ''}>
+                    <div class="quick-link-icon">${link.icon}</div>
+                    <div class="quick-link-text">${escapeHtml(link.text)}</div>
+                </a>`).join('')}
             </div>
         </div>
     </section>
 
+    <!-- Info Section -->
+    ${infoImages.length > 0 ? `<section>
+        <h2 class="section-title">Info</h2>
+        <div class="gallery-grid">
+            ${infoImages.map(img => `<div class="gallery-item">
+                <img src="${escapeHtml(img)}" alt="Info" class="gallery-image">
+            </div>`).join('')}
+        </div>
+    </section>` : ''}
+
     <!-- Footer -->
     <footer>
         <div class="footer-content">
-            <div class="footer-business-name">${escapeHtml(client.상호명)}</div>
+            <div class="footer-business-name">${escapeHtml(client.business_name)}</div>
             <div class="footer-info">
-                ${client.주소 ? `${escapeHtml(client.주소)}<br>` : ''}
-                ${client.전화번호 ? `전화: ${escapeHtml(client.전화번호)}` : ''}
+                ${client.address ? `${escapeHtml(client.address)}<br>` : ''}
+                ${client.phone ? `전화: ${escapeHtml(client.phone)}` : ''}
             </div>
             <div class="footer-copyright">
-                © 2026 ${escapeHtml(client.상호명)}. All rights reserved. Powered by ContentFactory
+                © 2026 ${escapeHtml(client.business_name)}. All rights reserved. Powered by ContentFactory
             </div>
         </div>
     </footer>
@@ -1239,7 +1308,7 @@ export default {
       }
 
       // 비활성 거래처는 표시 안함
-      if (client.활성 !== 'active') {
+      if (client.status !== 'active') {
         return new Response('This page is inactive', { status: 403 });
       }
 
@@ -1271,7 +1340,7 @@ export default {
 
       // 번역 처리 (한국어가 아닌 경우)
       let displayBusinessName = client.business_name;
-      let displayAddress = client.주소;
+      let displayAddress = client.address;
       let displayBusinessHours = client.business_hours;
 
       if (client.language && client.language !== '한국어') {
@@ -1279,19 +1348,19 @@ export default {
         if (client.business_name_translated) {
           displayBusinessName = client.business_name_translated;
         }
-        if (client.주소_translated) {
-          displayAddress = client.주소_translated;
+        if (client.address_translated) {
+          displayAddress = client.address_translated;
         }
         if (client.business_hours_translated) {
           displayBusinessHours = client.business_hours_translated;
         }
 
         // 번역이 없으면 생성 (동기로 처리)
-        if (!client.business_name_translated || !client.주소_translated || !client.business_hours_translated) {
+        if (!client.business_name_translated || !client.address_translated || !client.business_hours_translated) {
           if (env.ANTHROPIC_API_KEY && env.SUPABASE_SERVICE_ROLE_KEY) {
             const translations = await translateClientInfo(
               client.business_name,
-              client.주소,
+              client.address,
               client.business_hours,
               client.language,
               env.ANTHROPIC_API_KEY
@@ -1302,7 +1371,7 @@ export default {
               if (!client.business_name_translated && translations.businessName) {
                 displayBusinessName = translations.businessName;
               }
-              if (!client.주소_translated && translations.address) {
+              if (!client.address_translated && translations.address) {
                 displayAddress = translations.address;
               }
               if (!client.business_hours_translated && translations.businessHours) {
@@ -1790,7 +1859,7 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
 
     const client = clients[0];
 
-    if (client.활성 !== 'active') {
+    if (client.status !== 'active') {
       return new Response('This page is inactive', { status: 403 });
     }
 
@@ -1822,23 +1891,23 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
 
     // 번역 처리
     let displayBusinessName = client.business_name;
-    let displayAddress = client.주소;
+    let displayAddress = client.address;
 
     if (client.language && client.language !== '한국어') {
       // 이미 번역된 것이 있으면 사용
       if (client.business_name_translated) {
         displayBusinessName = client.business_name_translated;
       }
-      if (client.주소_translated) {
-        displayAddress = client.주소_translated;
+      if (client.address_translated) {
+        displayAddress = client.address_translated;
       }
 
       // 번역이 없으면 생성 (동기로 처리)
-      if (!client.business_name_translated || !client.주소_translated) {
+      if (!client.business_name_translated || !client.address_translated) {
         if (env.ANTHROPIC_API_KEY && env.SUPABASE_SERVICE_ROLE_KEY) {
           const translations = await translateClientInfo(
             client.business_name,
-            client.주소,
+            client.address,
             client.business_hours || '',
             client.language,
             env.ANTHROPIC_API_KEY
@@ -1849,7 +1918,7 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
             if (!client.business_name_translated && translations.businessName) {
               displayBusinessName = translations.businessName;
             }
-            if (!client.주소_translated && translations.address) {
+            if (!client.address_translated && translations.address) {
               displayAddress = translations.address;
             }
 
@@ -1924,8 +1993,8 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
 function generateBlogPage(client, content, photos, subdomain) {
   const lang = client.language || '한국어';
   const businessName = client.business_name || '';
-  const address = client.주소 || '';
-  const phone = client.전화번호 || '';
+  const address = client.address || '';
+  const phone = client.phone || '';
   const businessHours = client.business_hours || '';
 
   // XSS 방지용 이스케이프된 버전
@@ -2755,9 +2824,9 @@ async function generateSitePage(client, photos, infoPhotos, contents, coverPhoto
   const langCode = lang === '한국어' ? 'ko' : lang === 'English' ? 'en' : lang === '日本語' ? 'ja' : 'ko';
   const businessName = client.business_name || '';
   const description = client.description || `${businessName}에 오신 것을 환영합니다.`;
-  const address = client.주소 || '';
+  const address = client.address || '';
   const businessHours = client.business_hours || '';
-  const phone = client.전화번호 || '';
+  const phone = client.phone || '';
 
   // XSS 방지용 이스케이프된 버전 (HTML 컨텍스트용)
   const businessNameEsc = escapeHtml(businessName);
