@@ -40,15 +40,15 @@ async function processDriveChanges(env) {
 
 async function processFile(file, accessToken, env) {
   try {
-    // Extract subdomain from path
-    const subdomain = extractSubdomainFromPath(file.path);
+    // Extract business name from path
+    const businessName = extractBusinessNameFromPath(file.path);
 
-    if (!subdomain) {
-      console.log(`Skipping ${file.path} - no valid subdomain in path`);
+    if (!businessName) {
+      console.log(`Skipping ${file.path} - no valid business name in path`);
       return;
     }
 
-    console.log(`Processing ${file.path} for subdomain ${subdomain}`);
+    console.log(`Processing ${file.path} for business ${businessName}`);
 
     // Make file public
     await makeFilePublic(file.id, accessToken);
@@ -57,7 +57,7 @@ async function processFile(file, accessToken, env) {
     const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
 
     // Update Google Sheets
-    await updateSheets(subdomain, publicUrl, accessToken, env.SHEETS_ID);
+    await updateSheets(businessName, publicUrl, accessToken, env.SHEETS_ID);
 
     console.log(`Successfully processed ${file.name}`);
   } catch (error) {
@@ -176,18 +176,21 @@ async function getFilePath(file, accessToken) {
   return '/' + pathParts.join('/');
 }
 
-function extractSubdomainFromPath(path) {
-  // Extract subdomain from path
+function extractBusinessNameFromPath(path) {
+  // Extract business name from path
+  // Example: /콘텐츠팩토리/상상피아노/INFO/photo.jpg -> 상상피아노
   // Example: /콘텐츠팩토리/00001/INFO/photo.jpg -> 00001
-  // Example: /콘텐츠팩토리/상상피아노/INFO/photo.jpg -> null (need subdomain)
 
   const parts = path.split('/').filter(p => p);
 
-  // Find 5-digit subdomain
-  for (const part of parts) {
-    if (/^\d{5}$/.test(part)) {
-      return part;
-    }
+  // Expected structure: /콘텐츠팩토리/[business_name]/INFO/photo.jpg
+  // Index 0: 콘텐츠팩토리
+  // Index 1: business_name
+  // Index 2: INFO
+  // Index 3: photo.jpg
+
+  if (parts.length >= 2 && parts[0] === '콘텐츠팩토리') {
+    return parts[1]; // business name or subdomain
   }
 
   return null;
@@ -210,7 +213,7 @@ async function makeFilePublic(fileId, accessToken) {
   );
 }
 
-async function updateSheets(subdomain, publicUrl, accessToken, sheetsId) {
+async function updateSheets(businessName, publicUrl, accessToken, sheetsId) {
   // Get all rows
   const getResponse = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!A:L`,
@@ -222,20 +225,26 @@ async function updateSheets(subdomain, publicUrl, accessToken, sheetsId) {
   const getData = await getResponse.json();
   const rows = getData.values || [];
 
-  // Find row with matching subdomain
+  // Find row with matching business_name
   let rowIndex = -1;
   let currentImages = '';
+  let matchedBusinessName = '';
 
   for (let i = 1; i < rows.length; i++) { // Skip header
-    if (rows[i][0] === subdomain) { // Column A = subdomain
+    const rowBusinessName = rows[i][1]; // Column B = business_name
+    const rowSubdomain = rows[i][0]; // Column A = subdomain
+
+    // Match by business_name OR subdomain
+    if (rowBusinessName === businessName || rowSubdomain === businessName) {
       rowIndex = i + 1; // Sheet rows are 1-indexed
       currentImages = rows[i][8] || ''; // Column I = info_images
+      matchedBusinessName = rowBusinessName || rowSubdomain;
       break;
     }
   }
 
   if (rowIndex === -1) {
-    console.log(`Subdomain ${subdomain} not found in Sheets`);
+    console.log(`Business name "${businessName}" not found in Sheets`);
     return;
   }
 
@@ -259,5 +268,5 @@ async function updateSheets(subdomain, publicUrl, accessToken, sheetsId) {
     }
   );
 
-  console.log(`Updated info_images for subdomain ${subdomain}`);
+  console.log(`Updated info_images for "${matchedBusinessName}"`);
 }
