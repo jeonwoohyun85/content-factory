@@ -303,7 +303,7 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
     // Get all rows
     logs.push(`  Reading Sheets...`);
     const getResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/시트1!A:L`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!A:L`,
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
@@ -352,7 +352,7 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
 
     // Update cell
     const updateResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/시트1!I${rowIndex}?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!I${rowIndex}?valueInputOption=RAW`,
       {
         method: 'PUT',
         headers: {
