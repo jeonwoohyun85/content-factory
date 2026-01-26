@@ -10,20 +10,48 @@ echo ""
 
 EXIT_CODE=0
 
-# ==================== 1. 파일 크기 체크 (500줄 제한) ====================
-echo "📏 파일 크기 체크 (최대 500줄)..."
+# ==================== 1. 단일 책임 원칙 체크 ====================
+echo "🎯 단일 책임 원칙 체크..."
 
 for file in workers/*.js; do
   if [ -f "$file" ]; then
     LINES=$(wc -l < "$file")
     FILENAME=$(basename "$file")
 
-    if [ "$LINES" -gt 500 ]; then
-      echo "❌ ERROR: $FILENAME ($LINES줄) - 500줄 초과!"
-      echo "   → 파일을 모듈로 분리하세요."
+    # 파일 크기 정보만 표시 (제한 없음)
+    echo "📄 $FILENAME ($LINES줄)"
+
+    # 여러 기능 키워드 동시 존재 체크
+    FEATURE_COUNT=0
+    FEATURES_FOUND=""
+
+    # 주요 기능 키워드
+    if grep -q "auth\|login\|signup\|session" "$file"; then
+      FEATURE_COUNT=$((FEATURE_COUNT + 1))
+      FEATURES_FOUND="$FEATURES_FOUND auth"
+    fi
+    if grep -q "payment\|stripe\|checkout" "$file"; then
+      FEATURE_COUNT=$((FEATURE_COUNT + 1))
+      FEATURES_FOUND="$FEATURES_FOUND payment"
+    fi
+    if grep -q "blog\|post\|article" "$file"; then
+      FEATURE_COUNT=$((FEATURE_COUNT + 1))
+      FEATURES_FOUND="$FEATURES_FOUND blog"
+    fi
+    if grep -q "landing\|homepage" "$file"; then
+      FEATURE_COUNT=$((FEATURE_COUNT + 1))
+      FEATURES_FOUND="$FEATURES_FOUND landing"
+    fi
+    if grep -q "upload\|photo\|image" "$file"; then
+      FEATURE_COUNT=$((FEATURE_COUNT + 1))
+      FEATURES_FOUND="$FEATURES_FOUND upload"
+    fi
+
+    # 2개 이상 기능 = 단일 책임 위반
+    if [ "$FEATURE_COUNT" -ge 2 ]; then
+      echo "❌ ERROR: $FILENAME - 여러 기능 합쳐짐:$FEATURES_FOUND"
+      echo "   → 기능별로 파일 분리하세요 (단일 책임 원칙)"
       EXIT_CODE=1
-    else
-      echo "✅ $FILENAME ($LINES줄)"
     fi
   fi
 done
