@@ -13,18 +13,20 @@
 
 ## 프로젝트 상태
 
-**현재 상태**: WordPress 기반 노코드 아키텍처 전환 중
+**현재 상태**: 노코드 아키텍처 재설계 중
 
-**인프라**:
-- Cloudways 서버 (WordPress 멀티사이트)
+**활성 인프라**:
 - n8n (자동화 워크플로우)
 - Gemini API (콘텐츠 생성)
 - Google Drive (파일 저장)
 - Cloudflare (CDN, 보안)
 
-**폐기된 시스템**:
-- Supabase → WordPress DB로 대체
-- Firebase → WordPress로 대체
+**폐기된 시스템** (2026-01-26):
+- **Cloudways** → 폐기 확정
+- **WordPress 멀티사이트** → 폐기 확정
+- **SSH 서버 접속** → 폐기 확정
+- Supabase → WordPress DB로 대체 시도했으나 폐기
+- Firebase → WordPress로 대체 시도했으나 폐기
 - Cloudflare Workers → n8n으로 대체
 - caps, content-factory 레포 → 아카이빙
 
@@ -44,28 +46,6 @@
 - **Zone ID**: 6336f0fab5cb7b480e1f7b44698aef60
 - **Account ID**: 73506724e3c7dd97bc939983761a90cf
 
-### Cloudways
-- **API Key**: DGzZZmsNj1i38LhIhiAx0dMMNZ1EYj
-- **Email**: jmh850929@gmail.com
-- **Server ID**: 1580352
-- **IP**: 143.198.195.19
-
-### WordPress
-- **URL**: https://wordpress-1580352-6166257.cloudwaysapps.com
-- **Admin Email**: jmh850929@gmail.com
-- **Admin Password**: f3Chw7BdeT
-- **App Password (n8n)**: HkKuzRLetnRw2QloxCY43sLA
-- **DB Name**: vgsxhpbxvb
-- **DB User**: vgsxhpbxvb
-- **DB Password**: qynVfK5BFU
-
-### SSH
-- **Host**: 143.198.195.19
-- **User**: master_gndmnmatbw
-- **Password**: X4wRu2AhFce9
-- **App User**: vgsxhpbxvb
-- **App Password**: f4NnEeAaDd
-
 ### n8n
 - **Email**: contact@contentfactory.onmicrosoft.com
 - **URL**: https://app.n8n.cloud/
@@ -74,7 +54,7 @@
 
 ## 다음 작업
 
-- [ ] WordPress 멀티사이트 설정 완료
+- [ ] 새로운 인프라 구조 결정
 - [ ] n8n 워크플로우 구축
 - [ ] 거래처 자동 생성 플로우
 - [ ] 자동 포스팅 플로우
