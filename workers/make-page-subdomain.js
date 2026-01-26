@@ -456,49 +456,28 @@ function generateClientPage(client) {
     <section class="profile-section">
         <div class="profile-content">
             <h2 class="profile-title">${escapeHtml(client.business_name)}</h2>
-            ${client.description ? `<p style="font-size: 16px; color: #666; margin-bottom: 24px; max-width: 600px; margin-left: auto; margin-right: auto;">${escapeHtml(client.description)}</p>` : ''}
+            ${client.description ? '<p style="font-size: 16px; color: #666; margin-bottom: 24px; max-width: 600px; margin-left: auto; margin-right: auto;">' + escapeHtml(client.description) + '</p>' : ''}
             <div class="contact-info">
-                ${client.address ? `<div class="contact-item">
-                    <span class="contact-icon">📍</span>
-                    <span>${escapeHtml(client.address)}</span>
-                </div>` : ''}
-                ${client.phone ? `<div class="contact-item">
-                    <span class="contact-icon">📞</span>
-                    <span>${escapeHtml(client.phone)}</span>
-                </div>` : ''}
-                ${client.business_hours ? `<div class="contact-item">
-                    <span class="contact-icon">🕐</span>
-                    <span>${escapeHtml(client.business_hours)}</span>
-                </div>` : ''}
+                ${client.address ? '<div class="contact-item"><span class="contact-icon">📍</span><span>' + escapeHtml(client.address) + '</span></div>' : ''}
+                ${client.phone ? '<div class="contact-item"><span class="contact-icon">📞</span><span>' + escapeHtml(client.phone) + '</span></div>' : ''}
+                ${client.business_hours ? '<div class="contact-item"><span class="contact-icon">🕐</span><span>' + escapeHtml(client.business_hours) + '</span></div>' : ''}
             </div>
 
             <!-- Quick Links -->
-            ${links.length > 0 ? `<div class="quick-links">
-                ${links.map(link => `<a href="${escapeHtml(link.url)}" class="quick-link-item" ${link.url.startsWith('http') ? 'target="_blank"' : ''}>
-                    <div class="quick-link-icon">${link.icon}</div>
-                    <div class="quick-link-text">${escapeHtml(link.text)}</div>
-                </a>`).join('')}
-            </div>
+            ${links.length > 0 ? '<div class="quick-links">' + links.map(link => '<a href="' + escapeHtml(link.url) + '" class="quick-link-item"' + (link.url.startsWith('http') ? ' target="_blank"' : '') + '><div class="quick-link-icon">' + link.icon + '</div><div class="quick-link-text">' + escapeHtml(link.text) + '</div></a>').join('') + '</div>' : ''}
         </div>
     </section>
 
     <!-- Info Section -->
-    ${infoImages.length > 0 ? `<section>
-        <h2 class="section-title">Info</h2>
-        <div class="gallery-grid">
-            ${infoImages.map(img => `<div class="gallery-item">
-                <img src="${escapeHtml(img)}" alt="Info" class="gallery-image">
-            </div>`).join('')}
-        </div>
-    </section>` : ''}
+    ${infoImages.length > 0 ? '<section><h2 class="section-title">Info</h2><div class="gallery-grid">' + infoImages.map(img => '<div class="gallery-item"><img src="' + escapeHtml(img) + '" alt="Info" class="gallery-image"></div>').join('') + '</div></section>' : ''}
 
     <!-- Footer -->
     <footer>
         <div class="footer-content">
             <div class="footer-business-name">${escapeHtml(client.business_name)}</div>
             <div class="footer-info">
-                ${client.address ? `${escapeHtml(client.address)}<br>` : ''}
-                ${client.phone ? `전화: ${escapeHtml(client.phone)}` : ''}
+                ${client.address ? escapeHtml(client.address) + '<br>' : ''}
+                ${client.phone ? '전화: ' + escapeHtml(client.phone) : ''}
             </div>
             <div class="footer-copyright">
                 © 2026 ${escapeHtml(client.business_name)}. All rights reserved. Powered by ContentFactory
