@@ -209,10 +209,12 @@ function generate00001Page() {
         }
 
         .profile-title {
-            font-size: 32px;
-            font-weight: 700;
+            font-size: 48px;
+            font-weight: 800;
             color: #1a1a1a;
-            margin-bottom: 32px;
+            margin-bottom: 36px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .contact-info {
