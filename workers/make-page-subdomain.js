@@ -194,11 +194,12 @@ function generate00001Page() {
         /* Profile Section */
         .profile-section {
             background: linear-gradient(to bottom, #f5f3ff 0%, #faf9ff 100%);
-            padding: 60px 16px;
+            padding: 80px 16px;
             text-align: center;
             display: flex;
             align-items: center;
-            min-height: 400px;
+            justify-content: center;
+            min-height: 500px;
         }
 
         .profile-content {
@@ -207,16 +208,11 @@ function generate00001Page() {
             width: 100%;
         }
 
-        .profile-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-
         .profile-title {
             font-size: 32px;
             font-weight: 700;
             color: #1a1a1a;
-            margin-bottom: 28px;
+            margin-bottom: 32px;
         }
 
         .contact-info {
@@ -418,7 +414,6 @@ function generate00001Page() {
     <!-- Profile Section -->
     <section class="profile-section">
         <div class="profile-content">
-            <div class="profile-icon">🎹</div>
             <h2 class="profile-title">상상피아노</h2>
             <div class="contact-info">
                 <div class="contact-item">
