@@ -34,34 +34,40 @@ export default {
 };
 
 async function processDriveChanges(env) {
+  const logs = [];
+
   // Check if SERVICE ACCOUNT JSON exists
   if (!env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     return {
       error: 'GOOGLE_SERVICE_ACCOUNT_JSON not found in env',
       filesFound: 0,
-      filesProcessed: 0
+      filesProcessed: 0,
+      logs
     };
   }
 
+  logs.push('Getting access token...');
   const accessToken = await getGoogleAccessToken(env);
+  logs.push(`Access token obtained: ${accessToken.substring(0, 20)}...`);
 
+  logs.push(`Searching Drive folder: ${env.DRIVE_FOLDER_ID}`);
   // Get recent files from Drive (last 10 minutes)
-  const files = await getRecentDriveFiles(accessToken, env.DRIVE_FOLDER_ID);
+  const files = await getRecentDriveFiles(accessToken, env.DRIVE_FOLDER_ID, logs);
 
-  console.log(`Total files found: ${files.length}`);
+  logs.push(`Total files found: ${files.length}`);
 
   if (files.length === 0) {
-    console.log('No files found - check Service Account permissions');
     return {
       filesFound: 0,
       filesProcessed: 0,
-      message: 'No files found - check Service Account permissions'
+      message: 'No files found - check Service Account permissions',
+      logs
     };
   }
 
   let processed = 0;
   for (const file of files) {
-    console.log(`Processing: ${file.path}`);
+    logs.push(`Processing: ${file.path}`);
     await processFile(file, accessToken, env);
     processed++;
   }
@@ -69,7 +75,8 @@ async function processDriveChanges(env) {
   return {
     filesFound: files.length,
     filesProcessed: processed,
-    message: 'Success'
+    message: 'Success',
+    logs
   };
 }
 
@@ -163,12 +170,11 @@ function pemToArrayBuffer(pem) {
   return bytes.buffer;
 }
 
-async function getRecentDriveFiles(accessToken, folderId) {
+async function getRecentDriveFiles(accessToken, folderId, logs = []) {
   // Step 1: Find all subdirectories under콘텐츠팩토리 (business name folders)
   const foldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${folderId}' in parents and trashed = false`;
 
-  console.log(`Searching folders with query: ${foldersQuery}`);
-  console.log(`Access token (first 20 chars): ${accessToken.substring(0, 20)}...`);
+  logs.push(`Searching folders with query: ${foldersQuery}`);
 
   const foldersResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(foldersQuery)}&fields=files(id,name)`,
@@ -177,21 +183,23 @@ async function getRecentDriveFiles(accessToken, folderId) {
     }
   );
 
-  console.log(`Drive API Response Status: ${foldersResponse.status}`);
+  logs.push(`Drive API Response Status: ${foldersResponse.status}`);
 
   const foldersData = await foldersResponse.json();
   const businessFolders = foldersData.files || [];
 
-  console.log(`Found ${businessFolders.length} business folders`);
+  logs.push(`Found ${businessFolders.length} business folders`);
 
   if (businessFolders.length === 0) {
-    console.log('No business folders found. Response:', JSON.stringify(foldersData));
+    logs.push('No business folders found');
     if (foldersData.error) {
-      console.error('Google Drive API Error:', JSON.stringify(foldersData.error));
+      logs.push(`Google Drive API Error: ${JSON.stringify(foldersData.error)}`);
+    } else {
+      logs.push(`Full response: ${JSON.stringify(foldersData)}`);
     }
+  } else {
+    businessFolders.forEach(f => logs.push(`  - ${f.name} (${f.id})`));
   }
-
-  businessFolders.forEach(f => console.log(`  - ${f.name} (${f.id})`));
 
   // Step 2: For each business folder, find all image files recursively
   const allFiles = [];
