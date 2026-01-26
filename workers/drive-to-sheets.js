@@ -41,14 +41,14 @@ async function processDriveChanges(env) {
 async function processFile(file, accessToken, env) {
   try {
     // Extract subdomain from path
-    const subdomain = extractSubdomainFromPath(file.parents, file.name);
+    const subdomain = extractSubdomainFromPath(file.path);
 
     if (!subdomain) {
-      console.log(`Skipping ${file.name} - no valid subdomain in path`);
+      console.log(`Skipping ${file.path} - no valid subdomain in path`);
       return;
     }
 
-    console.log(`Processing ${file.name} for subdomain ${subdomain}`);
+    console.log(`Processing ${file.path} for subdomain ${subdomain}`);
 
     // Make file public
     await makeFilePublic(file.id, accessToken);
@@ -131,27 +131,66 @@ function pemToArrayBuffer(pem) {
 async function getRecentDriveFiles(accessToken, folderId) {
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-  const query = `'${folderId}' in parents and mimeType contains 'image/' and createdTime > '${tenMinutesAgo}' and trashed = false`;
+  // Search all files recursively under콘텐츠팩토리 folder
+  const query = `mimeType contains 'image/' and createdTime > '${tenMinutesAgo}' and trashed = false and '${folderId}' in parents`;
 
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,parents,webViewLink)`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,parents)`,
     {
       headers: { Authorization: `Bearer ${accessToken}` }
     }
   );
 
   const data = await response.json();
-  return data.files || [];
+  const files = data.files || [];
+
+  // For each file, get full path by traversing parent folders
+  const filesWithPaths = [];
+  for (const file of files) {
+    const path = await getFilePath(file, accessToken);
+    filesWithPaths.push({ ...file, path });
+  }
+
+  return filesWithPaths;
 }
 
-function extractSubdomainFromPath(parents, filename) {
-  // TODO: Need to get full path from Drive API
-  // For now, assuming filename or parent folder contains subdomain
-  // Example: /콘텐츠팩토리/00001/INFO/photo.jpg
+async function getFilePath(file, accessToken) {
+  const pathParts = [file.name];
+  let currentParents = file.parents || [];
 
-  // Simple extraction from parent folder name (needs improvement)
-  const match = filename.match(/(\d{5})/);
-  return match ? match[1] : null;
+  while (currentParents.length > 0) {
+    const parentId = currentParents[0];
+
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${parentId}?fields=name,parents`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
+
+    const parentData = await response.json();
+    pathParts.unshift(parentData.name);
+    currentParents = parentData.parents || [];
+  }
+
+  return '/' + pathParts.join('/');
+}
+
+function extractSubdomainFromPath(path) {
+  // Extract subdomain from path
+  // Example: /콘텐츠팩토리/00001/INFO/photo.jpg -> 00001
+  // Example: /콘텐츠팩토리/상상피아노/INFO/photo.jpg -> null (need subdomain)
+
+  const parts = path.split('/').filter(p => p);
+
+  // Find 5-digit subdomain
+  for (const part of parts) {
+    if (/^\d{5}$/.test(part)) {
+      return part;
+    }
+  }
+
+  return null;
 }
 
 async function makeFilePublic(fileId, accessToken) {
