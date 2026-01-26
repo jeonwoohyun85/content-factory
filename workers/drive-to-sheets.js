@@ -13,8 +13,21 @@ export default {
   async fetch(request, env) {
     // Manual trigger for testing
     if (request.method === 'POST') {
-      await processDriveChanges(env);
-      return new Response('Processing completed', { status: 200 });
+      try {
+        const result = await processDriveChanges(env);
+        return new Response(JSON.stringify(result || { status: 'completed' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error.message,
+          stack: error.stack
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
     }
     return new Response('Drive to Sheets Automation Worker', { status: 200 });
   }
@@ -30,13 +43,25 @@ async function processDriveChanges(env) {
 
   if (files.length === 0) {
     console.log('No files found - check Service Account permissions');
-    return;
+    return {
+      filesFound: 0,
+      filesProcessed: 0,
+      message: 'No files found - check Service Account permissions'
+    };
   }
 
+  let processed = 0;
   for (const file of files) {
     console.log(`Processing: ${file.path}`);
     await processFile(file, accessToken, env);
+    processed++;
   }
+
+  return {
+    filesFound: files.length,
+    filesProcessed: processed,
+    message: 'Success'
+  };
 }
 
 async function processFile(file, accessToken, env) {
