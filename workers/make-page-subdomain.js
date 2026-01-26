@@ -467,8 +467,7 @@ function generate00001Page() {
 
     <!-- Gallery Section -->
     <section>
-        <h2 class="section-title">갤러리</h2>
-        <p class="section-subtitle">우리 학원의 생생한 순간들</p>
+        <h2 class="section-title">Info</h2>
         <div class="gallery-grid">
             <div class="gallery-item">
                 <img src="https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=600&h=600&fit=crop" alt="피아노 연주" class="gallery-image">
