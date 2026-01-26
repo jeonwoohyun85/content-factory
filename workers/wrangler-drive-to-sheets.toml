@@ -1,0 +1,15 @@
+name = "drive-to-sheets"
+main = "drive-to-sheets.js"
+compatibility_date = "2024-01-01"
+account_id = "73506724e3c7dd97bc939983761a90cf"
+
+# Cron: 5분마다 실행
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
+DRIVE_FOLDER_ID = "1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt"
+
+# Secret 설정 (Cloudflare Dashboard 또는 wrangler secret put)
+# GOOGLE_SERVICE_ACCOUNT_JSON: Service Account JSON 전체 내용
