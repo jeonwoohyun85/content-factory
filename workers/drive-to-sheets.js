@@ -34,6 +34,15 @@ export default {
 };
 
 async function processDriveChanges(env) {
+  // Check if SERVICE ACCOUNT JSON exists
+  if (!env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    return {
+      error: 'GOOGLE_SERVICE_ACCOUNT_JSON not found in env',
+      filesFound: 0,
+      filesProcessed: 0
+    };
+  }
+
   const accessToken = await getGoogleAccessToken(env);
 
   // Get recent files from Drive (last 10 minutes)
@@ -158,12 +167,17 @@ async function getRecentDriveFiles(accessToken, folderId) {
   // Step 1: Find all subdirectories under콘텐츠팩토리 (business name folders)
   const foldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${folderId}' in parents and trashed = false`;
 
+  console.log(`Searching folders with query: ${foldersQuery}`);
+  console.log(`Access token (first 20 chars): ${accessToken.substring(0, 20)}...`);
+
   const foldersResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(foldersQuery)}&fields=files(id,name)`,
     {
       headers: { Authorization: `Bearer ${accessToken}` }
     }
   );
+
+  console.log(`Drive API Response Status: ${foldersResponse.status}`);
 
   const foldersData = await foldersResponse.json();
   const businessFolders = foldersData.files || [];
