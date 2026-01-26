@@ -26,14 +26,15 @@ async function processDriveChanges(env) {
   // Get recent files from Drive (last 10 minutes)
   const files = await getRecentDriveFiles(accessToken, env.DRIVE_FOLDER_ID);
 
+  console.log(`Total files found: ${files.length}`);
+
   if (files.length === 0) {
-    console.log('No new files found');
+    console.log('No files found - check Service Account permissions');
     return;
   }
 
-  console.log(`Found ${files.length} new files`);
-
   for (const file of files) {
+    console.log(`Processing: ${file.path}`);
     await processFile(file, accessToken, env);
   }
 }
