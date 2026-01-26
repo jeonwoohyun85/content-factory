@@ -1,9 +1,8 @@
 // *.make-page.com 서브도메인 핸들러
 // 각 거래처별 사이트 표시
-// 테스트: Global API Key 배포 확인
+// Google Sheets 기반 데이터 관리
 
-const SUPABASE_URL = 'https://rhgfhfmerewwodctuoyh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoZ2ZoZm1lcmV3d29kY3R1b3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MTY0MjUsImV4cCI6MjA4NDk5MjQyNX0.NK5my60zmywzbrSC2fQlAw38dto2D0lm0osgXs_SuXg';
+const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
 
 // 타임아웃 기능이 있는 fetch 헬퍼
 async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
@@ -30,6 +29,40 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// CSV 파싱 (간단한 구현)
+function parseCSV(csvText) {
+  const lines = csvText.trim().split('\n');
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].split(',').map(h => h.trim());
+  const data = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim());
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index] || '';
+    });
+    data.push(row);
+  }
+
+  return data;
+}
+
+// Google Sheets에서 클라이언트 데이터 조회
+async function getClientFromSheets(clientId) {
+  try {
+    const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
+    const csvText = await response.text();
+    const clients = parseCSV(csvText);
+
+    return clients.find(client => client.client_id === clientId);
+  } catch (error) {
+    console.error('Google Sheets fetch error:', error);
+    return null;
+  }
 }
 
 // 구독 종료 페이지 생성
@@ -1220,35 +1253,22 @@ export default {
     }
 
     try {
-      // 거래처 정보 조회 (client_id로 조회)
-      const clientResponse = await fetchWithTimeout(
-        `${SUPABASE_URL}/rest/v1/clients?client_id=eq.${subdomain}&select=*`,
-        {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-          }
-        },
-        10000
-      );
+      // Google Sheets에서 거래처 정보 조회
+      const client = await getClientFromSheets(subdomain);
 
-      const clients = await clientResponse.json();
-
-      if (!clients || clients.length === 0) {
+      if (!client) {
         return new Response('Not Found', { status: 404 });
       }
-
-      const client = clients[0];
 
       // 비활성 거래처는 표시 안함
       if (client.status !== 'active') {
         return new Response('This page is inactive', { status: 403 });
       }
 
-      // 구독 해지 확인 (subscription_status = 'cancelled' AND subscription_end_date < 현재날짜)
-      if (client.subscription_status === 'cancelled' && client.subscription_end_date) {
+      // 간단한 구조로 변경 (구독 해지 로직 제거)
+      if (false) {
         const now = new Date();
-        const endDate = new Date(client.subscription_end_date);
+        const endDate = new Date();
 
         if (endDate < now) {
           // 구독 종료 → 사이트 차단
