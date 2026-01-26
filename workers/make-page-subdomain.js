@@ -58,7 +58,7 @@ async function getClientFromSheets(clientId) {
     const csvText = await response.text();
     const clients = parseCSV(csvText);
 
-    return clients.find(client => client.client_id === clientId);
+    return clients.find(client => client.서브도메인 === clientId);
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
     return null;
@@ -154,21 +154,14 @@ function generateSuspendedPage() {
 
 // 동적 거래처 페이지 생성 (Supabase 데이터 기반)
 function generateClientPage(client) {
-  const infoImages = [
-    client.info_image_1,
-    client.info_image_2,
-    client.info_image_3,
-    client.info_image_4,
-    client.info_image_5,
-    client.info_image_6
-  ].filter(img => img); // null/빈 값 제거
+  // Info 이미지는 제거됨 (새 구조)
 
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>${escapeHtml(client.client_name)}</title>
+    <title>${escapeHtml(client.상호명)}</title>
     <style>
         * {
             margin: 0;
@@ -381,32 +374,28 @@ function generateClientPage(client) {
     <!-- Header -->
     <header>
         <div class="header-content">
-            <h1 class="business-name">${escapeHtml(client.client_name)}</h1>
+            <h1 class="business-name">${escapeHtml(client.상호명)}</h1>
         </div>
     </header>
 
     <!-- Profile Section -->
     <section class="profile-section">
         <div class="profile-content">
-            <h2 class="profile-title">${escapeHtml(client.client_name)}</h2>
+            <h2 class="profile-title">${escapeHtml(client.상호명)}</h2>
             <div class="contact-info">
-                ${client.address ? `<div class="contact-item">
+                ${client.주소 ? `<div class="contact-item">
                     <span class="contact-icon">📍</span>
-                    <span>${escapeHtml(client.address)}</span>
+                    <span>${escapeHtml(client.주소)}</span>
                 </div>` : ''}
-                ${client.phone ? `<div class="contact-item">
+                ${client.전화번호 ? `<div class="contact-item">
                     <span class="contact-icon">📞</span>
-                    <span>${escapeHtml(client.phone)}</span>
-                </div>` : ''}
-                ${client.business_hours ? `<div class="contact-item">
-                    <span class="contact-icon">🕐</span>
-                    <span>${escapeHtml(client.business_hours)}</span>
+                    <span>${escapeHtml(client.전화번호)}</span>
                 </div>` : ''}
             </div>
 
             <!-- Quick Links -->
             <div class="quick-links">
-                ${client.phone ? `<a href="tel:${escapeHtml(client.phone)}" class="quick-link-item">
+                ${client.전화번호 ? `<a href="tel:${escapeHtml(client.전화번호)}" class="quick-link-item">
                     <div class="quick-link-icon">📞</div>
                     <div class="quick-link-text">전화하기</div>
                 </a>` : ''}
@@ -434,27 +423,16 @@ function generateClientPage(client) {
         </div>
     </section>
 
-    ${infoImages.length > 0 ? `<!-- Gallery Section -->
-    <section>
-        <h2 class="section-title">Info</h2>
-        <div class="gallery-grid">
-            ${infoImages.map(img => `<div class="gallery-item">
-                <img src="${escapeHtml(img)}" alt="Info" class="gallery-image">
-            </div>`).join('')}
-        </div>
-    </section>` : ''}
-
     <!-- Footer -->
     <footer>
         <div class="footer-content">
-            <div class="footer-business-name">${escapeHtml(client.client_name)}</div>
+            <div class="footer-business-name">${escapeHtml(client.상호명)}</div>
             <div class="footer-info">
-                ${client.address ? `${escapeHtml(client.address)}<br>` : ''}
-                ${client.phone ? `전화: ${escapeHtml(client.phone)}<br>` : ''}
-                ${client.business_hours ? `영업시간: ${escapeHtml(client.business_hours)}` : ''}
+                ${client.주소 ? `${escapeHtml(client.주소)}<br>` : ''}
+                ${client.전화번호 ? `전화: ${escapeHtml(client.전화번호)}` : ''}
             </div>
             <div class="footer-copyright">
-                © 2026 ${escapeHtml(client.client_name)}. All rights reserved. Powered by ContentFactory
+                © 2026 ${escapeHtml(client.상호명)}. All rights reserved. Powered by ContentFactory
             </div>
         </div>
     </footer>
@@ -1261,7 +1239,7 @@ export default {
       }
 
       // 비활성 거래처는 표시 안함
-      if (client.status !== 'active') {
+      if (client.활성 !== 'active') {
         return new Response('This page is inactive', { status: 403 });
       }
 
@@ -1293,7 +1271,7 @@ export default {
 
       // 번역 처리 (한국어가 아닌 경우)
       let displayBusinessName = client.business_name;
-      let displayAddress = client.address;
+      let displayAddress = client.주소;
       let displayBusinessHours = client.business_hours;
 
       if (client.language && client.language !== '한국어') {
@@ -1301,19 +1279,19 @@ export default {
         if (client.business_name_translated) {
           displayBusinessName = client.business_name_translated;
         }
-        if (client.address_translated) {
-          displayAddress = client.address_translated;
+        if (client.주소_translated) {
+          displayAddress = client.주소_translated;
         }
         if (client.business_hours_translated) {
           displayBusinessHours = client.business_hours_translated;
         }
 
         // 번역이 없으면 생성 (동기로 처리)
-        if (!client.business_name_translated || !client.address_translated || !client.business_hours_translated) {
+        if (!client.business_name_translated || !client.주소_translated || !client.business_hours_translated) {
           if (env.ANTHROPIC_API_KEY && env.SUPABASE_SERVICE_ROLE_KEY) {
             const translations = await translateClientInfo(
               client.business_name,
-              client.address,
+              client.주소,
               client.business_hours,
               client.language,
               env.ANTHROPIC_API_KEY
@@ -1324,7 +1302,7 @@ export default {
               if (!client.business_name_translated && translations.businessName) {
                 displayBusinessName = translations.businessName;
               }
-              if (!client.address_translated && translations.address) {
+              if (!client.주소_translated && translations.address) {
                 displayAddress = translations.address;
               }
               if (!client.business_hours_translated && translations.businessHours) {
@@ -1812,7 +1790,7 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
 
     const client = clients[0];
 
-    if (client.status !== 'active') {
+    if (client.활성 !== 'active') {
       return new Response('This page is inactive', { status: 403 });
     }
 
@@ -1844,23 +1822,23 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
 
     // 번역 처리
     let displayBusinessName = client.business_name;
-    let displayAddress = client.address;
+    let displayAddress = client.주소;
 
     if (client.language && client.language !== '한국어') {
       // 이미 번역된 것이 있으면 사용
       if (client.business_name_translated) {
         displayBusinessName = client.business_name_translated;
       }
-      if (client.address_translated) {
-        displayAddress = client.address_translated;
+      if (client.주소_translated) {
+        displayAddress = client.주소_translated;
       }
 
       // 번역이 없으면 생성 (동기로 처리)
-      if (!client.business_name_translated || !client.address_translated) {
+      if (!client.business_name_translated || !client.주소_translated) {
         if (env.ANTHROPIC_API_KEY && env.SUPABASE_SERVICE_ROLE_KEY) {
           const translations = await translateClientInfo(
             client.business_name,
-            client.address,
+            client.주소,
             client.business_hours || '',
             client.language,
             env.ANTHROPIC_API_KEY
@@ -1871,7 +1849,7 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
             if (!client.business_name_translated && translations.businessName) {
               displayBusinessName = translations.businessName;
             }
-            if (!client.address_translated && translations.address) {
+            if (!client.주소_translated && translations.address) {
               displayAddress = translations.address;
             }
 
@@ -1946,8 +1924,8 @@ async function handleBlogPage(subdomain, contentId, env = {}) {
 function generateBlogPage(client, content, photos, subdomain) {
   const lang = client.language || '한국어';
   const businessName = client.business_name || '';
-  const address = client.address || '';
-  const phone = client.phone || '';
+  const address = client.주소 || '';
+  const phone = client.전화번호 || '';
   const businessHours = client.business_hours || '';
 
   // XSS 방지용 이스케이프된 버전
@@ -2777,9 +2755,9 @@ async function generateSitePage(client, photos, infoPhotos, contents, coverPhoto
   const langCode = lang === '한국어' ? 'ko' : lang === 'English' ? 'en' : lang === '日本語' ? 'ja' : 'ko';
   const businessName = client.business_name || '';
   const description = client.description || `${businessName}에 오신 것을 환영합니다.`;
-  const address = client.address || '';
+  const address = client.주소 || '';
   const businessHours = client.business_hours || '';
-  const phone = client.phone || '';
+  const phone = client.전화번호 || '';
 
   // XSS 방지용 이스케이프된 버전 (HTML 컨텍스트용)
   const businessNameEsc = escapeHtml(businessName);
