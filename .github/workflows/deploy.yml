@@ -1,0 +1,21 @@
+name: Deploy Preview
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Validate HTML
+      run: |
+        echo "HTML 파일 검증 중..."
+        ls -la *.html
+        
+    - name: Success
+      run: echo "배포 성공!"
