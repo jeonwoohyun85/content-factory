@@ -66,12 +66,18 @@ async function processDriveChanges(env) {
   }
 
   let processed = 0;
+  let skipped = 0;
   for (const file of files) {
     logs.push(`Processing: ${file.path}`);
     const result = await processFile(file, accessToken, env, logs);
     if (result.success) {
-      processed++;
-      logs.push(`✓ Success: ${file.name}`);
+      if (result.skipped) {
+        skipped++;
+        logs.push(`⊘ Skipped: ${file.name} (already exists)`);
+      } else {
+        processed++;
+        logs.push(`✓ Success: ${file.name}`);
+      }
     } else {
       logs.push(`✗ Failed: ${file.name} - ${result.error}`);
     }
@@ -80,6 +86,7 @@ async function processDriveChanges(env) {
   return {
     filesFound: files.length,
     filesProcessed: processed,
+    filesSkipped: skipped,
     message: 'Success',
     logs
   };
@@ -112,7 +119,7 @@ async function processFile(file, accessToken, env, logs) {
       return { success: false, error: updateResult.error };
     }
 
-    return { success: true };
+    return { success: true, skipped: updateResult.skipped || false };
   } catch (error) {
     logs.push(`  Error: ${error.message}`);
     return { success: false, error: error.message };
@@ -341,6 +348,12 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
     if (rowIndex === -1) {
       logs.push(`  Business "${businessName}" not found in Sheets`);
       return { success: false, error: 'Business not found' };
+    }
+
+    // Check if URL already exists (duplicate prevention)
+    if (currentImages.includes(publicUrl)) {
+      logs.push(`  URL already exists, skipping`);
+      return { success: true, skipped: true };
     }
 
     // Append new URL
