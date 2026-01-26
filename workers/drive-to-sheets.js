@@ -68,8 +68,13 @@ async function processDriveChanges(env) {
   let processed = 0;
   for (const file of files) {
     logs.push(`Processing: ${file.path}`);
-    await processFile(file, accessToken, env);
-    processed++;
+    const result = await processFile(file, accessToken, env, logs);
+    if (result.success) {
+      processed++;
+      logs.push(`✓ Success: ${file.name}`);
+    } else {
+      logs.push(`✗ Failed: ${file.name} - ${result.error}`);
+    }
   }
 
   return {
@@ -80,30 +85,37 @@ async function processDriveChanges(env) {
   };
 }
 
-async function processFile(file, accessToken, env) {
+async function processFile(file, accessToken, env, logs) {
   try {
     // Extract business name from path
     const businessName = extractBusinessNameFromPath(file.path);
 
     if (!businessName) {
-      console.log(`Skipping ${file.path} - no valid business name in path`);
-      return;
+      logs.push(`  Skipped: no business name in path`);
+      return { success: false, error: 'No business name' };
     }
 
-    console.log(`Processing ${file.path} for business ${businessName}`);
+    logs.push(`  Business: ${businessName}`);
 
     // Make file public
     await makeFilePublic(file.id, accessToken);
+    logs.push(`  Made public`);
 
     // Generate mobile-optimized thumbnail URL (800px width)
     const publicUrl = `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`;
+    logs.push(`  URL: ${publicUrl}`);
 
     // Update Google Sheets
-    await updateSheets(businessName, publicUrl, accessToken, env.SHEETS_ID);
+    const updateResult = await updateSheets(businessName, publicUrl, accessToken, env.SHEETS_ID, logs);
 
-    console.log(`Successfully processed ${file.name}`);
+    if (!updateResult.success) {
+      return { success: false, error: updateResult.error };
+    }
+
+    return { success: true };
   } catch (error) {
-    console.error(`Error processing file ${file.name}:`, error);
+    logs.push(`  Error: ${error.message}`);
+    return { success: false, error: error.message };
   }
 }
 
@@ -286,60 +298,83 @@ async function makeFilePublic(fileId, accessToken) {
   );
 }
 
-async function updateSheets(businessName, publicUrl, accessToken, sheetsId) {
-  // Get all rows
-  const getResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!A:L`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` }
+async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs) {
+  try {
+    // Get all rows
+    logs.push(`  Reading Sheets...`);
+    const getResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!A:L`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
+
+    if (!getResponse.ok) {
+      const errorText = await getResponse.text();
+      logs.push(`  Sheets read error: ${getResponse.status} - ${errorText}`);
+      return { success: false, error: `Sheets read failed: ${getResponse.status}` };
     }
-  );
 
-  const getData = await getResponse.json();
-  const rows = getData.values || [];
+    const getData = await getResponse.json();
+    const rows = getData.values || [];
+    logs.push(`  Found ${rows.length} rows`);
 
-  // Find row with matching business_name
-  let rowIndex = -1;
-  let currentImages = '';
-  let matchedBusinessName = '';
+    // Find row with matching business_name
+    let rowIndex = -1;
+    let currentImages = '';
+    let matchedBusinessName = '';
 
-  for (let i = 1; i < rows.length; i++) { // Skip header
-    const rowBusinessName = rows[i][1]; // Column B = business_name
-    const rowSubdomain = rows[i][0]; // Column A = subdomain
+    for (let i = 1; i < rows.length; i++) { // Skip header
+      const rowBusinessName = rows[i][1]; // Column B = business_name
+      const rowSubdomain = rows[i][0]; // Column A = subdomain
 
-    // Match by business_name OR subdomain
-    if (rowBusinessName === businessName || rowSubdomain === businessName) {
-      rowIndex = i + 1; // Sheet rows are 1-indexed
-      currentImages = rows[i][8] || ''; // Column I = info_images
-      matchedBusinessName = rowBusinessName || rowSubdomain;
-      break;
+      // Match by business_name OR subdomain
+      if (rowBusinessName === businessName || rowSubdomain === businessName) {
+        rowIndex = i + 1; // Sheet rows are 1-indexed
+        currentImages = rows[i][8] || ''; // Column I = info_images
+        matchedBusinessName = rowBusinessName || rowSubdomain;
+        logs.push(`  Matched row ${rowIndex}: ${matchedBusinessName}`);
+        break;
+      }
     }
+
+    if (rowIndex === -1) {
+      logs.push(`  Business "${businessName}" not found in Sheets`);
+      return { success: false, error: 'Business not found' };
+    }
+
+    // Append new URL
+    const updatedImages = currentImages
+      ? `${currentImages},${publicUrl}`
+      : publicUrl;
+
+    logs.push(`  Updating I${rowIndex}...`);
+
+    // Update cell
+    const updateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!I${rowIndex}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          values: [[updatedImages]]
+        })
+      }
+    );
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      logs.push(`  Sheets update error: ${updateResponse.status} - ${errorText}`);
+      return { success: false, error: `Sheets update failed: ${updateResponse.status}` };
+    }
+
+    logs.push(`  Updated info_images for "${matchedBusinessName}"`);
+    return { success: true };
+  } catch (error) {
+    logs.push(`  Exception: ${error.message}`);
+    return { success: false, error: error.message };
   }
-
-  if (rowIndex === -1) {
-    console.log(`Business name "${businessName}" not found in Sheets`);
-    return;
-  }
-
-  // Append new URL
-  const updatedImages = currentImages
-    ? `${currentImages},${publicUrl}`
-    : publicUrl;
-
-  // Update cell
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!I${rowIndex}?valueInputOption=RAW`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        values: [[updatedImages]]
-      })
-    }
-  );
-
-  console.log(`Updated info_images for "${matchedBusinessName}"`);
 }
