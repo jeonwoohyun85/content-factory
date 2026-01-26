@@ -129,29 +129,51 @@ function pemToArrayBuffer(pem) {
 }
 
 async function getRecentDriveFiles(accessToken, folderId) {
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  // Step 1: Find all subdirectories under콘텐츠팩토리 (business name folders)
+  const foldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${folderId}' in parents and trashed = false`;
 
-  // Search all files recursively under콘텐츠팩토리 folder
-  const query = `mimeType contains 'image/' and createdTime > '${tenMinutesAgo}' and trashed = false and '${folderId}' in parents`;
-
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,parents)`,
+  const foldersResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(foldersQuery)}&fields=files(id,name)`,
     {
       headers: { Authorization: `Bearer ${accessToken}` }
     }
   );
 
-  const data = await response.json();
-  const files = data.files || [];
+  const foldersData = await foldersResponse.json();
+  const businessFolders = foldersData.files || [];
 
-  // For each file, get full path by traversing parent folders
-  const filesWithPaths = [];
-  for (const file of files) {
-    const path = await getFilePath(file, accessToken);
-    filesWithPaths.push({ ...file, path });
+  console.log(`Found ${businessFolders.length} business folders`);
+
+  // Step 2: For each business folder, find all image files in subfolders
+  const allFiles = [];
+
+  for (const businessFolder of businessFolders) {
+    const imagesQuery = `mimeType contains 'image/' and trashed = false`;
+
+    const imagesResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imagesQuery)}&fields=files(id,name,parents)`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
+
+    const imagesData = await imagesResponse.json();
+    const images = imagesData.files || [];
+
+    // Filter images that are under this business folder
+    for (const image of images) {
+      const path = await getFilePath(image, accessToken);
+
+      // Check if path includes콘텐츠팩토리 and business folder name
+      if (path.includes('콘텐츠팩토리') && path.includes(businessFolder.name)) {
+        allFiles.push({ ...image, path });
+      }
+    }
   }
 
-  return filesWithPaths;
+  console.log(`Found ${allFiles.length} total image files`);
+
+  return allFiles;
 }
 
 async function getFilePath(file, accessToken) {
