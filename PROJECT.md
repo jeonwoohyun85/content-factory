@@ -30,6 +30,48 @@
 
 ---
 
+## API 토큰 및 인증 정보
+
+### GitHub
+- **Token**: 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
+- **Owner**: jeonwoohyun85
+- **레포**: content-factory (private)
+
+### Cloudflare
+- **API Token**: KHPDzFTdegG62bDd2oGEs8Aq2UzIByQxc1tukxsU
+- **Global API Key**: e5cc4242edf306683f88ca9b968ec94185d07
+- **Email**: jmh850929@gmail.com
+- **Zone ID**: 6336f0fab5cb7b480e1f7b44698aef60
+- **Account ID**: 73506724e3c7dd97bc939983761a90cf
+
+### Cloudways
+- **API Key**: DGzZZmsNj1i38LhIhiAx0dMMNZ1EYj
+- **Email**: jmh850929@gmail.com
+- **Server ID**: 1580352
+- **IP**: 143.198.195.19
+
+### WordPress
+- **URL**: https://wordpress-1580352-6166257.cloudwaysapps.com
+- **Admin Email**: jmh850929@gmail.com
+- **Admin Password**: f3Chw7BdeT
+- **App Password (n8n)**: HkKuzRLetnRw2QloxCY43sLA
+- **DB Name**: vgsxhpbxvb
+- **DB User**: vgsxhpbxvb
+- **DB Password**: qynVfK5BFU
+
+### SSH
+- **Host**: 143.198.195.19
+- **User**: master_gndmnmatbw
+- **Password**: X4wRu2AhFce9
+- **App User**: vgsxhpbxvb
+- **App Password**: f4NnEeAaDd
+
+### n8n
+- **Email**: contact@contentfactory.onmicrosoft.com
+- **URL**: https://app.n8n.cloud/
+
+---
+
 ## 다음 작업
 
 - [ ] WordPress 멀티사이트 설정 완료
@@ -45,3 +87,4 @@
 - **서비스명**: 콘텐츠팩토리 (Content Factory)
 - **코드명**: CAPS (Content Automation Platform System)
 - **철학**: 최소한의 코드, 최대한의 자동화
+- **레포 상태**: Private (비공개)
