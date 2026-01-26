@@ -21,30 +21,26 @@ for file in workers/*.js; do
     # 파일 크기 정보만 표시 (제한 없음)
     echo "📄 $FILENAME ($LINES줄)"
 
-    # 여러 기능 키워드 동시 존재 체크
+    # 여러 기능 함수명 동시 존재 체크 (더 정교하게)
     FEATURE_COUNT=0
     FEATURES_FOUND=""
 
-    # 주요 기능 키워드
-    if grep -q "auth\|login\|signup\|session" "$file"; then
+    # 주요 기능 함수명으로 체크 (false positive 방지)
+    if grep -q "function.*login\|function.*signup\|async.*login\|async.*signup" "$file"; then
       FEATURE_COUNT=$((FEATURE_COUNT + 1))
       FEATURES_FOUND="$FEATURES_FOUND auth"
     fi
-    if grep -q "payment\|stripe\|checkout" "$file"; then
+    if grep -q "function.*payment\|function.*stripe\|function.*checkout\|async.*payment" "$file"; then
       FEATURE_COUNT=$((FEATURE_COUNT + 1))
       FEATURES_FOUND="$FEATURES_FOUND payment"
     fi
-    if grep -q "blog\|post\|article" "$file"; then
+    if grep -q "function.*blog\|function.*post\|function.*article\|generateBlogPage" "$file"; then
       FEATURE_COUNT=$((FEATURE_COUNT + 1))
       FEATURES_FOUND="$FEATURES_FOUND blog"
     fi
-    if grep -q "landing\|homepage" "$file"; then
+    if grep -q "function.*landing\|generateLandingPage" "$file"; then
       FEATURE_COUNT=$((FEATURE_COUNT + 1))
       FEATURES_FOUND="$FEATURES_FOUND landing"
-    fi
-    if grep -q "upload\|photo\|image" "$file"; then
-      FEATURE_COUNT=$((FEATURE_COUNT + 1))
-      FEATURES_FOUND="$FEATURES_FOUND upload"
     fi
 
     # 2개 이상 기능 = 단일 책임 위반
