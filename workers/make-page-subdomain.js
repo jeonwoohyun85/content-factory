@@ -36,14 +36,16 @@ function escapeHtml(text) {
   return text.toString().replace(/[&<>"']/g, m => map[m]);
 }
 
-// CSV 파싱
+// CSV 파싱 (큰따옴표로 감싸진 필드 처리)
 function parseCSV(csvText) {
   const lines = csvText.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
+
+  // 헤더 파싱
+  const headers = parseCSVLine(lines[0]);
 
   const clients = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
+    const values = parseCSVLine(lines[i]);
     const client = {};
     headers.forEach((header, index) => {
       client[header] = values[index] || '';
@@ -51,6 +53,29 @@ function parseCSV(csvText) {
     clients.push(client);
   }
   return clients;
+}
+
+// CSV 한 줄 파싱 (큰따옴표 처리)
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current.trim());
+  return result;
 }
 
 // Google Sheets에서 거래처 정보 조회
