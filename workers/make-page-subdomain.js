@@ -2,8 +2,8 @@
 // 각 거래처별 사이트 표시
 // 테스트: Global API Key 배포 확인
 
-const SUPABASE_URL = 'https://tvymimryuwtgsfakuffl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR2eW1pbXJ5dXd0Z3NmYWt1ZmZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMjkxMzgsImV4cCI6MjA4MTcwNTEzOH0.nC063W3Z92eNYJ-cDKrVeVqs2Q2byrw89F4kT8iJiX8';
+const SUPABASE_URL = 'https://rhgfhfmerewwodctuoyh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoZ2ZoZm1lcmV3d29kY3R1b3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MTY0MjUsImV4cCI6MjA4NDk5MjQyNX0.NK5my60zmywzbrSC2fQlAw38dto2D0lm0osgXs_SuXg';
 
 // 타임아웃 기능이 있는 fetch 헬퍼
 async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
@@ -115,6 +115,316 @@ function generateSuspendedPage() {
             재구독 시 즉시 복구됩니다.
         </div>
     </div>
+</body>
+</html>`;
+}
+
+// 동적 거래처 페이지 생성 (Supabase 데이터 기반)
+function generateClientPage(client) {
+  const infoImages = [
+    client.info_image_1,
+    client.info_image_2,
+    client.info_image_3,
+    client.info_image_4,
+    client.info_image_5,
+    client.info_image_6
+  ].filter(img => img); // null/빈 값 제거
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>${escapeHtml(client.client_name)}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+        }
+
+        /* Header */
+        header {
+            background: #fff;
+            border-bottom: 1px solid #e9ecef;
+            padding: 20px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .business-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        /* Section */
+        section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 16px;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        /* Profile Section */
+        .profile-section {
+            background: linear-gradient(to bottom, #f5f3ff 0%, #faf9ff 100%);
+            padding: 80px 16px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 500px;
+        }
+
+        .profile-content {
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .profile-title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin-bottom: 36px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 500px;
+            margin: 0 auto 40px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .contact-icon {
+            font-size: 18px;
+        }
+
+        /* Quick Links */
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .quick-link-item {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .quick-link-item:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+        }
+
+        .quick-link-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .quick-link-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        /* Gallery Section */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.3s;
+            aspect-ratio: 1;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-4px);
+        }
+
+        .gallery-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Footer */
+        footer {
+            background: #2d3748;
+            color: #fff;
+            padding: 40px 16px;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-business-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .footer-info {
+            font-size: 14px;
+            color: #cbd5e0;
+            line-height: 1.8;
+            margin-bottom: 24px;
+        }
+
+        .footer-copyright {
+            font-size: 13px;
+            color: #a0aec0;
+            padding-top: 24px;
+            border-top: 1px solid #4a5568;
+        }
+
+        @media (min-width: 768px) {
+            .contact-info {
+                flex-direction: row;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <h1 class="business-name">${escapeHtml(client.client_name)}</h1>
+        </div>
+    </header>
+
+    <!-- Profile Section -->
+    <section class="profile-section">
+        <div class="profile-content">
+            <h2 class="profile-title">${escapeHtml(client.client_name)}</h2>
+            <div class="contact-info">
+                ${client.address ? `<div class="contact-item">
+                    <span class="contact-icon">📍</span>
+                    <span>${escapeHtml(client.address)}</span>
+                </div>` : ''}
+                ${client.phone ? `<div class="contact-item">
+                    <span class="contact-icon">📞</span>
+                    <span>${escapeHtml(client.phone)}</span>
+                </div>` : ''}
+                ${client.business_hours ? `<div class="contact-item">
+                    <span class="contact-icon">🕐</span>
+                    <span>${escapeHtml(client.business_hours)}</span>
+                </div>` : ''}
+            </div>
+
+            <!-- Quick Links -->
+            <div class="quick-links">
+                ${client.phone ? `<a href="tel:${escapeHtml(client.phone)}" class="quick-link-item">
+                    <div class="quick-link-icon">📞</div>
+                    <div class="quick-link-text">전화하기</div>
+                </a>` : ''}
+                <a href="https://map.naver.com" target="_blank" class="quick-link-item">
+                    <div class="quick-link-icon">📍</div>
+                    <div class="quick-link-text">위치보기</div>
+                </a>
+                <a href="#" class="quick-link-item">
+                    <div class="quick-link-icon">📅</div>
+                    <div class="quick-link-text">예약하기</div>
+                </a>
+                <a href="https://instagram.com" target="_blank" class="quick-link-item">
+                    <div class="quick-link-icon">📷</div>
+                    <div class="quick-link-text">인스타그램</div>
+                </a>
+                <a href="https://facebook.com" target="_blank" class="quick-link-item">
+                    <div class="quick-link-icon">💬</div>
+                    <div class="quick-link-text">카카오톡</div>
+                </a>
+                <a href="#" class="quick-link-item">
+                    <div class="quick-link-icon">📧</div>
+                    <div class="quick-link-text">문의하기</div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    ${infoImages.length > 0 ? `<!-- Gallery Section -->
+    <section>
+        <h2 class="section-title">Info</h2>
+        <div class="gallery-grid">
+            ${infoImages.map(img => `<div class="gallery-item">
+                <img src="${escapeHtml(img)}" alt="Info" class="gallery-image">
+            </div>`).join('')}
+        </div>
+    </section>` : ''}
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-business-name">${escapeHtml(client.client_name)}</div>
+            <div class="footer-info">
+                ${client.address ? `${escapeHtml(client.address)}<br>` : ''}
+                ${client.phone ? `전화: ${escapeHtml(client.phone)}<br>` : ''}
+                ${client.business_hours ? `영업시간: ${escapeHtml(client.business_hours)}` : ''}
+            </div>
+            <div class="footer-copyright">
+                © 2026 ${escapeHtml(client.client_name)}. All rights reserved. Powered by ContentFactory
+            </div>
+        </div>
+    </footer>
 </body>
 </html>`;
 }
@@ -902,13 +1212,6 @@ export default {
       return new Response('Not Found', { status: 404 });
     }
 
-    // 00001 테스트 페이지 (상상피아노)
-    if (subdomain === '00001') {
-      return new Response(generate00001Page(), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' }
-      });
-    }
-
     // /blog/{id} 경로 처리 (UUID 형식)
     const blogMatch = pathname.match(/^\/blog\/([a-f0-9-]+)$/);
     if (blogMatch) {
@@ -917,9 +1220,9 @@ export default {
     }
 
     try {
-      // 거래처 정보 조회
+      // 거래처 정보 조회 (client_id로 조회)
       const clientResponse = await fetchWithTimeout(
-        `${SUPABASE_URL}/rest/v1/clients?subdomain=eq.${subdomain}&select=id,business_name,language,description,address,business_hours,phone,status,umami_website_id,links,business_name_translated,address_translated,business_hours_translated,subscription_status,subscription_end_date`,
+        `${SUPABASE_URL}/rest/v1/clients?client_id=eq.${subdomain}&select=*`,
         {
           headers: {
             'apikey': SUPABASE_ANON_KEY,
@@ -1152,8 +1455,8 @@ export default {
         business_hours: displayBusinessHours
       };
 
-      // 사이트 HTML 생성
-      const html = await generateSitePage(displayClient, photos, infoPhotos, contents, coverPhoto, subdomain, env);
+      // 신규 Supabase 구조: 간단하게 클라이언트 페이지 생성
+      const html = generateClientPage(client);
 
       return new Response(html, {
         headers: {

@@ -34,16 +34,19 @@
 **현재 상태**: 노코드 아키텍처 재설계 중
 
 **활성 인프라**:
+- Supabase (거래처 데이터베이스) ✅ 신규 프로젝트
 - Cloudflare Workers (서브도메인 핸들링)
 - Cloudflare (CDN, 보안, DNS)
-- GitHub (content-factory 레포)
+- GitHub (content-factory-new 레포)
 - GitHub Actions (자동 배포)
 
 **폐기된 시스템** (2026-01-26):
 - **Cloudways** → 폐기 확정
 - **WordPress 멀티사이트** → 폐기 확정 (복잡도 증가로 취소)
 - **SSH 서버 접속** → 폐기 확정
-- Supabase → 일시적으로 사용 중 (데이터 조회)
+- **Supabase 기존 프로젝트 (CAPS-Portal)** → 폐기 (신규 ContentFactory로 대체)
+- **Notion** → 폐기 (통합 연결 실패)
+- **Google Sheets** → 폐기 (자동화 복잡도)
 - Firebase → 폐기
 - caps 레포 → 아카이빙
 
@@ -63,6 +66,14 @@
 - **Email**: jmh850929@gmail.com
 - **Zone ID**: 6336f0fab5cb7b480e1f7b44698aef60
 - **Account ID**: 73506724e3c7dd97bc939983761a90cf
+
+### Supabase (ContentFactory 프로젝트)
+- **Project ID**: rhgfhfmerewwodctuoyh
+- **URL**: https://rhgfhfmerewwodctuoyh.supabase.co
+- **Anon Key**: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoZ2ZoZm1lcmV3d29kY3R1b3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MTY0MjUsImV4cCI6MjA4NDk5MjQyNX0.NK5my60zmywzbrSC2fQlAw38dto2D0lm0osgXs_SuXg
+- **Publishable Key**: sb_publishable_PqOs9bYBriMUkfOBKXzPEw_ugNQOle6
+- **Region**: ap-northeast-2 (Seoul)
+- **테이블**: clients (거래처 관리)
 
 ### n8n
 - **Email**: contact@contentfactory.onmicrosoft.com
