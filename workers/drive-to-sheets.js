@@ -170,6 +170,15 @@ async function getRecentDriveFiles(accessToken, folderId) {
 
   console.log(`Found ${businessFolders.length} business folders`);
 
+  if (businessFolders.length === 0) {
+    console.log('No business folders found. Response:', JSON.stringify(foldersData));
+    if (foldersData.error) {
+      console.error('Google Drive API Error:', JSON.stringify(foldersData.error));
+    }
+  }
+
+  businessFolders.forEach(f => console.log(`  - ${f.name} (${f.id})`));
+
   // Step 2: For each business folder, find all image files recursively
   const allFiles = [];
 
