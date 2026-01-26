@@ -34,19 +34,22 @@
 **현재 상태**: 노코드 아키텍처 재설계 중
 
 **활성 인프라**:
-- Supabase (거래처 데이터베이스) ✅ 신규 프로젝트
+- Google Sheets (거래처 데이터베이스) ✅ Service Account 자동화
 - Cloudflare Workers (서브도메인 핸들링)
 - Cloudflare (CDN, 보안, DNS)
 - GitHub (content-factory-new 레포)
 - GitHub Actions (자동 배포)
 
-**폐기된 시스템** (2026-01-26):
+**폐기된 시스템** (2026-01-27):
+- **Supabase** → 폐기 (Google Sheets로 대체, 관리 복잡도 문제)
+  - ContentFactory 프로젝트 (rhgfhfmerewwodctuoyh) - 유지 (데이터 백업용)
+  - CAPS-Portal (tvymimryuwtgsfakuffl) - INACTIVE 상태
+- **NocoDB** → 폐기 (무료 플랜 외부 DB 연결 불가, $12/월 필요)
+- **Airtable** → 시도 안 함 ($20/월 비용)
 - **Cloudways** → 폐기 확정
 - **WordPress 멀티사이트** → 폐기 확정 (복잡도 증가로 취소)
 - **SSH 서버 접속** → 폐기 확정
-- **Supabase 기존 프로젝트 (CAPS-Portal)** → 폐기 (신규 ContentFactory로 대체)
 - **Notion** → 폐기 (통합 연결 실패)
-- **Google Sheets** → 폐기 (자동화 복잡도)
 - Firebase → 폐기
 - caps 레포 → 아카이빙
 
@@ -67,13 +70,12 @@
 - **Zone ID**: 6336f0fab5cb7b480e1f7b44698aef60
 - **Account ID**: 73506724e3c7dd97bc939983761a90cf
 
-### Supabase (ContentFactory 프로젝트)
-- **Project ID**: rhgfhfmerewwodctuoyh
-- **URL**: https://rhgfhfmerewwodctuoyh.supabase.co
-- **Anon Key**: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoZ2ZoZm1lcmV3d29kY3R1b3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0MTY0MjUsImV4cCI6MjA4NDk5MjQyNX0.NK5my60zmywzbrSC2fQlAw38dto2D0lm0osgXs_SuXg
-- **Publishable Key**: sb_publishable_PqOs9bYBriMUkfOBKXzPEw_ugNQOle6
-- **Region**: ap-northeast-2 (Seoul)
-- **테이블**: clients (거래처 관리)
+### Google Sheets (거래처 데이터베이스)
+- **Spreadsheet ID**: 1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU
+- **URL**: https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/edit
+- **CSV Export URL**: https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0
+- **Service Account**: caps-83bc7@appspot.gserviceaccount.com
+- **JSON Key**: C:\Users\A1-M4\service-account.json
 
 ### n8n
 - **Email**: contact@contentfactory.onmicrosoft.com
