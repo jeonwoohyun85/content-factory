@@ -3,7 +3,25 @@
 ## 배포 이력
 
 ### 2026-01-26
-- ✅ `preview-blog.html` 추가 - 거래처 페이지 HTML 프리뷰
+
+**22:31** ⚡ [improvement] 모바일/PC 동일한 레이아웃으로 통일
+- 미디어 쿼리 제거 (모든 기기에서 동일한 레이아웃)
+- 3열 2행 바로가기 버튼 고정
+
+**22:30** ✨ [feature] 00001 서브도메인 UI 업데이트
+- 상단 설명 텍스트 2줄 삭제
+- 바로가기 버튼 3열 2행으로 변경
+- 보라색 배경 영역 수직 중앙 정렬
+
+**22:21** 🐛 [bugfix] GitHub Actions CLOUDFLARE_API_TOKEN 환경변수 추가
+- wrangler 인증 실패 문제 해결
+
+**22:19** ✨ [feature] Cloudflare Workers 추가 (00001 서브도메인)
+- workers 폴더 GitHub에 추가
+- GitHub Actions 자동 배포 설정
+- 00001.make-page.com 상상피아노 템플릿 배포 성공
+
+**이전** ✅ `preview-blog.html` 추가 - 거래처 페이지 HTML 프리뷰
   - 원페이지 랜딩 스타일
   - 프로필, 갤러리, 게시글 섹션
   - 바로가기 링크 (2x3 그리드)
@@ -16,19 +34,18 @@
 **현재 상태**: 노코드 아키텍처 재설계 중
 
 **활성 인프라**:
-- n8n (자동화 워크플로우)
-- Gemini API (콘텐츠 생성)
-- Google Drive (파일 저장)
-- Cloudflare (CDN, 보안)
+- Cloudflare Workers (서브도메인 핸들링)
+- Cloudflare (CDN, 보안, DNS)
+- GitHub (content-factory 레포)
+- GitHub Actions (자동 배포)
 
 **폐기된 시스템** (2026-01-26):
 - **Cloudways** → 폐기 확정
-- **WordPress 멀티사이트** → 폐기 확정
+- **WordPress 멀티사이트** → 폐기 확정 (복잡도 증가로 취소)
 - **SSH 서버 접속** → 폐기 확정
-- Supabase → WordPress DB로 대체 시도했으나 폐기
-- Firebase → WordPress로 대체 시도했으나 폐기
-- Cloudflare Workers → n8n으로 대체
-- caps, content-factory 레포 → 아카이빙
+- Supabase → 일시적으로 사용 중 (데이터 조회)
+- Firebase → 폐기
+- caps 레포 → 아카이빙
 
 ---
 
@@ -40,8 +57,9 @@
 - **레포**: content-factory (private)
 
 ### Cloudflare
-- **API Token**: KHPDzFTdegG62bDd2oGEs8Aq2UzIByQxc1tukxsU
-- **Global API Key**: e5cc4242edf306683f88ca9b968ec94185d07
+- **Workers API Token**: -cXH1QRIJyeEL1w9nYr-PZtEGtYGrJ9C7jVH6CV1 (현재 사용 중)
+- **DNS API Token**: KHPDzFTdegG62bDd2oGEs8Aq2UzIByQxc1tukxsU
+- **Global API Key**: e5cc4242edf306683f88ca9b968ec94185d07 (불완전)
 - **Email**: jmh850929@gmail.com
 - **Zone ID**: 6336f0fab5cb7b480e1f7b44698aef60
 - **Account ID**: 73506724e3c7dd97bc939983761a90cf
@@ -54,11 +72,11 @@
 
 ## 다음 작업
 
-- [ ] 새로운 인프라 구조 결정
-- [ ] n8n 워크플로우 구축
-- [ ] 거래처 자동 생성 플로우
-- [ ] 자동 포스팅 플로우
-- [ ] Gemini API 연동
+- [x] Cloudflare Workers 배포 자동화 (GitHub Actions)
+- [x] 00001 서브도메인 템플릿 배포
+- [ ] 동적 거래처 데이터 연동 (Supabase → Worker)
+- [ ] 거래처별 콘텐츠 자동 생성
+- [ ] 자동 포스팅 시스템 구축
 
 ---
 
