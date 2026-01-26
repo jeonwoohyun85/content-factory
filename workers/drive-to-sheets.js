@@ -53,8 +53,8 @@ async function processFile(file, accessToken, env) {
     // Make file public
     await makeFilePublic(file.id, accessToken);
 
-    // Generate public URL
-    const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
+    // Generate mobile-optimized thumbnail URL (800px width)
+    const publicUrl = `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`;
 
     // Update Google Sheets
     await updateSheets(businessName, publicUrl, accessToken, env.SHEETS_ID);
