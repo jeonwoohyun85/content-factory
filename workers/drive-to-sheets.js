@@ -171,10 +171,10 @@ function pemToArrayBuffer(pem) {
 }
 
 async function getRecentDriveFiles(accessToken, folderId, logs = []) {
-  // Step 1: Find all subdirectories under콘텐츠팩토리 (business name folders)
+  // Simplified: Just get business folders, don't recurse
   const foldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${folderId}' in parents and trashed = false`;
 
-  logs.push(`Searching folders with query: ${foldersQuery}`);
+  logs.push(`Searching business folders...`);
 
   const foldersResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(foldersQuery)}&fields=files(id,name)`,
@@ -183,90 +183,70 @@ async function getRecentDriveFiles(accessToken, folderId, logs = []) {
     }
   );
 
-  logs.push(`Drive API Response Status: ${foldersResponse.status}`);
-
   const foldersData = await foldersResponse.json();
   const businessFolders = foldersData.files || [];
 
   logs.push(`Found ${businessFolders.length} business folders`);
 
   if (businessFolders.length === 0) {
-    logs.push('No business folders found');
     if (foldersData.error) {
-      logs.push(`Google Drive API Error: ${JSON.stringify(foldersData.error)}`);
-    } else {
-      logs.push(`Full response: ${JSON.stringify(foldersData)}`);
+      logs.push(`Error: ${foldersData.error.message}`);
     }
-  } else {
-    businessFolders.forEach(f => logs.push(`  - ${f.name} (${f.id})`));
+    return [];
   }
 
-  // Step 2: For each business folder, find all image files recursively
+  // For each business folder, find INFO subfolder
   const allFiles = [];
 
   for (const businessFolder of businessFolders) {
-    console.log(`Searching in folder: ${businessFolder.name}`);
-    const images = await getImagesInFolder(businessFolder.id, businessFolder.name, accessToken);
-    allFiles.push(...images);
-  }
+    logs.push(`Checking ${businessFolder.name}...`);
 
-  console.log(`Found ${allFiles.length} total image files`);
+    // Find "Info" subfolder
+    const infoQuery = `mimeType = 'application/vnd.google-apps.folder' and name = 'Info' and '${businessFolder.id}' in parents and trashed = false`;
 
-  return allFiles;
-}
-
-async function getImagesInFolder(folderId, businessName, accessToken) {
-  const images = [];
-
-  // Find all files (images and folders) in this folder
-  const query = `'${folderId}' in parents and trashed = false`;
-
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,parents)`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    }
-  );
-
-  const data = await response.json();
-  const files = data.files || [];
-
-  for (const file of files) {
-    if (file.mimeType === 'application/vnd.google-apps.folder') {
-      // Recursively search subfolders
-      const subImages = await getImagesInFolder(file.id, businessName, accessToken);
-      images.push(...subImages);
-    } else if (file.mimeType.startsWith('image/')) {
-      // Image file found
-      const path = await getFilePath(file, accessToken);
-      images.push({ ...file, path });
-      console.log(`Found image: ${path}`);
-    }
-  }
-
-  return images;
-}
-
-async function getFilePath(file, accessToken) {
-  const pathParts = [file.name];
-  let currentParents = file.parents || [];
-
-  while (currentParents.length > 0) {
-    const parentId = currentParents[0];
-
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${parentId}?fields=name,parents`,
+    const infoResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(infoQuery)}&fields=files(id,name)`,
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
 
-    const parentData = await response.json();
-    pathParts.unshift(parentData.name);
-    currentParents = parentData.parents || [];
+    const infoData = await infoResponse.json();
+    const infoFolders = infoData.files || [];
+
+    if (infoFolders.length === 0) {
+      logs.push(`  No Info folder found`);
+      continue;
+    }
+
+    const infoFolder = infoFolders[0];
+    logs.push(`  Found Info folder: ${infoFolder.id}`);
+
+    // Get all images in Info folder
+    const imagesQuery = `mimeType contains 'image/' and '${infoFolder.id}' in parents and trashed = false`;
+
+    const imagesResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imagesQuery)}&fields=files(id,name)&pageSize=100`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
+
+    const imagesData = await imagesResponse.json();
+    const images = imagesData.files || [];
+
+    logs.push(`  Found ${images.length} images`);
+
+    images.forEach(img => {
+      allFiles.push({
+        ...img,
+        businessName: businessFolder.name,
+        path: `/콘텐츠팩토리/${businessFolder.name}/Info/${img.name}`
+      });
+    });
   }
 
-  return '/' + pathParts.join('/');
+  return allFiles;
 }
 
 function extractBusinessNameFromPath(path) {
