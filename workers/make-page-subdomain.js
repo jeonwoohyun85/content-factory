@@ -153,7 +153,12 @@ function generateClientPage(client) {
   const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(getLinkInfo).filter(l => l);
 
   // Info 이미지 파싱 (쉼표 구분)
-  const infoImages = (client.info_images || '').split(',').map(i => i.trim()).filter(i => i);
+  let infoImages = (client.info_images || '').split(',').map(i => i.trim()).filter(i => i);
+
+  // 랜덤으로 섞고 최대 6개만 선택
+  if (infoImages.length > 6) {
+    infoImages = infoImages.sort(() => Math.random() - 0.5).slice(0, 6);
+  }
 
   // 전화번호 링크 추가
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
@@ -310,8 +315,15 @@ function generateClientPage(client) {
         /* Gallery Section */
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
         }
 
         .gallery-item {
