@@ -1,0 +1,41 @@
+name = "make-page-subdomain"
+main = "make-page-subdomain.js"
+compatibility_date = "2024-01-01"
+account_id = "73506724e3c7dd97bc939983761a90cf"
+
+# Production (default)
+routes = [
+  { pattern = "make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" },
+  { pattern = "*.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" }
+]
+
+# Cloudflare Cron + Queue 시스템 (2026-01-20)
+# Workers Paid 플랜 - Queue 사용 가능
+[triggers]
+crons = ["*/10 * * * *"]
+
+# Queue 바인딩 (포스팅 실패 시 재시도)
+[[queues.producers]]
+queue = "posting-queue"
+binding = "POSTING_QUEUE"
+
+[vars]
+API_BASE_URL = "https://caps-chatbot.fly.dev"
+
+# Staging 환경
+[env.staging]
+routes = [
+  { pattern = "staging.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" },
+  { pattern = "*.staging.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" }
+]
+
+[env.staging.triggers]
+crons = []  # Staging Cron 비활성화 (프로덕션 영향 방지)
+
+[env.staging.vars]
+API_BASE_URL = "https://caps-staging.fly.dev"
+
+# 환경 변수 (Cloudflare Dashboard에서 설정 필요)
+# ANTHROPIC_API_KEY: Claude API 키 (번역 자동 생성용)
+# SUPABASE_SERVICE_KEY: Supabase service_role 키
+# SUPABASE_URL: Supabase 프로젝트 URL

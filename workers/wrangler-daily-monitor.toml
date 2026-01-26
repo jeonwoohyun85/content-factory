@@ -1,0 +1,7 @@
+name = "daily-monitor"
+main = "daily-monitor.js"
+compatibility_date = "2024-01-01"
+
+# 매 시간 정각
+[triggers]
+crons = ["0 * * * *"]

@@ -1,0 +1,14 @@
+name = "posting-queue-consumer"
+main = "posting-queue-consumer.js"
+compatibility_date = "2024-01-01"
+account_id = "73506724e3c7dd97bc939983761a90cf"
+
+[[queues.consumers]]
+queue = "posting-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "posting-queue-dlq"
+
+[vars]
+API_BASE_URL = "https://caps-chatbot.fly.dev"

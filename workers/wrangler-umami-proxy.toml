@@ -1,0 +1,7 @@
+name = "umami-proxy"
+main = "umami-proxy.js"
+compatibility_date = "2024-01-01"
+
+routes = [
+  { pattern = "analytics.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" }
+]
