@@ -35,22 +35,33 @@
 
 **활성 인프라**:
 - Google Sheets (거래처 데이터베이스) ✅ Service Account 자동화
-- Cloudflare Workers (서브도메인 핸들링)
+- Google Drive (사진 저장소) ✅ Info 폴더 자동 감지
+- Cloudflare Workers ✅ 최종 확정
+  - make-page-subdomain (526줄) - 거래처 페이지 생성
+  - drive-to-sheets (380줄) - Drive → Sheets 자동화
+  - umami-proxy (79줄) - 나중에 사용 예정
 - Cloudflare (CDN, 보안, DNS)
 - GitHub (content-factory-new 레포)
 - GitHub Actions (자동 배포)
 
 **폐기된 시스템** (2026-01-27):
-- **Supabase** → 폐기 (Google Sheets로 대체, 관리 복잡도 문제)
-  - ContentFactory 프로젝트 (rhgfhfmerewwodctuoyh) - 유지 (데이터 백업용)
+- **Firebase Hosting/Functions** → 폐기 확정
+- **Supabase** → 폐기 확정 (Google Sheets로 대체)
+  - ContentFactory 프로젝트 (rhgfhfmerewwodctuoyh) - 데이터 백업용만 유지
   - CAPS-Portal (tvymimryuwtgsfakuffl) - INACTIVE 상태
+- **Cloudinary** → 폐기 확정 (Google Drive로 대체)
+- **Cloudflare Workers (폐기):**
+  - daily-monitor (300줄) - 삭제 완료
+  - failed-postings-retry (172줄) - 삭제 완료
+  - token-monitor (156줄) - 삭제 완료
+  - caps-image-proxy (90줄) - 삭제 완료
+  - posting-queue-consumer (65줄) - 삭제 완료
 - **NocoDB** → 폐기 (무료 플랜 외부 DB 연결 불가, $12/월 필요)
 - **Airtable** → 시도 안 함 ($20/월 비용)
 - **Cloudways** → 폐기 확정
 - **WordPress 멀티사이트** → 폐기 확정 (복잡도 증가로 취소)
 - **SSH 서버 접속** → 폐기 확정
 - **Notion** → 폐기 (통합 연결 실패)
-- Firebase → 폐기
 - caps 레포 → 아카이빙
 
 ---
