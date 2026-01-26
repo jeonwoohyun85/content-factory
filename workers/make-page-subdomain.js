@@ -85,7 +85,14 @@ async function getClientFromSheets(clientId) {
     const csvText = await response.text();
     const clients = parseCSV(csvText);
 
-    return clients.find(client => client.subdomain === clientId);
+    return clients.find(client => {
+      // subdomain 정규화: "00001.make-page.com" → "00001"
+      let normalizedSubdomain = client.subdomain;
+      if (normalizedSubdomain.includes('.make-page.com')) {
+        normalizedSubdomain = normalizedSubdomain.replace('.make-page.com', '').replace('/', '');
+      }
+      return normalizedSubdomain === clientId;
+    });
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
     return null;
