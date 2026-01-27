@@ -485,7 +485,10 @@ async function getClientFolders(businessName, accessToken, env) {
   const subFoldersData = await subFoldersResponse.json();
   const folders = (subFoldersData.files || [])
     .map(f => f.name)
-    .filter(name => name !== 'Info' && name !== 'Video')
+    .filter(name => {
+      const lowerName = name.toLowerCase();
+      return lowerName !== 'info' && lowerName !== 'video';
+    })
     .sort();
 
   return folders;
