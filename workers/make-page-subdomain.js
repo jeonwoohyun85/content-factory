@@ -356,6 +356,89 @@ async function generatePosting(subdomain, env) {
   return await response.json();
 }
 
+// Sheet1 이름을 ContentFactory로 변경
+async function renameSheet1(env) {
+  const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+
+  // JWT 생성
+  const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const now = Math.floor(Date.now() / 1000);
+  const jwtClaimSet = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+
+  const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
+  const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
+
+  // Sign JWT
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToArrayBuffer(serviceAccount.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    privateKey,
+    new TextEncoder().encode(signatureInput)
+  );
+
+  const jwtSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const jwt = `${signatureInput}.${jwtSignature}`;
+
+  // Get access token
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  });
+
+  const tokenData = await tokenResponse.json();
+  const accessToken = tokenData.access_token;
+
+  // Sheet1의 sheetId는 0 (첫 번째 시트)
+  const updateResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: [{
+          updateSheetProperties: {
+            properties: {
+              sheetId: 0,
+              title: 'ContentFactory'
+            },
+            fields: 'title'
+          }
+        }]
+      })
+    }
+  );
+
+  const updateData = await updateResponse.json();
+
+  if (!updateResponse.ok) {
+    throw new Error(`Failed to rename sheet: ${JSON.stringify(updateData)}`);
+  }
+
+  return {
+    success: true,
+    message: 'Sheet1 renamed to ContentFactory'
+  };
+}
+
 // 기존 CSV 파싱 코드 제거
 async function getRecentPostsOLD_CSV(subdomain) {
   try {
@@ -1254,10 +1337,9 @@ export default {
       // Rename Sheet1 to ContentFactory
       if (pathname === '/rename-sheet1') {
         try {
-          const response = await fetch('https://posting-generator.jeonwoohyun85.workers.dev/rename-sheet1');
-          const result = await response.json();
+          const result = await renameSheet1(env);
           return new Response(JSON.stringify(result), {
-            status: response.ok ? 200 : 500,
+            status: 200,
             headers: { 'Content-Type': 'application/json' }
           });
         } catch (error) {
