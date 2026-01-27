@@ -85,17 +85,36 @@ async function getClientFromSheets(clientId) {
     const csvText = await response.text();
     const clients = parseCSV(csvText);
 
-    return clients.find(client => {
+    const client = clients.find(c => {
       // subdomain 정규화: "00001.make-page.com" → "00001"
-      let normalizedSubdomain = client.subdomain;
+      let normalizedSubdomain = c.subdomain;
       if (normalizedSubdomain.includes('.make-page.com')) {
         normalizedSubdomain = normalizedSubdomain.replace('.make-page.com', '').replace('/', '');
       }
       return normalizedSubdomain === clientId;
     });
+
+    // Posts 조회 추가
+    if (client) {
+      client.posts = await getRecentPosts(clientId);
+    }
+
+    return client;
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
     return null;
+  }
+}
+
+// Posts 시트에서 최근 포스팅 3개 조회
+async function getRecentPosts(subdomain) {
+  try {
+    // Posts 시트는 gid가 다를 수 있으므로 시트 이름으로 조회 불가
+    // 일단 빈 배열 반환 (Posts 시트 생성 후 구현)
+    return [];
+  } catch (error) {
+    console.error('Posts fetch error:', error);
+    return [];
   }
 }
 
@@ -213,6 +232,9 @@ function generateClientPage(client) {
 
   // Video 파싱 (쉼표 구분)
   const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v);
+
+  // Posts 파싱 (최근 3개)
+  const posts = (client.posts || []).slice(0, 3);
 
   // 전화번호 링크 추가
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
@@ -424,6 +446,46 @@ function generateClientPage(client) {
             border: 0;
         }
 
+        /* Posts Section */
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 24px;
+        }
+
+        .post-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 24px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .post-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .post-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .post-body {
+            font-size: 15px;
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .post-date {
+            font-size: 13px;
+            color: #a0aec0;
+        }
+
         @media (min-width: 768px) {
             .contact-info {
                 flex-direction: row;
@@ -540,6 +602,9 @@ function generateClientPage(client) {
 
     <!-- Video Section -->
     ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
+
+    <!-- Posts Section -->
+    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(post.created_at || '') + '</time></article>').join('') + '</div></section>' : ''}
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
