@@ -223,6 +223,12 @@ ${trendsData}
   );
 
   const data = await response.json();
+
+  // 응답 검증
+  if (!data.candidates || data.candidates.length === 0) {
+    throw new Error(`Gemini API error: ${JSON.stringify(data)}`);
+  }
+
   const text = data.candidates[0].content.parts[0].text;
 
   // JSON 파싱
