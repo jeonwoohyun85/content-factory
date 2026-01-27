@@ -1233,33 +1233,49 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     // 삭제할 행 찾기
     let deleteRowIndex = -1;
+    let minTimeDiff = Infinity;
     
-    // 비교를 위해 숫자만 추출하는 함수 (YYYYMMDDHHmmss)
-    const toNumericString = (str) => String(str).replace(/[^0-9]/g, '').substring(0, 14); // 초 단위까지만
+    // 타겟 날짜 (요청받은 날짜)
+    const targetDate = new Date(createdAt);
+    const targetTime = targetDate.getTime();
 
-    const targetNumeric = toNumericString(createdAt);
+    // 유효하지 않은 날짜 요청이면 중단
+    if (isNaN(targetTime)) {
+      return { success: false, error: '잘못된 날짜 형식입니다' };
+    }
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const rowSubdomain = String(row[subdomainIndex] || '').trim();
       const targetSubdomain = String(subdomain || '').trim();
       
+      // 서브도메인 불일치 시 패스
       if (rowSubdomain !== targetSubdomain) continue;
 
       const rowDateString = row[createdAtIndex];
-      const rowNumeric = toNumericString(rowDateString);
+      const rowDate = new Date(rowDateString);
+      const rowTime = rowDate.getTime();
 
-      // 1. 숫자만 추출해서 비교 (가장 확실)
-      if (rowNumeric === targetNumeric) {
+      // 날짜 파싱 가능한 경우 시간 차이 계산
+      if (!isNaN(rowTime)) {
+        const diff = Math.abs(rowTime - targetTime);
+        
+        // 1분(60000ms) 이내의 오차 중 가장 가까운 것 선택
+        if (diff < 60000 && diff < minTimeDiff) {
+          minTimeDiff = diff;
+          deleteRowIndex = i + 1;
+        }
+      } 
+      // 날짜 파싱 실패 시 문자열 단순 비교 (백업)
+      else if (rowDateString === createdAt) {
         deleteRowIndex = i + 1;
-        break;
+        minTimeDiff = 0;
+        break; 
       }
-      
-      // 2. 혹시 초 단위가 다를 수 있으니 분 단위까지만 비교 (앞 12자리)
-      if (rowNumeric.substring(0, 12) === targetNumeric.substring(0, 12)) {
-        deleteRowIndex = i + 1;
-        break;
-      }
+    }
+
+    if (deleteRowIndex === -1) {
+      return { success: false, error: `삭제할 포스트를 찾지 못했습니다. (요청: ${createdAt})` };
     }
 
     if (deleteRowIndex === -1) {
