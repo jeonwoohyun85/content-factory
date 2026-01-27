@@ -152,6 +152,50 @@ function getLinkInfo(url) {
   return { icon: '🔗', text: '링크', url };
 }
 
+// 영상 URL을 임베드 형식으로 변환
+function convertToEmbedUrl(url) {
+  if (!url) return null;
+
+  url = url.trim();
+
+  // YouTube
+  if (url.includes('youtube.com/watch?v=')) {
+    const videoId = url.split('v=')[1].split('&')[0];
+    return `https://www.youtube.com/embed/${videoId}`;
+  }
+  if (url.includes('youtu.be/')) {
+    const videoId = url.split('youtu.be/')[1].split('?')[0];
+    return `https://www.youtube.com/embed/${videoId}`;
+  }
+
+  // Google Drive
+  if (url.includes('drive.google.com/file/d/')) {
+    const fileId = url.split('/d/')[1].split('/')[0];
+    return `https://drive.google.com/file/d/${fileId}/preview`;
+  }
+
+  // TikTok
+  if (url.includes('tiktok.com')) {
+    // TikTok embed format varies, try to extract video ID
+    const match = url.match(/video\/(\d+)/);
+    if (match) {
+      return `https://www.tiktok.com/embed/v2/${match[1]}`;
+    }
+  }
+
+  // Instagram
+  if (url.includes('instagram.com')) {
+    // Instagram embed: /p/ or /reel/
+    if (url.includes('/p/') || url.includes('/reel/')) {
+      const cleanUrl = url.split('?')[0];
+      return `${cleanUrl}embed/`;
+    }
+  }
+
+  // Already embed format or unknown
+  return url;
+}
+
 // ==================== 페이지 생성 ====================
 
 // 거래처 페이지 생성
@@ -166,6 +210,9 @@ function generateClientPage(client) {
   if (infoImages.length > 6) {
     infoImages = infoImages.sort(() => Math.random() - 0.5).slice(0, 6);
   }
+
+  // Video 파싱 (쉼표 구분)
+  const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v);
 
   // 전화번호 링크 추가
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
@@ -346,6 +393,40 @@ function generateClientPage(client) {
             display: block;
         }
 
+        /* Video Section */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+            .video-grid {
+                grid-template-columns: repeat(2, 1fr);
+                max-width: 1200px;
+            }
+        }
+
+        .video-item {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 비율 (모바일 최적화) */
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .video-item iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
         /* Footer */
         footer {
             background: #2d3748;
@@ -492,6 +573,9 @@ function generateClientPage(client) {
 
     <!-- Info Section -->
     ${infoImages.length > 0 ? '<section><h2 class="section-title">Info</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="Info" class="gallery-image"></div>').join('') + '</div></section>' : ''}
+
+    <!-- Video Section -->
+    ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
 
     <!-- Footer -->
     <footer>
