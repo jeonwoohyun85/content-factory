@@ -481,6 +481,19 @@ function generatePostPage(client, post) {
                 font-size: 16px;
             }
         }
+
+        .password-modal { display: none; position: fixed; z-index: 10000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; }
+        .password-modal.active { display: flex; }
+        .password-modal-content { background: #fff; padding: 32px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; }
+        .password-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+        .password-input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 16px; margin-bottom: 16px; }
+        .password-buttons { display: flex; gap: 12px; }
+        .password-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .password-btn-confirm { background: #ef4444; color: #fff; }
+        .password-btn-confirm:hover { background: #dc2626; }
+        .password-btn-cancel { background: #e2e8f0; color: #333; }
+        .password-btn-cancel:hover { background: #cbd5e1; }
+        .post-delete-trigger { color: #ef4444; font-size: 14px; background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
     </style>
 </head>
 <body>
@@ -493,6 +506,8 @@ function generatePostPage(client, post) {
                 <span>${escapeHtml(client.business_name)}</span>
                 <span>•</span>
                 <time>${escapeHtml(formatKoreanTime(post.created_at))}</time>
+                <span>•</span>
+                <button class="post-delete-trigger" onclick="openPasswordModal()">삭제</button>
             </div>
         </div>
 
@@ -500,6 +515,74 @@ function generatePostPage(client, post) {
             ${contentHtml}
         </div>
     </div>
+
+    <!-- Password Modal -->
+    <div id="password-modal" class="password-modal" style="display: none; position: fixed; z-index: 10000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center;">
+        <div class="password-modal-content" style="background: #fff; padding: 32px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center;">
+            <h3 class="password-modal-title" style="font-size: 20px; font-weight: 700; margin-bottom: 16px;">포스트 삭제</h3>
+            <input type="password" id="password-input" class="password-input" placeholder="비밀번호 입력">
+            <div class="password-buttons">
+                <button class="password-btn password-btn-cancel" onclick="closePasswordModal()">취소</button>
+                <button class="password-btn password-btn-confirm" onclick="confirmDelete()">삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openPasswordModal() {
+            document.getElementById('password-modal').style.display = 'flex';
+            document.getElementById('password-input').value = '';
+            document.getElementById('password-input').focus();
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').style.display = 'none';
+        }
+
+        async function confirmDelete() {
+            const password = document.getElementById('password-input').value;
+            
+            if (!password) {
+                alert('비밀번호를 입력하세요');
+                return;
+            }
+
+            try {
+                const response = await fetch('/delete-post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subdomain: '${escapeHtml(client.subdomain)}',
+                        created_at: '${escapeHtml(post.created_at)}',
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('포스트가 삭제되었습니다');
+                    window.location.href = '/';
+                } else {
+                    alert(result.error || '삭제 실패');
+                }
+            } catch (error) {
+                alert('삭제 중 오류 발생');
+            }
+
+            closePasswordModal();
+        }
+
+        // ESC 키로 닫기
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closePasswordModal();
+        });
+
+        // 엔터키로 삭제 확인
+        document.getElementById('password-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') confirmDelete();
+        });
+    </script>
 </body>
 </html>`;
 }
@@ -1000,7 +1083,7 @@ function generateClientPage(client) {
     ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
 
     <!-- Posts Section -->
-    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><button class="post-delete-btn" onclick="openPasswordModal(\'' + escapeHtml(post.created_at) + '\')">×</button><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
+    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
@@ -1012,22 +1095,11 @@ function generateClientPage(client) {
         <span class="lightbox-nav lightbox-next" onclick="event.stopPropagation(); nextImage()">&#10095;</span>
     </div>
 
-    <!-- Password Modal -->
-    <div id="password-modal" class="password-modal">
-        <div class="password-modal-content">
-            <h3 class="password-modal-title">포스트 삭제</h3>
-            <input type="password" id="password-input" class="password-input" placeholder="비밀번호 입력">
-            <div class="password-buttons">
-                <button class="password-btn password-btn-cancel" onclick="closePasswordModal()">취소</button>
-                <button class="password-btn password-btn-confirm" onclick="confirmDelete()">삭제</button>
-            </div>
-        </div>
-    </div>
+
 
     <script>
         const infoImages = ${JSON.stringify(infoImages)};
         let currentImageIndex = 0;
-        let deletePostId = null;
 
         function openLightbox(index) {
             currentImageIndex = index;
@@ -1051,67 +1123,13 @@ function generateClientPage(client) {
             document.getElementById('lightbox-image').src = infoImages[currentImageIndex];
         }
 
-        function openPasswordModal(postId) {
-            deletePostId = postId;
-            document.getElementById('password-modal').classList.add('active');
-            document.getElementById('password-input').value = '';
-            document.getElementById('password-input').focus();
-        }
-
-        function closePasswordModal() {
-            document.getElementById('password-modal').classList.remove('active');
-            deletePostId = null;
-        }
-
-        async function confirmDelete() {
-            const password = document.getElementById('password-input').value;
-            
-            if (!password) {
-                alert('비밀번호를 입력하세요');
-                return;
-            }
-
-            try {
-                const response = await fetch('/delete-post', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        subdomain: '${escapeHtml(client.subdomain)}',
-                        created_at: deletePostId,
-                        password: password
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    alert('포스트가 삭제되었습니다');
-                    location.reload();
-                } else {
-                    alert(result.error || '삭제 실패');
-                }
-            } catch (error) {
-                alert('삭제 중 오류 발생');
-            }
-
-            closePasswordModal();
-        }
-
         // ESC 키로 닫기
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeLightbox();
-                closePasswordModal();
             }
             if (e.key === 'ArrowRight') nextImage();
             if (e.key === 'ArrowLeft') prevImage();
-        });
-
-        // 엔터키로 삭제 확인
-        document.getElementById('password-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                confirmDelete();
-            }
         });
     </script>
 </body>
