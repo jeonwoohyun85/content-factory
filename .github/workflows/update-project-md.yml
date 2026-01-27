@@ -1,4 +1,4 @@
-name: Update PROJECT.md
+name: 프로젝트 히스토리 자동 업데이트
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 jobs:
   update-project-md:
     runs-on: ubuntu-latest
+    name: PROJECT.md 업데이트 작업
     permissions:
       contents: write
     steps:
@@ -15,7 +16,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Extract commit info
+      - name: 커밋 정보 추출
         id: commit
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
@@ -27,28 +28,27 @@ jobs:
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           echo "date=$COMMIT_DATE" >> $GITHUB_OUTPUT
 
-      - name: Update PROJECT.md
+      - name: PROJECT.md 파일 업데이트
         if: steps.commit.outputs.category != 'other'
         run: |
           CATEGORY="${{ steps.commit.outputs.category }}"
           TITLE="${{ steps.commit.outputs.title }}"
           DATE="${{ steps.commit.outputs.date }}"
 
-          # 카테고리별 아이콘
-          case $CATEGORY in
+          case "$CATEGORY" in
             feature) ICON="✨" ;;
-            bugfix) ICON="🐛" ;;
-            deprecate) ICON="❌" ;;
+            fix) ICON="🐛" ;;
+            refactor) ICON="♻️" ;;
+            deprecate) ICON="🗑️" ;;
             improvement) ICON="⚡" ;;
             security) ICON="🔒" ;;
             performance) ICON="🚀" ;;
             deployment) ICON="📦" ;;
-            infra) ICON="🔧" ;;
+            infra) ICON="🏗️" ;;
             docs) ICON="📝" ;;
-            *) ICON="📌" ;;
+            *) ICON="🔹" ;;
           esac
 
-          # PROJECT.md가 없으면 생성
           if [ ! -f PROJECT.md ]; then
             echo "# CAPS Project History" > PROJECT.md
             echo "" >> PROJECT.md
@@ -56,15 +56,11 @@ jobs:
             echo "" >> PROJECT.md
           fi
 
-          # 새 엔트리 추가
           ENTRY="- **$DATE** $ICON [$CATEGORY] $TITLE"
-
-          # "## Development Log" 다음 줄에 추가
           sed -i "/## Development Log/a\\
-          \\
           $ENTRY" PROJECT.md
 
-      - name: Commit changes
+      - name: 변경사항 커밋
         if: steps.commit.outputs.category != 'other'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -72,7 +68,7 @@ jobs:
           git add PROJECT.md
           git diff --staged --quiet || git commit -m "docs: Update PROJECT.md [skip ci]"
 
-      - name: Push changes
+      - name: 변경사항 푸시
         if: steps.commit.outputs.category != 'other'
         uses: ad-m/github-push-action@master
         with:
