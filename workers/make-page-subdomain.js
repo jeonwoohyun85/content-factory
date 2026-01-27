@@ -1894,6 +1894,57 @@ function getNextFolderForPosting(folders, lastFolder) {
 async function saveToPostsSheetForPosting(client, postData, folderName, images, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
 
+  // 1. 기존 포스트 삭제 (Retention Policy: Keep only latest post)
+  try {
+    // A열(subdomain)만 조회하여 삭제할 행 식별
+    const readResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:A`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const readData = await readResponse.json();
+    const rows = readData.values || [];
+    const rangesToDelete = [];
+
+    // 헤더(index 0) 제외하고 검색
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === client.subdomain) {
+        rangesToDelete.push({
+          sheetId: 1895987712, // Posts Sheet GID (Production)
+          dimension: 'ROWS',
+          startIndex: i,
+          endIndex: i + 1
+        });
+      }
+    }
+
+    // 인덱스 밀림 방지를 위해 역순 정렬 (뒤에서부터 삭제)
+    rangesToDelete.sort((a, b) => b.startIndex - a.startIndex);
+
+    if (rangesToDelete.length > 0) {
+      const requests = rangesToDelete.map(range => ({
+        deleteDimension: { range }
+      }));
+
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ requests })
+        }
+      );
+      console.log(`Deleted ${rangesToDelete.length} old posts for ${client.subdomain}`);
+    }
+  } catch (error) {
+    console.error('Error deleting old posts:', error);
+    // 삭제 실패해도 진행 (새 포스트가 우선)
+  }
+
+  // 2. 새 포스트 추가
   const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
 
   const now = new Date();
