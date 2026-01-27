@@ -415,6 +415,125 @@ function convertToEmbedUrl(url) {
 
 // ==================== 페이지 생성 ====================
 
+// 포스트 상세 페이지 생성
+function generatePostPage(client, post) {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>${escapeHtml(post.title)} - ${escapeHtml(client.business_name)}</title>
+    <meta name="description" content="${escapeHtml((post.body || '').substring(0, 160))}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", "Segoe UI", Roboto, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: #f9fafb;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-bottom: 24px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .back-button:hover {
+            text-decoration: underline;
+        }
+
+        .post-header {
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .post-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+
+        .post-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 14px;
+            color: #a0aec0;
+        }
+
+        .post-content {
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .post-body {
+            font-size: 17px;
+            color: #333;
+            line-height: 1.8;
+            white-space: pre-wrap;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+
+            .post-header, .post-content {
+                padding: 24px;
+            }
+
+            .post-title {
+                font-size: 24px;
+            }
+
+            .post-body {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← ${escapeHtml(client.business_name)} 홈으로</a>
+
+        <div class="post-header">
+            <h1 class="post-title">${escapeHtml(post.title)}</h1>
+            <div class="post-meta">
+                <span>${escapeHtml(client.business_name)}</span>
+                <span>•</span>
+                <time>${escapeHtml(formatKoreanTime(post.created_at))}</time>
+            </div>
+        </div>
+
+        <div class="post-content">
+            <div class="post-body">${escapeHtml(post.body || '')}</div>
+        </div>
+    </div>
+</body>
+</html>`;
+}
+
 // 거래처 페이지 생성
 function generateClientPage(client) {
   // Links 파싱 (쉼표 구분)
@@ -802,7 +921,7 @@ function generateClientPage(client) {
     ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
 
     <!-- Posts Section -->
-    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></article>').join('') + '</div></section>' : ''}
+    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<a href="/post" style="text-decoration: none; color: inherit;"><article class="post-card"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></article></a>').join('') + '</div></section>' : ''}
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
@@ -966,6 +1085,17 @@ export default {
       // 비활성 거래처는 표시 안함
       if (client.status !== 'active') {
         return new Response('This page is inactive', { status: 403 });
+      }
+
+      // 포스트 상세 페이지
+      if (pathname === '/post' && client.posts && client.posts.length > 0) {
+        const post = client.posts[0];
+        return new Response(generatePostPage(client, post), {
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=300'
+          }
+        });
       }
 
       // 거래처 페이지 생성
