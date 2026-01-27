@@ -77,6 +77,15 @@ async function generatePostingForClient(subdomain, env) {
     const nextFolder = getNextFolder(folders, lastUsedFolder);
     logs.push(`선택된 폴더: ${nextFolder}`);
 
+    // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
+    logs.push('폴더 내 이미지 조회 중...');
+    const images = await getFolderImages(client.business_name, nextFolder, accessToken, env);
+    logs.push(`이미지 ${images.length}개 발견`);
+
+    if (images.length === 0) {
+      return { success: false, error: 'No images found in folder', logs };
+    }
+
     // Step 2: 웹 검색 (Gemini 2.5 Flash)
     logs.push('웹 검색 시작...');
     const trendsData = await searchWithGemini(client, env);
@@ -84,7 +93,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 3: 포스팅 생성 (Gemini 3.0 Pro)
     logs.push('포스팅 생성 시작...');
-    const postData = await generatePostWithGemini(client, trendsData, env);
+    const postData = await generatePostWithGemini(client, trendsData, images, env);
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
     // Step 4: Posts 시트에 저장
@@ -166,7 +175,7 @@ async function searchWithGemini(client, env) {
 [업종] ${client.business_name}
 [언어] ${client.language}
 
-다음 정보를 500자 이내로 작성:
+다음 정보를 1000자 이내로 작성:
 1. ${client.language} 시장의 최신 트렌드
 2. 검색 키워드 상위 5개
 3. 소비자 관심사
@@ -196,7 +205,7 @@ async function searchWithGemini(client, env) {
 }
 
 // Gemini 3.0 Pro로 포스팅 생성
-async function generatePostWithGemini(client, trendsData, env) {
+async function generatePostWithGemini(client, trendsData, images, env) {
   const prompt = `
 [거래처 정보]
 - 업체명: ${client.business_name}
@@ -206,12 +215,17 @@ async function generatePostWithGemini(client, trendsData, env) {
 [트렌드 정보]
 ${trendsData}
 
+[제공된 이미지]
+업로드된 ${images.length}장의 이미지를 참고하여 작성하세요.
+이미지에서 보이는 내용(메뉴, 인테리어, 분위기 등)을 자연스럽게 본문에 녹여내세요.
+
 [작성 규칙]
 1. 제목: 완전 자유 창작 (제한 없음)
-2. 본문: 2000~2500자
+2. 본문: 3000~3500자
 3. 금지어: 최고, 1등, 유일, 검증된
 4. 금지 창작: 경력, 학력, 자격증, 수상
 5. description 내용을 자연스럽게 포함 (필수)
+6. 이미지 내용을 구체적으로 언급 (색상, 분위기, 특징 등)
 
 출력 형식 (JSON):
 {
@@ -220,6 +234,18 @@ ${trendsData}
 }
 `;
 
+  // parts 배열 구성: 텍스트 프롬프트 + 이미지들
+  const parts = [{ text: prompt }];
+
+  for (const image of images) {
+    parts.push({
+      inline_data: {
+        mime_type: image.mimeType,
+        data: image.data
+      }
+    });
+  }
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -227,7 +253,7 @@ ${trendsData}
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: prompt }]
+          parts: parts
         }],
         generationConfig: {
           temperature: 0.8,
@@ -356,6 +382,75 @@ async function getGoogleAccessToken(env) {
 
   const tokenData = await tokenResponse.json();
   return tokenData.access_token;
+}
+
+// 선택된 폴더에서 모든 이미지 파일 가져오기
+async function getFolderImages(businessName, folderName, accessToken, env) {
+  const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
+
+  // 1. 거래처 폴더 찾기
+  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+
+  const businessFolderResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const businessFolderData = await businessFolderResponse.json();
+  if (!businessFolderData.files || businessFolderData.files.length === 0) {
+    return [];
+  }
+
+  const businessFolderId = businessFolderData.files[0].id;
+
+  // 2. 타겟 폴더 찾기
+  const targetFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' and '${businessFolderId}' in parents and trashed = false`;
+
+  const targetFolderResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(targetFolderQuery)}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const targetFolderData = await targetFolderResponse.json();
+  if (!targetFolderData.files || targetFolderData.files.length === 0) {
+    return [];
+  }
+
+  const targetFolderId = targetFolderData.files[0].id;
+
+  // 3. 폴더 내 이미지 파일 조회
+  const imagesQuery = `mimeType contains 'image/' and '${targetFolderId}' in parents and trashed = false`;
+
+  const imagesResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imagesQuery)}&fields=files(id,name,mimeType)&pageSize=100`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const imagesData = await imagesResponse.json();
+  const imageFiles = imagesData.files || [];
+
+  // 4. 각 이미지 다운로드 및 Base64 인코딩
+  const images = [];
+  for (const file of imageFiles) {
+    try {
+      const imageResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+      images.push({
+        mimeType: file.mimeType,
+        data: base64
+      });
+    } catch (error) {
+      console.error(`Failed to download image ${file.name}:`, error);
+    }
+  }
+
+  return images;
 }
 
 // Google Drive에서 거래처 폴더의 하위 폴더 목록 조회 (Info, Video 제외)
