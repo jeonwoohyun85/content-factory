@@ -288,6 +288,16 @@ function extractBusinessNameFromPath(path) {
   return null;
 }
 
+// Convert column index to letter (0=A, 1=B, ..., 25=Z, 26=AA, 27=AB, ...)
+function indexToColumnLetter(index) {
+  let letter = '';
+  while (index >= 0) {
+    letter = String.fromCharCode((index % 26) + 65) + letter;
+    index = Math.floor(index / 26) - 1;
+  }
+  return letter;
+}
+
 async function makeFilePublic(fileId, accessToken) {
   await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
@@ -326,19 +336,32 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
     const rows = getData.values || [];
     logs.push(`  Found ${rows.length} rows`);
 
+    // Parse header to find column indices
+    const headers = rows[0] || [];
+    const infoImagesIndex = headers.indexOf('info_images');
+    const businessNameIndex = headers.indexOf('business_name');
+    const subdomainIndex = headers.indexOf('subdomain');
+
+    if (infoImagesIndex === -1) {
+      logs.push(`  Error: info_images column not found in headers`);
+      return { success: false, error: 'info_images column not found' };
+    }
+
+    logs.push(`  info_images column found at index ${infoImagesIndex}`);
+
     // Find row with matching business_name
     let rowIndex = -1;
     let currentImages = '';
     let matchedBusinessName = '';
 
     for (let i = 1; i < rows.length; i++) { // Skip header
-      const rowBusinessName = rows[i][1]; // Column B = business_name
-      const rowSubdomain = rows[i][0]; // Column A = subdomain
+      const rowBusinessName = rows[i][businessNameIndex] || '';
+      const rowSubdomain = rows[i][subdomainIndex] || '';
 
       // Match by business_name OR subdomain
       if (rowBusinessName === businessName || rowSubdomain === businessName) {
         rowIndex = i + 1; // Sheet rows are 1-indexed
-        currentImages = rows[i][8] || ''; // Column I = info_images
+        currentImages = rows[i][infoImagesIndex] || '';
         matchedBusinessName = rowBusinessName || rowSubdomain;
         logs.push(`  Matched row ${rowIndex}: ${matchedBusinessName}`);
         break;
@@ -361,11 +384,13 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
       ? `${currentImages},${publicUrl}`
       : publicUrl;
 
-    logs.push(`  Updating I${rowIndex}...`);
+    // Convert column index to letter (0=A, 1=B, ..., 25=Z, 26=AA, ...)
+    const columnLetter = indexToColumnLetter(infoImagesIndex);
+    logs.push(`  Updating ${columnLetter}${rowIndex}...`);
 
     // Update cell
     const updateResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!I${rowIndex}?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!${columnLetter}${rowIndex}?valueInputOption=RAW`,
       {
         method: 'PUT',
         headers: {
