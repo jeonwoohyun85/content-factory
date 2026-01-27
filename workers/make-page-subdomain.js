@@ -1388,7 +1388,7 @@ async function getClientFromSheetsForPosting(subdomain) {
 
 async function searchWithGeminiForPosting(client) {
   const prompt = `
-[업종] ${client.business_name}
+[업종] ${client.industry || client.business_name}
 [언어] ${client.language}
 
 다음 정보를 1000자 이내로 작성:
