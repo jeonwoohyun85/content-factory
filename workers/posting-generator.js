@@ -27,6 +27,25 @@ export default {
       }
     }
 
+    // Update Posts sheet header
+    if (url.pathname === '/update-posts-header' && request.method === 'GET') {
+      try {
+        const result = await updatePostsHeader(env);
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error.message,
+          stack: error.stack
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Fix Posts sheet row height
     if (url.pathname === '/fix-posts-row-height' && request.method === 'GET') {
       try {
@@ -347,6 +366,35 @@ async function fixPostsRowHeight(env) {
 }
 
 // Posts 시트 생성
+async function updatePostsHeader(env) {
+  const accessToken = await getGoogleAccessToken(env);
+
+  // H1 셀에 'images' 헤더 추가
+  const headers = [['images']];
+
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!H1?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: headers })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update header: ${errorText}`);
+  }
+
+  return {
+    success: true,
+    message: 'Posts sheet header updated with images column'
+  };
+}
+
 async function createPostsSheet(env) {
   const accessToken = await getGoogleAccessToken(env);
 
