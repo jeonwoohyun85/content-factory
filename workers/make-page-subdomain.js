@@ -1780,18 +1780,18 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
     logs.push(`10개 초과: 랜덤 ${imageFiles.length}개 선택`);
   }
 
-  const images = [];
-  for (const file of imageFiles) {
+  // 병렬 다운로드 (속도 향상)
+  const downloadPromises = imageFiles.map(async (file) => {
     try {
       logs.push(`썸네일 다운로드: ${file.name}`);
-      
+
       // Google Drive 썸네일 API 사용 (w800 크기)
       const thumbnailUrl = `https://lh3.googleusercontent.com/d/${file.id}=w800`;
       const imageResponse = await fetch(thumbnailUrl);
 
       if (!imageResponse.ok) {
         logs.push(`썸네일 다운로드 실패: ${file.name} - ${imageResponse.status}`);
-        continue;
+        return null;
       }
 
       const arrayBuffer = await imageResponse.arrayBuffer();
@@ -1805,17 +1805,21 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
       }
       const base64 = btoa(binary);
 
-      images.push({
+      logs.push(`썸네일 다운로드 완료: ${file.name}`);
+      return {
         id: file.id,
         name: file.name,
         mimeType: file.mimeType,
         data: base64
-      });
-      logs.push(`썸네일 다운로드 완료: ${file.name}`);
+      };
     } catch (error) {
       logs.push(`썸네일 다운로드 에러: ${file.name} - ${error.message}`);
+      return null;
     }
-  }
+  });
+
+  const results = await Promise.all(downloadPromises);
+  const images = results.filter(img => img !== null);
 
   logs.push(`총 ${images.length}개 이미지 다운로드 완료`);
   return images;
