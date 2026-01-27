@@ -15,7 +15,7 @@
 
 **23:30** ✨ [feature] 자동 포스팅 시스템 완성 (Scheduled Trigger)
 - Cloudflare Workers Cron Trigger 추가 (10분 주기)
-- Gemini 1.5-pro 모델 프롬프트 강화: `description` 컬럼 핵심 반영
+- Gemini API 연동: 업종 검색(2.5 Flash), 포스팅 작성(3.0 Pro)
 - 날짜 기반 Drive 폴더 우선순위 로직 추가
 
 **23:50** 📝 [docs] GitHub Actions 워크플로우 한글화
