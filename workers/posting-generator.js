@@ -27,6 +27,25 @@ export default {
       }
     }
 
+    // Fix Posts sheet row height
+    if (url.pathname === '/fix-posts-row-height' && request.method === 'GET') {
+      try {
+        const result = await fixPostsRowHeight(env);
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error.message,
+          stack: error.stack
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Manual trigger for testing
     if (request.method === 'POST') {
       try {
@@ -281,6 +300,50 @@ ${trendsData}
   }
 
   throw new Error('Failed to parse Gemini response');
+}
+
+// Posts 시트 행 높이 조정
+async function fixPostsRowHeight(env) {
+  const accessToken = await getGoogleAccessToken(env);
+
+  // Posts 시트의 모든 행 높이를 21px로 설정
+  const updateResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: [{
+          updateDimensionProperties: {
+            range: {
+              sheetId: 1895987712, // Posts 시트 ID
+              dimension: 'ROWS',
+              startIndex: 0,
+              endIndex: 1000
+            },
+            properties: {
+              pixelSize: 21
+            },
+            fields: 'pixelSize'
+          }
+        }]
+      })
+    }
+  );
+
+  const updateData = await updateResponse.json();
+
+  if (!updateResponse.ok) {
+    throw new Error(`Failed to update row height: ${JSON.stringify(updateData)}`);
+  }
+
+  return {
+    success: true,
+    message: 'Row height updated to 21px'
+  };
 }
 
 // Posts 시트 생성

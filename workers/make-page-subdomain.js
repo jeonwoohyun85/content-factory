@@ -169,8 +169,8 @@ async function getRecentPosts(subdomain) {
     // created_at 기준 내림차순 정렬 (최신순)
     posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    // 최근 3개만 반환
-    return posts.slice(0, 3);
+    // 최근 1개만 반환 (중복 방지)
+    return posts.slice(0, 1);
   } catch (error) {
     console.error('Posts fetch error:', error);
     return [];
