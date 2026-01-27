@@ -204,7 +204,7 @@ function generateClientPage(client) {
   const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(getLinkInfo).filter(l => l);
 
   // Info 이미지 파싱 (쉼표 구분)
-  let infoImages = (client.info_images || '').split(',').map(i => i.trim()).filter(i => i);
+  let infoImages = (client.info || '').split(',').map(i => i.trim()).filter(i => i);
 
   // 랜덤으로 섞고 최대 6개만 선택
   if (infoImages.length > 6) {

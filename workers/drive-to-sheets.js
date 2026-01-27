@@ -342,16 +342,16 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
     // Trim whitespace from all headers
     const trimmedHeaders = headers.map(h => (h || '').trim());
 
-    const infoImagesIndex = trimmedHeaders.indexOf('info_images');
+    const infoImagesIndex = trimmedHeaders.indexOf('info');
     const businessNameIndex = trimmedHeaders.indexOf('business_name');
     const subdomainIndex = trimmedHeaders.indexOf('subdomain');
 
     if (infoImagesIndex === -1) {
-      logs.push(`  Error: info_images column not found in headers`);
-      return { success: false, error: 'info_images column not found' };
+      logs.push(`  Error: info column not found in headers`);
+      return { success: false, error: 'info column not found' };
     }
 
-    logs.push(`  info_images column found at index ${infoImagesIndex}`);
+    logs.push(`  info column found at index ${infoImagesIndex}`);
 
     // Find row with matching business_name
     let rowIndex = -1;
@@ -413,7 +413,7 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
       return { success: false, error: `Sheets update failed: ${updateResponse.status}` };
     }
 
-    logs.push(`  Updated info_images for "${matchedBusinessName}"`);
+    logs.push(`  Updated info for "${matchedBusinessName}"`);
     return { success: true };
   } catch (error) {
     logs.push(`  Exception: ${error.message}`);
