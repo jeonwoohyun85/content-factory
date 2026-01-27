@@ -6,6 +6,5 @@ account_id = "73506724e3c7dd97bc939983761a90cf"
 [vars]
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
 
-# Secrets (Cloudflare Dashboard 또는 GitHub Actions에서 설정)
-# GEMINI_API_KEY: AIzaSyCGaxsMXJ5UvUrU9wQCOH2ou7m9TP2pB88
+# Secret (GitHub Actions에서 설정)
 # GOOGLE_SERVICE_ACCOUNT_JSON: Service Account JSON
