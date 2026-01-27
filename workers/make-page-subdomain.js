@@ -424,39 +424,6 @@ function generateClientPage(client) {
             border: 0;
         }
 
-        /* Footer */
-        footer {
-            background: #2d3748;
-            color: #fff;
-            padding: 40px 16px;
-            text-align: center;
-        }
-
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .footer-business-name {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-
-        .footer-info {
-            font-size: 14px;
-            color: #cbd5e0;
-            line-height: 1.8;
-            margin-bottom: 24px;
-        }
-
-        .footer-copyright {
-            font-size: 13px;
-            color: #a0aec0;
-            padding-top: 24px;
-            border-top: 1px solid #4a5568;
-        }
-
         @media (min-width: 768px) {
             .contact-info {
                 flex-direction: row;
@@ -573,20 +540,6 @@ function generateClientPage(client) {
 
     <!-- Video Section -->
     ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
-
-    <!-- Footer -->
-    <footer>
-        <div class="footer-content">
-            <div class="footer-business-name">${escapeHtml(client.business_name)}</div>
-            <div class="footer-info">
-                ${client.address ? escapeHtml(client.address) + '<br>' : ''}
-                ${client.phone ? '전화: ' + escapeHtml(client.phone) : ''}
-            </div>
-            <div class="footer-copyright">
-                © 2026 ${escapeHtml(client.business_name)}. All rights reserved. Powered by ContentFactory
-            </div>
-        </div>
-    </footer>
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
