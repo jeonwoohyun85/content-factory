@@ -290,9 +290,40 @@ async function updatePostsHeader(env) {
   const tokenData = await tokenResponse.json();
   const accessToken = tokenData.access_token;
 
+  // 1. 시트 컬럼 8개로 확장
+  const expandResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: [{
+          updateSheetProperties: {
+            properties: {
+              sheetId: 1895987712,
+              gridProperties: {
+                columnCount: 8
+              }
+            },
+            fields: 'gridProperties.columnCount'
+          }
+        }]
+      })
+    }
+  );
+
+  if (!expandResponse.ok) {
+    const errorText = await expandResponse.text();
+    throw new Error(`Failed to expand columns: ${errorText}`);
+  }
+
+  // 2. H1에 헤더 추가
   const headers = [['images']];
 
-  const response = await fetch(
+  const headerResponse = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!H1?valueInputOption=RAW`,
     {
       method: 'PUT',
@@ -304,14 +335,14 @@ async function updatePostsHeader(env) {
     }
   );
 
-  if (!response.ok) {
-    const errorText = await response.text();
+  if (!headerResponse.ok) {
+    const errorText = await headerResponse.text();
     throw new Error(`Failed to update header: ${errorText}`);
   }
 
   return {
     success: true,
-    message: 'Posts sheet header updated with images column'
+    message: 'Posts sheet expanded and header updated with images column'
   };
 }
 
