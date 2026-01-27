@@ -1234,35 +1234,31 @@ async function deletePost(subdomain, createdAt, password, env) {
     // 삭제할 행 찾기
     let deleteRowIndex = -1;
     
-    // 타겟 날짜 파싱
-    const targetDate = new Date(createdAt);
-    const isValidTargetDate = !isNaN(targetDate.getTime());
+    // 비교를 위해 숫자만 추출하는 함수 (YYYYMMDDHHmmss)
+    const toNumericString = (str) => String(str).replace(/[^0-9]/g, '').substring(0, 14); // 초 단위까지만
+
+    const targetNumeric = toNumericString(createdAt);
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const rowSubdomain = String(row[subdomainIndex] || '').trim();
       const targetSubdomain = String(subdomain || '').trim();
       
-      // 서브도메인 불일치 시 패스
       if (rowSubdomain !== targetSubdomain) continue;
 
-      // 날짜 비교
       const rowDateString = row[createdAtIndex];
-      const rowDate = new Date(rowDateString);
-      
-      // 1. 문자열 완전 일치
-      if (rowDateString === createdAt) {
+      const rowNumeric = toNumericString(rowDateString);
+
+      // 1. 숫자만 추출해서 비교 (가장 확실)
+      if (rowNumeric === targetNumeric) {
         deleteRowIndex = i + 1;
         break;
       }
-
-      // 2. 시간 차이 비교 (1분 이내 허용)
-      if (isValidTargetDate && !isNaN(rowDate.getTime())) {
-        const diff = Math.abs(rowDate.getTime() - targetDate.getTime());
-        if (diff < 60000) { // 60초 허용
-          deleteRowIndex = i + 1;
-          break;
-        }
+      
+      // 2. 혹시 초 단위가 다를 수 있으니 분 단위까지만 비교 (앞 12자리)
+      if (rowNumeric.substring(0, 12) === targetNumeric.substring(0, 12)) {
+        deleteRowIndex = i + 1;
+        break;
       }
     }
 
