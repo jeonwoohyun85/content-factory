@@ -1335,6 +1335,74 @@ export default {
         }
       }
       // 메인 도메인은 404 (랜딩페이지 없음)
+      if (pathname === '/cleanup-now-please') {
+        try {
+          const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+          const accessToken = await getGoogleAccessTokenForPosting(env);
+
+          // 1. Read all posts
+          const readRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:F`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const data = await readRes.json();
+          const rows = data.values || [];
+
+          if (rows.length < 2) return new Response('No data', { status: 200 });
+
+          // 2. Group by subdomain
+          const postsMap = new Map();
+          const pHeaders = rows[0];
+          const subIdx = pHeaders.indexOf('subdomain');
+          const dateIdx = pHeaders.indexOf('created_at');
+
+          for (let i = 1; i < rows.length; i++) {
+            const sub = rows[i][subIdx];
+            const date = rows[i][dateIdx];
+            if (!postsMap.has(sub)) postsMap.set(sub, []);
+            postsMap.get(sub).push({ index: i, date: new Date(date) });
+          }
+
+          // 3. Identify rows to delete
+          const deleteRanges = [];
+          for (const [sub, subPosts] of postsMap.entries()) {
+            if (subPosts.length <= 1) continue;
+            subPosts.sort((a, b) => b.date - a.date);
+            for (let i = 1; i < subPosts.length; i++) {
+              const rowIdx = subPosts[i].index;
+              deleteRanges.push({
+                sheetId: 1895987712,
+                dimension: "ROWS",
+                startIndex: rowIdx,
+                endIndex: rowIdx + 1
+              });
+            }
+          }
+
+          deleteRanges.sort((a, b) => b.startIndex - a.startIndex);
+
+          if (deleteRanges.length > 0) {
+            await fetch(
+              `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+              {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  requests: deleteRanges.map(range => ({ deleteDimension: { range } }))
+                })
+              }
+            );
+            return new Response(`Cleaned up ${deleteRanges.length} old posts.`, { status: 200 });
+          } else {
+            return new Response('Nothing to clean up.', { status: 200 });
+          }
+        } catch (e) {
+          return new Response(e.message, { status: 500 });
+        }
+      }
       return new Response('Not Found', { status: 404 });
     }
 
