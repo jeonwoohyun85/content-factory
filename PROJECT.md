@@ -17,7 +17,10 @@
 - Cloudflare Workers Cron Trigger 추가 (10분 주기)
 - Gemini 1.5-pro 모델 프롬프트 강화: `description` 컬럼 핵심 반영
 - 날짜 기반 Drive 폴더 우선순위 로직 추가
-- (Retention Policy는 사용자 요청에 따라 폐기 상태 유지)
+
+**23:50** 📝 [docs] GitHub Actions 워크플로우 한글화
+- 워크플로우 이름 및 단계(Steps) 전체 한글화 적용
+- 커밋 메시지 한글 작성 규칙 수립
 
 ---
 
@@ -41,5 +44,6 @@
 - [x] 00001 서브도메인 템플릿 배포
 - [x] Drive → Sheets 자동화 완료
 - [x] 자동 포스팅 시스템 구축
+- [x] GitHub Actions 및 커밋 메시지 한글화
 - [ ] 사이트 통계 모니터링 (Umami 연동)
 - [ ] 멀티 도메인 확장성 검토
