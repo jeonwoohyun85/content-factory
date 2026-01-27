@@ -1800,20 +1800,26 @@ async function getFolderImagesForPosting(businessName, folderName, accessToken, 
   const filesData = await filesResponse.json();
   logs.push(`파일 검색 결과: ${JSON.stringify(filesData)}`);
 
-  const imageFiles = (filesData.files || []).filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+  let imageFiles = (filesData.files || []).filter(f => f.mimeType && f.mimeType.startsWith('image/'));
   logs.push(`이미지 파일 ${imageFiles.length}개 필터링됨`);
+
+  // 10개 초과시 랜덤 10개 선택
+  if (imageFiles.length > 10) {
+    imageFiles = imageFiles.sort(() => Math.random() - 0.5).slice(0, 10);
+    logs.push(`10개 초과: 랜덤 ${imageFiles.length}개 선택`);
+  }
 
   const images = [];
   for (const file of imageFiles) {
     try {
-      logs.push(`다운로드 시작: ${file.name}`);
-      const imageResponse = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
+      logs.push(`썸네일 다운로드: ${file.name}`);
+      
+      // Google Drive 썸네일 API 사용 (w800 크기)
+      const thumbnailUrl = `https://lh3.googleusercontent.com/d/${file.id}=w800`;
+      const imageResponse = await fetch(thumbnailUrl);
 
       if (!imageResponse.ok) {
-        logs.push(`다운로드 실패: ${file.name} - ${imageResponse.status}`);
+        logs.push(`썸네일 다운로드 실패: ${file.name} - ${imageResponse.status}`);
         continue;
       }
 
@@ -1834,9 +1840,9 @@ async function getFolderImagesForPosting(businessName, folderName, accessToken, 
         mimeType: file.mimeType,
         data: base64
       });
-      logs.push(`다운로드 완료: ${file.name}`);
+      logs.push(`썸네일 다운로드 완료: ${file.name}`);
     } catch (error) {
-      logs.push(`다운로드 에러: ${file.name} - ${error.message}`);
+      logs.push(`썸네일 다운로드 에러: ${file.name} - ${error.message}`);
     }
   }
 
@@ -1890,42 +1896,28 @@ async function getClientFoldersForPosting(businessName, accessToken, env, logs) 
 
 async function getLastUsedFolderForPosting(subdomain, env) {
   try {
-    const POSTS_SHEET_GID = '1895987712';
-    const postsUrl = `https://docs.google.com/spreadsheets/d/${env.SHEETS_ID}/export?format=csv&gid=${POSTS_SHEET_GID}`;
-
-    const response = await fetch(postsUrl);
+    const accessToken = await getGoogleAccessTokenForPosting(env);
+    
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:G`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    
     if (!response.ok) {
       return null;
     }
-
-    const csvText = await response.text();
-    const rows = csvText.split('\n').map(row => {
-      const cols = [];
-      let current = '';
-      let inQuotes = false;
-      for (let i = 0; i < row.length; i++) {
-        const char = row[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          cols.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-      cols.push(current.trim());
-      return cols;
-    });
-
+    
+    const data = await response.json();
+    const rows = data.values || [];
+    
     if (rows.length < 2) {
       return null;
     }
-
+    
     const headers = rows[0];
     const subdomainIndex = headers.indexOf('subdomain');
     const folderNameIndex = headers.indexOf('folder_name');
-
+    
     let lastFolder = null;
     for (let i = rows.length - 1; i >= 1; i--) {
       const row = rows[i];
@@ -1934,7 +1926,7 @@ async function getLastUsedFolderForPosting(subdomain, env) {
         break;
       }
     }
-
+    
     return lastFolder;
   } catch (error) {
     return null;
