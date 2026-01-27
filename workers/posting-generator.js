@@ -62,6 +62,21 @@ async function generatePostingForClient(subdomain, env) {
     }
     logs.push(`거래처: ${client.business_name}`);
 
+    // Step 1.5: Google Drive 폴더 순환 선택
+    logs.push('Google Drive 폴더 조회 중...');
+    const accessToken = await getGoogleAccessToken(env);
+    const folders = await getClientFolders(client.business_name, accessToken, env);
+
+    if (folders.length === 0) {
+      return { success: false, error: 'No folders found (Info/Video excluded)', logs };
+    }
+
+    logs.push(`폴더 ${folders.length}개 발견`);
+
+    const lastUsedFolder = await getLastUsedFolder(subdomain, env);
+    const nextFolder = getNextFolder(folders, lastUsedFolder);
+    logs.push(`선택된 폴더: ${nextFolder}`);
+
     // Step 2: 웹 검색 (Gemini 2.5 Flash)
     logs.push('웹 검색 시작...');
     const trendsData = await searchWithGemini(client, env);
@@ -74,7 +89,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 4: Posts 시트에 저장
     logs.push('Posts 시트 저장 시작...');
-    await saveToPostsSheet(client, postData, env);
+    await saveToPostsSheet(client, postData, nextFolder, env);
     logs.push('Posts 시트 저장 완료');
 
     return {
@@ -276,10 +291,10 @@ async function createPostsSheet(env) {
   }
 
   // 2. 헤더 추가
-  const headers = [['subdomain', 'business_name', 'language', 'title', 'body', 'created_at']];
+  const headers = [['subdomain', 'business_name', 'language', 'title', 'body', 'created_at', 'folder_name']];
 
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A1:F1?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A1:G1?valueInputOption=RAW`,
     {
       method: 'PUT',
       headers: {
@@ -343,8 +358,118 @@ async function getGoogleAccessToken(env) {
   return tokenData.access_token;
 }
 
+// Google Drive에서 거래처 폴더의 하위 폴더 목록 조회 (Info, Video 제외)
+async function getClientFolders(businessName, accessToken, env) {
+  const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
+
+  // 1. 거래처 폴더 찾기
+  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+
+  const businessFolderResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const businessFolderData = await businessFolderResponse.json();
+  if (!businessFolderData.files || businessFolderData.files.length === 0) {
+    return [];
+  }
+
+  const businessFolderId = businessFolderData.files[0].id;
+
+  // 2. 하위 폴더 목록 조회
+  const subFoldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${businessFolderId}' in parents and trashed = false`;
+
+  const subFoldersResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(subFoldersQuery)}&fields=files(id,name)&orderBy=name`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const subFoldersData = await subFoldersResponse.json();
+  const folders = (subFoldersData.files || [])
+    .map(f => f.name)
+    .filter(name => name !== 'Info' && name !== 'Video')
+    .sort();
+
+  return folders;
+}
+
+// Posts 시트에서 마지막 사용 폴더 조회
+async function getLastUsedFolder(subdomain, env) {
+  try {
+    const POSTS_SHEET_GID = '1895987712';
+    const postsUrl = `https://docs.google.com/spreadsheets/d/${env.SHEETS_ID}/export?format=csv&gid=${POSTS_SHEET_GID}`;
+
+    const response = await fetch(postsUrl);
+    if (!response.ok) {
+      return null;
+    }
+
+    const csvText = await response.text();
+    const rows = csvText.split('\n').map(row => {
+      const cols = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          cols.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      cols.push(current.trim());
+      return cols;
+    });
+
+    if (rows.length < 2) {
+      return null;
+    }
+
+    const headers = rows[0];
+    const subdomainIndex = headers.indexOf('subdomain');
+    const folderNameIndex = headers.indexOf('folder_name');
+
+    // subdomain으로 필터링하여 마지막 행 찾기
+    let lastFolder = null;
+    for (let i = rows.length - 1; i >= 1; i--) {
+      const row = rows[i];
+      if (row[subdomainIndex] === subdomain) {
+        lastFolder = row[folderNameIndex] || null;
+        break;
+      }
+    }
+
+    return lastFolder;
+  } catch (error) {
+    return null;
+  }
+}
+
+// 다음 폴더 선택 (순환)
+function getNextFolder(folders, lastFolder) {
+  if (folders.length === 0) {
+    return null;
+  }
+
+  if (!lastFolder) {
+    return folders[0]; // 첫 폴더
+  }
+
+  const currentIndex = folders.indexOf(lastFolder);
+  if (currentIndex === -1) {
+    return folders[0]; // 폴더 목록이 변경되었으면 첫 폴더
+  }
+
+  const nextIndex = (currentIndex + 1) % folders.length;
+  return folders[nextIndex];
+}
+
 // Posts 시트에 저장
-async function saveToPostsSheet(client, postData, env) {
+async function saveToPostsSheet(client, postData, folderName, env) {
   const accessToken = await getGoogleAccessToken(env);
 
   // Append to Posts sheet
@@ -355,11 +480,12 @@ async function saveToPostsSheet(client, postData, env) {
     client.language,
     postData.title,
     postData.body,
-    timestamp
+    timestamp,
+    folderName
   ]];
 
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:F:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:G:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
