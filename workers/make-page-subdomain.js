@@ -1251,6 +1251,25 @@ export default {
           });
         }
       }
+      // Rename Sheet1 to ContentFactory
+      if (pathname === '/rename-sheet1') {
+        try {
+          const response = await fetch('https://posting-generator.jeonwoohyun85.workers.dev/rename-sheet1');
+          const result = await response.json();
+          return new Response(JSON.stringify(result), {
+            status: response.ok ? 200 : 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
       // 메인 도메인은 404 (랜딩페이지 없음)
       return new Response('Not Found', { status: 404 });
     }
