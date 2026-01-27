@@ -1285,6 +1285,44 @@ async function deletePost(subdomain, createdAt, password, env) {
 // ==================== 라우팅 ====================
 
 export default {
+  async scheduled(event, env, ctx) {
+    console.log('Scheduled trigger started at', new Date().toISOString());
+    try {
+      // 1. 모든 활성 거래처 조회
+      const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+      const csvText = await response.text();
+      const clients = parseCSV(csvText).filter(c => c.status === 'active');
+      
+      console.log(`Found ${clients.length} active clients`);
+
+      // 2. 포스팅 생성
+      for (const client of clients) {
+        try {
+          // 오늘 이미 포스팅했는지 확인 (최근 1개 조회)
+          const recentPosts = await getRecentPosts(client.subdomain, env);
+          const lastPostDate = recentPosts.length > 0 ? new Date(recentPosts[0].created_at) : null;
+          const today = new Date();
+          
+          const isToday = lastPostDate && 
+                          lastPostDate.getFullYear() === today.getFullYear() &&
+                          lastPostDate.getMonth() === today.getMonth() &&
+                          lastPostDate.getDate() === today.getDate();
+
+          if (!isToday) {
+            console.log(`Generating post for ${client.subdomain}...`);
+            await generatePostingForClient(client.subdomain, env);
+          } else {
+            console.log(`Skipping ${client.subdomain}: already posted today`);
+          }
+        } catch (err) {
+          console.error(`Error processing ${client.subdomain}:`, err);
+        }
+      }
+    } catch (error) {
+      console.error('Scheduled handler error:', error);
+    }
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const hostname = url.hostname;
@@ -1631,7 +1669,7 @@ async function generatePostWithGeminiForPosting(client, trendsData, images) {
 [거래처 정보]
 - 업체명: ${client.business_name}
 - 언어: ${client.language}
-- 소개: ${client.description}
+- **핵심 주제 및 소개 (필수 반영): ${client.description}**
 
 [트렌드 정보]
 ${trendsData}
@@ -1640,7 +1678,7 @@ ${trendsData}
 총 ${images.length}장의 이미지가 제공됩니다.
 
 [작성 규칙]
-1. 제목: 완전 자유 창작 (제한 없음)
+1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
 2. 본문 전체 글자수: **3000~3500자** (필수)
 3. 본문 구조: **반드시 ${images.length}개의 문단으로 작성**
    - 1번째 이미지 → 1번째 문단
@@ -1653,7 +1691,7 @@ ${trendsData}
 5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
 6. 금지어: 최고, 1등, 유일, 검증된
 7. 금지 창작: 경력, 학력, 자격증, 수상
-8. description 내용을 자연스럽게 포함 (필수)
+8. **본문의 모든 내용은 '${client.description}'의 주제와 자연스럽게 연결되어야 함 (최우선 순위)**
 
 출력 형식 (JSON):
 {
@@ -1661,7 +1699,7 @@ ${trendsData}
   "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
 }
 
-중요: body는 정확히 ${images.length}개의 문단으로 구성되어야 합니다.
+중요: body는 정확히 ${images.length}개의 문단으로 구성되어야 하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
 `;
 
   const parts = [{ text: prompt }];
@@ -1938,6 +1976,17 @@ function getNextFolderForPosting(folders, lastFolder) {
     return null;
   }
 
+  // 1. 날짜 기반 매칭 (오늘 날짜 YYYY-MM-DD)
+  const now = new Date();
+  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const todayString = koreaTime.toISOString().split('T')[0];
+
+  const todayFolder = folders.find(f => f.includes(todayString));
+  if (todayFolder) {
+    return todayFolder;
+  }
+
+  // 2. 순환 로직 (기존 방식)
   if (!lastFolder) {
     return folders[0];
   }
