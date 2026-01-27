@@ -166,11 +166,12 @@ async function getRecentPosts(subdomain, env) {
     const createdAtIndex = headers.indexOf('created_at');
     const imagesIndex = headers.indexOf('images');
 
-    // subdomain으로 필터링
+    // subdomain으로 필터링 (정규화해서 비교)
     const posts = [];
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (row[subdomainIndex] === subdomain) {
+      const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      if (rowSubdomain === subdomain) {
         posts.push({
           subdomain: row[subdomainIndex],
           business_name: row[businessNameIndex],
@@ -1453,7 +1454,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 4: Posts 시트에 저장
     logs.push('Posts 시트 저장 시작...');
-    await saveToPostsSheetForPosting(client, postData, nextFolder, images, env);
+    await saveToPostsSheetForPosting(client, postData, nextFolder, images, normalizedSubdomain, env);
     logs.push('Posts 시트 저장 완료');
 
     return {
@@ -1813,7 +1814,8 @@ async function getLastUsedFolderForPosting(subdomain, env) {
     let lastFolder = null;
     for (let i = rows.length - 1; i >= 1; i--) {
       const row = rows[i];
-      if (row[subdomainIndex] === subdomain) {
+      const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      if (rowSubdomain === subdomain) {
         lastFolder = row[folderNameIndex] || null;
         break;
       }
@@ -1854,20 +1856,92 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
-async function saveToPostsSheetForPosting(client, postData, folderName, images, env) {
+// Retention Policy: 오래된 포스트 삭제 (추가 전에 실행)
+async function cleanupOldPostsForPosting(normalizedSubdomain, env, accessToken) {
+  try {
+    // Posts 시트 전체 조회
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const data = await response.json();
+    const rows = data.values || [];
+    
+    if (rows.length < 2) {
+      return;
+    }
+
+    const headers = rows[0];
+    const subdomainIndex = headers.indexOf('subdomain');
+    const createdAtIndex = headers.indexOf('created_at');
+
+    // 해당 서브도메인의 글 찾기
+    const clientPosts = [];
+    for (let i = 1; i < rows.length; i++) {
+      const rowSubdomain = String(rows[i][subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      if (rowSubdomain === normalizedSubdomain) {
+        clientPosts.push({
+          rowIndex: i,
+          date: new Date(rows[i][createdAtIndex]).getTime()
+        });
+      }
+    }
+
+    // 2개 이상이면 삭제 (최신 1개만 유지)
+    if (clientPosts.length >= 2) {
+      // 최신순 정렬
+      clientPosts.sort((a, b) => b.date - a.date);
+
+      // 최신 1개를 제외한 나머지 삭제
+      const postsToDelete = clientPosts.slice(1);
+      
+      // 뒤에서부터 삭제 (인덱스 꼬이지 않게)
+      postsToDelete.sort((a, b) => b.rowIndex - a.rowIndex);
+
+      const requests = postsToDelete.map(p => ({
+        deleteDimension: {
+          range: {
+            sheetId: 1895987712,
+            dimension: 'ROWS',
+            startIndex: p.rowIndex,
+            endIndex: p.rowIndex + 1
+          }
+        }
+      }));
+
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ requests })
+        }
+      );
+      console.log(`Cleaned up ${postsToDelete.length} old posts for ${normalizedSubdomain} (before adding new one)`);
+    }
+  } catch (error) {
+    console.error('Cleanup old posts error:', error);
+  }
+}
+
+async function saveToPostsSheetForPosting(client, postData, folderName, images, normalizedSubdomain, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
 
-  // subdomain 정규화
-  const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+  // 1. 먼저 오래된 포스트 삭제 (추가하기 전에)
+  await cleanupOldPostsForPosting(normalizedSubdomain, env, accessToken);
 
-  // 1. 새 포스트 추가
+  // 2. 새 포스트 추가 (subdomain을 클릭 가능한 도메인 형태로 저장)
   const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
 
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
+  
   const values = [[
-    normalizedSubdomain,
+    `${normalizedSubdomain}.make-page.com`,  // 클릭 가능한 도메인 형태
     client.business_name,
     client.language,
     postData.title,
@@ -1888,69 +1962,4 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
       body: JSON.stringify({ values })
     }
   );
-
-  // 2. Retention Policy 적용 (최신 2개만 유지, 나머지 삭제)
-  try {
-    // 전체 목록 다시 조회
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:F`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const data = await response.json();
-    const rows = data.values || [];
-    
-    // 헤더 제외
-    const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const createdAtIndex = headers.indexOf('created_at');
-
-    // 해당 서브도메인의 글 찾기 (인덱스 포함)
-    const clientPosts = [];
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i][subdomainIndex] === normalizedSubdomain) {
-        clientPosts.push({
-          rowIndex: i, // 0-indexed (API용)
-          date: new Date(rows[i][createdAtIndex]).getTime()
-        });
-      }
-    }
-
-    // 2개 초과 시 삭제
-    if (clientPosts.length > 2) {
-      // 최신순 정렬 (날짜 내림차순)
-      clientPosts.sort((a, b) => b.date - a.date);
-
-      // 살려둘 2개를 제외한 나머지(오래된 것들) 삭제 대상
-      const postsToDelete = clientPosts.slice(2);
-      
-      // 뒤에서부터 삭제해야 인덱스 안 꼬임 (RowIndex 내림차순 정렬)
-      postsToDelete.sort((a, b) => b.rowIndex - a.rowIndex);
-
-      const requests = postsToDelete.map(p => ({
-        deleteDimension: {
-          range: {
-            sheetId: 1895987712, // Posts 시트 GID
-            dimension: 'ROWS',
-            startIndex: p.rowIndex,
-            endIndex: p.rowIndex + 1
-          }
-        }
-      }));
-
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ requests })
-        }
-      );
-      console.log(`Cleaned up ${postsToDelete.length} old posts for ${normalizedSubdomain}`);
-    }
-  } catch (error) {
-    console.error('Retention policy error:', error);
-  }
 }
