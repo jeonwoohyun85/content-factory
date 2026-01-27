@@ -396,14 +396,8 @@ function generateClientPage(client) {
         /* Video Section */
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(1, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 24px;
-        }
-
-        @media (min-width: 768px) {
-            .video-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
         }
 
         .video-item {
