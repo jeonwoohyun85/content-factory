@@ -1234,6 +1234,48 @@ export default {
           });
         }
       }
+      // Debug: Check Posts sheet headers
+      if (pathname === '/debug-sheets' && request.method === 'GET') {
+        try {
+          const accessToken = await getGoogleAccessTokenForPosting(env);
+          
+          // Content Factory 시트
+          const cfResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/\${env.SHEETS_ID}/values/'Content Factory'!1:1`,
+            { headers: { Authorization: `Bearer \${accessToken}` } }
+          );
+          const cfData = await cfResponse.json();
+          const cfHeaders = cfData.values ? cfData.values[0] : [];
+          
+          // Posts 시트
+          const postsResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/\${env.SHEETS_ID}/values/Posts!1:1`,
+            { headers: { Authorization: `Bearer \${accessToken}` } }
+          );
+          const postsData = await postsResponse.json();
+          const postsHeaders = postsData.values ? postsData.values[0] : [];
+          
+          return new Response(JSON.stringify({
+            content_factory: {
+              total: cfHeaders.length,
+              headers: cfHeaders
+            },
+            posts: {
+              total: postsHeaders.length,
+              headers: postsHeaders
+            }
+          }, null, 2), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       // 메인 도메인은 404 (랜딩페이지 없음)
       return new Response('Not Found', { status: 404 });
     }
