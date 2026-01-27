@@ -1418,8 +1418,9 @@ async function generatePostingForClient(subdomain, env) {
     // Step 1.5: Google Drive 폴더 순환 선택
     logs.push('Google Drive 폴더 조회 중...');
     const accessToken = await getGoogleAccessTokenForPosting(env);
-    logs.push(`Drive 폴더 검색: subdomain=${client.subdomain}`);
-    const folders = await getClientFoldersForPosting(client.subdomain, accessToken, env, logs);
+    const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+    logs.push(`Drive 폴더 검색: subdomain=${normalizedSubdomain}`);
+    const folders = await getClientFoldersForPosting(normalizedSubdomain, accessToken, env, logs);
 
     if (folders.length === 0) {
       return { success: false, error: 'No folders found (Info/Video excluded)', logs };
@@ -1433,7 +1434,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
     logs.push('폴더 내 이미지 조회 중...');
-    const images = await getFolderImagesForPosting(client.subdomain, nextFolder, accessToken, env, logs);
+    const images = await getFolderImagesForPosting(normalizedSubdomain, nextFolder, accessToken, env, logs);
     logs.push(`이미지 ${images.length}개 발견`);
 
     if (images.length === 0) {
