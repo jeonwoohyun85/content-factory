@@ -338,20 +338,13 @@ async function updateSheets(businessName, publicUrl, accessToken, sheetsId, logs
 
     // Parse header to find column indices
     const headers = rows[0] || [];
-    logs.push(`  DEBUG: Headers array length: ${headers.length}`);
-    logs.push(`  DEBUG: Headers: ${JSON.stringify(headers)}`);
 
     // Trim whitespace from all headers
     const trimmedHeaders = headers.map(h => (h || '').trim());
-    logs.push(`  DEBUG: Trimmed headers: ${JSON.stringify(trimmedHeaders)}`);
 
     const infoImagesIndex = trimmedHeaders.indexOf('info_images');
     const businessNameIndex = trimmedHeaders.indexOf('business_name');
     const subdomainIndex = trimmedHeaders.indexOf('subdomain');
-
-    logs.push(`  DEBUG: info_images index: ${infoImagesIndex}`);
-    logs.push(`  DEBUG: business_name index: ${businessNameIndex}`);
-    logs.push(`  DEBUG: subdomain index: ${subdomainIndex}`);
 
     if (infoImagesIndex === -1) {
       logs.push(`  Error: info_images column not found in headers`);
