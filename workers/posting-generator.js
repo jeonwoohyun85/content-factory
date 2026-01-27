@@ -65,6 +65,25 @@ export default {
       }
     }
 
+    // Rename Sheet1 to ContentFactory
+    if (url.pathname === '/rename-sheet1' && request.method === 'GET') {
+      try {
+        const result = await renameSheet1(env);
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error.message,
+          stack: error.stack
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Manual trigger for testing
     if (request.method === 'POST') {
       try {
@@ -371,6 +390,45 @@ async function fixPostsRowHeight(env) {
   return {
     success: true,
     message: 'Row height updated to 21px'
+  };
+}
+
+// Sheet1 이름을 ContentFactory로 변경
+async function renameSheet1(env) {
+  const accessToken = await getGoogleAccessToken(env);
+
+  // Sheet1의 sheetId는 0 (첫 번째 시트)
+  const updateResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: [{
+          updateSheetProperties: {
+            properties: {
+              sheetId: 0,
+              title: 'ContentFactory'
+            },
+            fields: 'title'
+          }
+        }]
+      })
+    }
+  );
+
+  const updateData = await updateResponse.json();
+
+  if (!updateResponse.ok) {
+    throw new Error(`Failed to rename sheet: ${JSON.stringify(updateData)}`);
+  }
+
+  return {
+    success: true,
+    message: 'Sheet1 renamed to ContentFactory'
   };
 }
 
