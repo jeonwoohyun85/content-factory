@@ -1224,25 +1224,50 @@ async function deletePost(subdomain, createdAt, password, env) {
     const rows = data.values || [];
 
     if (rows.length < 2) {
-      return { success: false, error: '포스트를 찾을 수 없습니다' };
+      return { success: false, error: '삭제할 포스트 데이터가 없습니다' };
     }
 
     const headers = rows[0];
     const subdomainIndex = headers.indexOf('subdomain');
     const createdAtIndex = headers.indexOf('created_at');
 
-    // 삭제할 행 찾기 (1-indexed, 헤더 포함)
+    // 삭제할 행 찾기
     let deleteRowIndex = -1;
+    
+    // 타겟 날짜 파싱
+    const targetDate = new Date(createdAt);
+    const isValidTargetDate = !isNaN(targetDate.getTime());
+
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      const rowDate = new Date(row[createdAtIndex]).getTime(); const reqDate = new Date(createdAt).getTime(); if (row[subdomainIndex] === subdomain && (row[createdAtIndex] === createdAt || (!isNaN(rowDate) && !isNaN(reqDate) && Math.abs(rowDate - reqDate) < 1000))) {
-        deleteRowIndex = i + 1; // Sheets는 1-indexed
+      const rowSubdomain = String(row[subdomainIndex] || '').trim();
+      const targetSubdomain = String(subdomain || '').trim();
+      
+      // 서브도메인 불일치 시 패스
+      if (rowSubdomain !== targetSubdomain) continue;
+
+      // 날짜 비교
+      const rowDateString = row[createdAtIndex];
+      const rowDate = new Date(rowDateString);
+      
+      // 1. 문자열 완전 일치
+      if (rowDateString === createdAt) {
+        deleteRowIndex = i + 1;
         break;
+      }
+
+      // 2. 시간 차이 비교 (1분 이내 허용)
+      if (isValidTargetDate && !isNaN(rowDate.getTime())) {
+        const diff = Math.abs(rowDate.getTime() - targetDate.getTime());
+        if (diff < 60000) { // 60초 허용
+          deleteRowIndex = i + 1;
+          break;
+        }
       }
     }
 
     if (deleteRowIndex === -1) {
-      return { success: false, error: '포스트를 찾을 수 없습니다' };
+      return { success: false, error: '해당 조건의 포스트를 찾을 수 없습니다' };
     }
 
     // 행 삭제 (batchUpdate 사용)
@@ -1271,7 +1296,7 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     if (!deleteResponse.ok) {
       const errorText = await deleteResponse.text();
-      return { success: false, error: `삭제 실패: ${errorText}` };
+      return { success: false, error: `Google Sheets 삭제 실패: ${errorText}` };
     }
 
     return { success: true };
