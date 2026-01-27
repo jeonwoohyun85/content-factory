@@ -1945,7 +1945,7 @@ function getNextFolderForPosting(folders, lastFolder) {
 async function saveToPostsSheetForPosting(client, postData, folderName, images, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
 
-  // 새 포스트 추가 (삭제 로직 제거됨)
+  // 1. 새 포스트 추가
   const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
 
   const now = new Date();
@@ -1973,4 +1973,69 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
       body: JSON.stringify({ values })
     }
   );
+
+  // 2. Retention Policy 적용 (최신 2개만 유지, 나머지 삭제)
+  try {
+    // 전체 목록 다시 조회
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:F`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const data = await response.json();
+    const rows = data.values || [];
+    
+    // 헤더 제외
+    const headers = rows[0];
+    const subdomainIndex = headers.indexOf('subdomain');
+    const createdAtIndex = headers.indexOf('created_at');
+
+    // 해당 서브도메인의 글 찾기 (인덱스 포함)
+    const clientPosts = [];
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][subdomainIndex] === client.subdomain) {
+        clientPosts.push({
+          rowIndex: i, // 0-indexed (API용)
+          date: new Date(rows[i][createdAtIndex]).getTime()
+        });
+      }
+    }
+
+    // 2개 초과 시 삭제
+    if (clientPosts.length > 2) {
+      // 최신순 정렬 (날짜 내림차순)
+      clientPosts.sort((a, b) => b.date - a.date);
+
+      // 살려둘 2개를 제외한 나머지(오래된 것들) 삭제 대상
+      const postsToDelete = clientPosts.slice(2);
+      
+      // 뒤에서부터 삭제해야 인덱스 안 꼬임 (RowIndex 내림차순 정렬)
+      postsToDelete.sort((a, b) => b.rowIndex - a.rowIndex);
+
+      const requests = postsToDelete.map(p => ({
+        deleteDimension: {
+          range: {
+            sheetId: 1895987712, // Posts 시트 GID
+            dimension: 'ROWS',
+            startIndex: p.rowIndex,
+            endIndex: p.rowIndex + 1
+          }
+        }
+      }));
+
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ requests })
+        }
+      );
+      console.log(`Cleaned up ${postsToDelete.length} old posts for ${client.subdomain}`);
+    }
+  } catch (error) {
+    console.error('Retention policy error:', error);
+  }
 }
