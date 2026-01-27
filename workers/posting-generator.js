@@ -67,7 +67,7 @@ async function generatePostingForClient(subdomain, env) {
     const accessToken = await getGoogleAccessToken(env);
     const driveBusinessName = `${client.subdomain} ${client.business_name}`;
     logs.push(`Drive 폴더명: ${driveBusinessName}`);
-    const folders = await getClientFolders(driveBusinessName, accessToken, env);
+    const folders = await getClientFolders(driveBusinessName, accessToken, env, logs);
 
     if (folders.length === 0) {
       return { success: false, error: 'No folders found (Info/Video excluded)', logs };
@@ -456,7 +456,7 @@ async function getFolderImages(businessName, folderName, accessToken, env) {
 }
 
 // Google Drive에서 거래처 폴더의 하위 폴더 목록 조회 (Info, Video 제외)
-async function getClientFolders(businessName, accessToken, env) {
+async function getClientFolders(businessName, accessToken, env, logs) {
   const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
 
   // 1. 거래처 폴더 찾기
@@ -468,11 +468,15 @@ async function getClientFolders(businessName, accessToken, env) {
   );
 
   const businessFolderData = await businessFolderResponse.json();
+  logs.push(`거래처 폴더 검색 결과: ${JSON.stringify(businessFolderData)}`);
+
   if (!businessFolderData.files || businessFolderData.files.length === 0) {
+    logs.push('거래처 폴더를 찾을 수 없음');
     return [];
   }
 
   const businessFolderId = businessFolderData.files[0].id;
+  logs.push(`거래처 폴더 ID: ${businessFolderId}`);
 
   // 2. 하위 폴더 목록 조회
   const subFoldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${businessFolderId}' in parents and trashed = false`;
@@ -483,9 +487,7 @@ async function getClientFolders(businessName, accessToken, env) {
   );
 
   const subFoldersData = await subFoldersResponse.json();
-
-  // 디버깅: 모든 폴더 로그
-  console.log('All subfolders:', JSON.stringify(subFoldersData));
+  logs.push(`하위 폴더 조회 결과: ${JSON.stringify(subFoldersData)}`);
 
   const folders = (subFoldersData.files || [])
     .map(f => f.name)
@@ -495,7 +497,7 @@ async function getClientFolders(businessName, accessToken, env) {
     })
     .sort();
 
-  console.log('Filtered folders:', folders);
+  logs.push(`필터링된 폴더: ${JSON.stringify(folders)}`);
 
   return folders;
 }
