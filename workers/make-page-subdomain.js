@@ -1864,7 +1864,7 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
   const values = [[
-    client.subdomain,
+    normalizedSubdomain,
     client.business_name,
     client.language,
     postData.title,
