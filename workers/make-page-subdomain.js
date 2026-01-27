@@ -130,6 +130,124 @@ function formatKoreanTime(isoString) {
 // Posts 시트에서 최근 포스팅 3개 조회
 async function getRecentPosts(subdomain) {
   try {
+    // Service Account로 Posts 시트 조회
+    const serviceAccount = JSON.parse(GOOGLE_SERVICE_ACCOUNT_JSON);
+
+    // JWT 생성
+    const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+    const now = Math.floor(Date.now() / 1000);
+    const jwtClaimSet = {
+      iss: serviceAccount.client_email,
+      scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600,
+      iat: now
+    };
+
+    const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
+    const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
+
+    // Sign JWT
+    const privateKey = await crypto.subtle.importKey(
+      'pkcs8',
+      pemToArrayBuffer(serviceAccount.private_key),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const signature = await crypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5',
+      privateKey,
+      new TextEncoder().encode(signatureInput)
+    );
+
+    const jwtSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    const jwt = `${signatureInput}.${jwtSignature}`;
+
+    // Get access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+    });
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Posts 시트 데이터 조회
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}/values/Posts!A:G`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    const rows = data.values || [];
+
+    if (rows.length < 2) {
+      return [];
+    }
+
+    const headers = rows[0];
+    const subdomainIndex = headers.indexOf('subdomain');
+    const businessNameIndex = headers.indexOf('business_name');
+    const languageIndex = headers.indexOf('language');
+    const titleIndex = headers.indexOf('title');
+    const bodyIndex = headers.indexOf('body');
+    const createdAtIndex = headers.indexOf('created_at');
+
+    // subdomain으로 필터링
+    const posts = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[subdomainIndex] === subdomain) {
+        posts.push({
+          subdomain: row[subdomainIndex],
+          business_name: row[businessNameIndex],
+          language: row[languageIndex],
+          title: row[titleIndex],
+          body: row[bodyIndex],
+          created_at: row[createdAtIndex]
+        });
+      }
+    }
+
+    // created_at 기준 내림차순 정렬 (최신순)
+    posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // 최근 1개만 반환 (중복 방지)
+    return posts.slice(0, 1);
+  } catch (error) {
+    console.error('Posts fetch error:', error);
+    return [];
+  }
+}
+
+function pemToArrayBuffer(pem) {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '');
+
+  const binaryString = atob(b64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+// 기존 CSV 파싱 코드 제거
+async function getRecentPostsOLD_CSV(subdomain) {
+  try {
     // Posts 시트 CSV 조회 (gid=1895987712)
     const POSTS_SHEET_GID = '1895987712';
     const postsUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_ID}/export?format=csv&gid=${POSTS_SHEET_GID}`;
