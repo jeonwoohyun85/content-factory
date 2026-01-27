@@ -1175,6 +1175,66 @@ async function deletePost(subdomain, createdAt, password, env) {
   }
 }
 
+// ==================== Posts 시트 복구 ====================
+
+async function fixPostsSheetHeader(env) {
+  try {
+    const accessToken = await getGoogleAccessTokenForPosting(env);
+    
+    // 1. G1에 "folder_name" 헤더 추가
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!G1?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          values: [['folder_name']]
+        })
+      }
+    );
+    
+    // 2. 모든 데이터 행 삭제 (헤더는 유지)
+    const readRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const data = await readRes.json();
+    const rowCount = (data.values || []).length;
+    
+    if (rowCount > 1) {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: 1895987712,
+                  dimension: 'ROWS',
+                  startIndex: 1,
+                  endIndex: rowCount
+                }
+              }
+            }]
+          })
+        }
+      );
+    }
+    
+    return { success: true, message: 'Posts 시트 복구 완료 (G1에 folder_name 추가, 데이터 초기화)' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 // ==================== 라우팅 ====================
 
 export default {
@@ -1259,6 +1319,24 @@ export default {
           return new Response(JSON.stringify({
             error: error.message,
             stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+      // Posts 시트 복구 엔드포인트
+      if (pathname === '/fix-posts-sheet' && request.method === 'POST') {
+        try {
+          const result = await fixPostsSheetHeader(env);
+          return new Response(JSON.stringify(result), {
+            status: result.success ? 200 : 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: error.message
           }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -1893,7 +1971,7 @@ async function cleanupOldPostsForPosting(normalizedSubdomain, env, accessToken) 
       clientPosts.sort((a, b) => b.date - a.date);
 
       // 최신 1개를 제외한 나머지 삭제
-                  const postsToDelete = clientPosts.slice(1);
+              const postsToDelete = clientPosts.slice(1);
       
       // 뒤에서부터 삭제 (인덱스 꼬이지 않게)
       postsToDelete.sort((a, b) => b.rowIndex - a.rowIndex);
