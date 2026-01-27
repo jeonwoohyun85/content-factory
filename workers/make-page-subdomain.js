@@ -247,6 +247,84 @@ function pemToArrayBuffer(pem) {
   return bytes.buffer;
 }
 
+async function updatePostsHeader(env) {
+  const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const now = Math.floor(Date.now() / 1000);
+  const jwtClaimSet = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+
+  const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
+  const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
+
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToArrayBuffer(serviceAccount.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    privateKey,
+    new TextEncoder().encode(signatureInput)
+  );
+
+  const jwtSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const jwt = `${signatureInput}.${jwtSignature}`;
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  });
+
+  const tokenData = await tokenResponse.json();
+  const accessToken = tokenData.access_token;
+
+  const headers = [['images']];
+
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!H1?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: headers })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update header: ${errorText}`);
+  }
+
+  return {
+    success: true,
+    message: 'Posts sheet header updated with images column'
+  };
+}
+
+async function generatePosting(subdomain, env) {
+  const response = await fetch('https://posting-generator.jeonwoohyun85.workers.dev/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subdomain })
+  });
+
+  return await response.json();
+}
+
 // 기존 CSV 파싱 코드 제거
 async function getRecentPostsOLD_CSV(subdomain) {
   try {
@@ -1086,6 +1164,43 @@ export default {
         return new Response('kmlsc7f9b1pm7n7x7gq1zdihmzxtkqzr', {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
+      }
+      // Update Posts header
+      if (pathname === '/update-posts-header') {
+        try {
+          const result = await updatePostsHeader(env);
+          return new Response(JSON.stringify(result), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+      // Generate posting
+      if (pathname === '/generate-posting' && request.method === 'POST') {
+        try {
+          const { subdomain } = await request.json();
+          const result = await generatePosting(subdomain, env);
+          return new Response(JSON.stringify(result), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
       }
       // 메인 도메인은 404 (랜딩페이지 없음)
       return new Response('Not Found', { status: 404 });
