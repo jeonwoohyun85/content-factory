@@ -670,7 +670,10 @@ async function saveToPostsSheet(client, postData, folderName, env) {
   const accessToken = await getGoogleAccessToken(env);
 
   // Append to Posts sheet
-  const timestamp = new Date().toISOString();
+  // 한국 시간 (UTC+9)
+  const now = new Date();
+  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
   const values = [[
     client.subdomain,
     client.business_name,

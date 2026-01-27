@@ -106,6 +106,27 @@ async function getClientFromSheets(clientId) {
   }
 }
 
+// UTC 시간을 한국 시간으로 변환
+function formatKoreanTime(isoString) {
+  if (!isoString) return '';
+
+  try {
+    const date = new Date(isoString);
+    // UTC+9 (한국 시간)
+    const koreaTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+
+    const year = koreaTime.getUTCFullYear();
+    const month = String(koreaTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(koreaTime.getUTCDate()).padStart(2, '0');
+    const hours = String(koreaTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(koreaTime.getUTCMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } catch (error) {
+    return isoString;
+  }
+}
+
 // Posts 시트에서 최근 포스팅 3개 조회
 async function getRecentPosts(subdomain) {
   try {
@@ -663,7 +684,7 @@ function generateClientPage(client) {
     ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
 
     <!-- Posts Section -->
-    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(post.created_at || '') + '</time></article>').join('') + '</div></section>' : ''}
+    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></article>').join('') + '</div></section>' : ''}
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
