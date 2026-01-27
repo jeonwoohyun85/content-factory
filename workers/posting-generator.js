@@ -456,7 +456,16 @@ async function getFolderImages(businessName, folderName, accessToken, env, logs)
       }
 
       const arrayBuffer = await imageResponse.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const bytes = new Uint8Array(arrayBuffer);
+
+      // 청크 단위로 Base64 인코딩 (스택 오버플로우 방지)
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode.apply(null, chunk);
+      }
+      const base64 = btoa(binary);
 
       images.push({
         mimeType: file.mimeType,
