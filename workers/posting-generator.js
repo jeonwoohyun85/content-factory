@@ -6,6 +6,27 @@ const GEMINI_API_KEY = 'AIzaSyCGaxsMXJ5UvUrU9wQCOH2ou7m9TP2pB88';
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // Create Posts sheet
+    if (url.pathname === '/create-posts-sheet' && request.method === 'GET') {
+      try {
+        const result = await createPostsSheet(env);
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: error.message,
+          stack: error.stack
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Manual trigger for testing
     if (request.method === 'POST') {
       try {
@@ -213,11 +234,67 @@ ${trendsData}
   throw new Error('Failed to parse Gemini response');
 }
 
-// Posts 시트에 저장
-async function saveToPostsSheet(client, postData, env) {
+// Posts 시트 생성
+async function createPostsSheet(env) {
+  const accessToken = await getGoogleAccessToken(env);
+
+  // 1. 새 시트 생성
+  const createSheetResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: [{
+          addSheet: {
+            properties: {
+              title: 'Posts',
+              gridProperties: {
+                rowCount: 1000,
+                columnCount: 6
+              }
+            }
+          }
+        }]
+      })
+    }
+  );
+
+  const createData = await createSheetResponse.json();
+
+  if (!createSheetResponse.ok) {
+    throw new Error(`Failed to create sheet: ${JSON.stringify(createData)}`);
+  }
+
+  // 2. 헤더 추가
+  const headers = [['subdomain', 'business_name', 'language', 'title', 'body', 'created_at']];
+
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A1:F1?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: headers })
+    }
+  );
+
+  return {
+    success: true,
+    message: 'Posts sheet created successfully',
+    sheetId: createData.replies[0].addSheet.properties.sheetId
+  };
+}
+
+// Google Access Token 가져오기
+async function getGoogleAccessToken(env) {
   const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
 
-  // JWT 생성
   const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const now = Math.floor(Date.now() / 1000);
   const jwtClaimSet = {
@@ -231,7 +308,6 @@ async function saveToPostsSheet(client, postData, env) {
   const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
   const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
 
-  // Sign JWT
   const privateKey = await crypto.subtle.importKey(
     'pkcs8',
     pemToArrayBuffer(serviceAccount.private_key),
@@ -251,7 +327,6 @@ async function saveToPostsSheet(client, postData, env) {
 
   const jwt = `${signatureInput}.${jwtSignature}`;
 
-  // Get access token
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -259,7 +334,12 @@ async function saveToPostsSheet(client, postData, env) {
   });
 
   const tokenData = await tokenResponse.json();
-  const accessToken = tokenData.access_token;
+  return tokenData.access_token;
+}
+
+// Posts 시트에 저장
+async function saveToPostsSheet(client, postData, env) {
+  const accessToken = await getGoogleAccessToken(env);
 
   // Append to Posts sheet
   const timestamp = new Date().toISOString();
