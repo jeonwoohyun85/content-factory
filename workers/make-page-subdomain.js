@@ -1887,13 +1887,13 @@ async function cleanupOldPostsForPosting(normalizedSubdomain, env, accessToken) 
       }
     }
 
-    // 1개 이상이면 모두 삭제 (추가 후 1개만 남도록)
-    if (clientPosts.length >= 1) {
+    // 2개 이상이면 삭제 (최신 1개만 유지)
+    if (clientPosts.length >= 2) {
       // 최신순 정렬
       clientPosts.sort((a, b) => b.date - a.date);
 
       // 최신 1개를 제외한 나머지 삭제
-      const postsToDelete = clientPosts.slice(0); // 전부 삭제 (추가 후 1개만 남도록)
+                  const postsToDelete = clientPosts.slice(1);
       
       // 뒤에서부터 삭제 (인덱스 꼬이지 않게)
       postsToDelete.sort((a, b) => b.rowIndex - a.rowIndex);
