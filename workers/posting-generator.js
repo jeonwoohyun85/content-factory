@@ -483,6 +483,10 @@ async function getClientFolders(businessName, accessToken, env) {
   );
 
   const subFoldersData = await subFoldersResponse.json();
+
+  // 디버깅: 모든 폴더 로그
+  console.log('All subfolders:', JSON.stringify(subFoldersData));
+
   const folders = (subFoldersData.files || [])
     .map(f => f.name)
     .filter(name => {
@@ -490,6 +494,8 @@ async function getClientFolders(businessName, accessToken, env) {
       return lowerName !== 'info' && lowerName !== 'video';
     })
     .sort();
+
+  console.log('Filtered folders:', folders);
 
   return folders;
 }
