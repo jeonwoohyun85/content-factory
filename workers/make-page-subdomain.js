@@ -109,9 +109,68 @@ async function getClientFromSheets(clientId) {
 // Posts 시트에서 최근 포스팅 3개 조회
 async function getRecentPosts(subdomain) {
   try {
-    // Posts 시트는 gid가 다를 수 있으므로 시트 이름으로 조회 불가
-    // 일단 빈 배열 반환 (Posts 시트 생성 후 구현)
-    return [];
+    // Posts 시트 CSV 조회 (gid=1895987712)
+    const POSTS_SHEET_GID = '1895987712';
+    const postsUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_ID}/export?format=csv&gid=${POSTS_SHEET_GID}`;
+
+    const response = await fetch(postsUrl);
+    if (!response.ok) {
+      return [];
+    }
+
+    const csvText = await response.text();
+    const rows = csvText.split('\n').map(row => {
+      const cols = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          cols.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      cols.push(current.trim());
+      return cols;
+    });
+
+    if (rows.length < 2) {
+      return [];
+    }
+
+    const headers = rows[0];
+    const subdomainIndex = headers.indexOf('subdomain');
+    const businessNameIndex = headers.indexOf('business_name');
+    const languageIndex = headers.indexOf('language');
+    const titleIndex = headers.indexOf('title');
+    const bodyIndex = headers.indexOf('body');
+    const createdAtIndex = headers.indexOf('created_at');
+
+    // subdomain으로 필터링
+    const posts = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[subdomainIndex] === subdomain) {
+        posts.push({
+          subdomain: row[subdomainIndex],
+          business_name: row[businessNameIndex],
+          language: row[languageIndex],
+          title: row[titleIndex],
+          body: row[bodyIndex],
+          created_at: row[createdAtIndex]
+        });
+      }
+    }
+
+    // created_at 기준 내림차순 정렬 (최신순)
+    posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // 최근 3개만 반환
+    return posts.slice(0, 3);
   } catch (error) {
     console.error('Posts fetch error:', error);
     return [];
