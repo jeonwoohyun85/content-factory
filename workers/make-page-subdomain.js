@@ -326,13 +326,6 @@ function generateClientPage(client) {
             gap: 16px;
         }
 
-        @media (max-width: 768px) {
-            .gallery-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
-            }
-        }
-
         .gallery-item {
             position: relative;
             overflow: hidden;
