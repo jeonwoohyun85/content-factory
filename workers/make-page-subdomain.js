@@ -533,6 +533,24 @@ function generatePostPage(client, post) {
   // 이미지 URL 파싱
   const imageUrls = (post.images || '').split(',').map(url => url.trim()).filter(url => url);
 
+  // 본문을 문단으로 분리
+  const paragraphs = (post.body || '').split('\n\n').filter(p => p.trim());
+
+  // 이미지와 문단을 인터리브
+  let contentHtml = '';
+  const maxLength = Math.max(imageUrls.length, paragraphs.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    // 이미지 추가
+    if (i < imageUrls.length) {
+      contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="Post Image" class="post-image">`;
+    }
+    // 문단 추가
+    if (i < paragraphs.length) {
+      contentHtml += `<p class="post-paragraph">${escapeHtml(paragraphs[i])}</p>`;
+    }
+  }
+
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -603,25 +621,20 @@ function generatePostPage(client, post) {
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
-        .post-images {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-
         .post-image {
             width: 100%;
+            max-width: 800px;
             height: auto;
             border-radius: 8px;
-            object-fit: cover;
+            margin: 32px 0;
+            display: block;
         }
 
-        .post-body {
+        .post-paragraph {
             font-size: 17px;
             color: #333;
             line-height: 1.8;
-            white-space: pre-wrap;
+            margin-bottom: 24px;
         }
 
         @media (max-width: 768px) {
@@ -657,8 +670,7 @@ function generatePostPage(client, post) {
         </div>
 
         <div class="post-content">
-            ${imageUrls.length > 0 ? '<div class="post-images">' + imageUrls.map(url => '<img src="' + escapeHtml(url) + '" alt="Post Image" class="post-image">').join('') + '</div>' : ''}
-            <div class="post-body">${escapeHtml(post.body || '')}</div>
+            ${contentHtml}
         </div>
     </div>
 </body>
