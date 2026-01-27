@@ -2,6 +2,7 @@
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
 
 const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+const GEMINI_API_KEY = 'AIzaSyCGaxsMXJ5UvUrU9wQCOH2ou7m9TP2pB88';
 
 // ==================== 유틸리티 함수 ====================
 
@@ -249,13 +250,7 @@ function pemToArrayBuffer(pem) {
 
 
 async function generatePosting(subdomain, env) {
-  const response = await fetch('https://posting-generator.jeonwoohyun85.workers.dev/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subdomain })
-  });
-
-  return await response.json();
+  return await generatePostingForClient(subdomain, env);
 }
 
 
@@ -1122,3 +1117,523 @@ export default {
     }
   }
 };
+
+// ==================== 포스팅 생성 함수들 (posting-generator.js 통합) ====================
+
+async function generatePostingForClient(subdomain, env) {
+  const logs = [];
+
+  try {
+    // Step 1: 거래처 정보 조회
+    logs.push('거래처 정보 조회 중...');
+    const client = await getClientFromSheetsForPosting(subdomain);
+    if (!client) {
+      return { success: false, error: 'Client not found', logs };
+    }
+    logs.push(`거래처: ${client.business_name}`);
+
+    // Step 1.5: Google Drive 폴더 순환 선택
+    logs.push('Google Drive 폴더 조회 중...');
+    const accessToken = await getGoogleAccessTokenForPosting(env);
+    const driveBusinessName = `${client.subdomain} ${client.business_name}`;
+    logs.push(`Drive 폴더명: ${driveBusinessName}`);
+    const folders = await getClientFoldersForPosting(driveBusinessName, accessToken, env, logs);
+
+    if (folders.length === 0) {
+      return { success: false, error: 'No folders found (Info/Video excluded)', logs };
+    }
+
+    logs.push(`폴더 ${folders.length}개 발견`);
+
+    const lastUsedFolder = await getLastUsedFolderForPosting(subdomain, env);
+    const nextFolder = getNextFolderForPosting(folders, lastUsedFolder);
+    logs.push(`선택된 폴더: ${nextFolder}`);
+
+    // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
+    logs.push('폴더 내 이미지 조회 중...');
+    const images = await getFolderImagesForPosting(driveBusinessName, nextFolder, accessToken, env, logs);
+    logs.push(`이미지 ${images.length}개 발견`);
+
+    if (images.length === 0) {
+      return { success: false, error: 'No images found in folder', logs };
+    }
+
+    // Step 2: 웹 검색 (Gemini 2.5 Flash)
+    logs.push('웹 검색 시작...');
+    const trendsData = await searchWithGeminiForPosting(client);
+    logs.push(`웹 검색 완료: ${trendsData.substring(0, 100)}...`);
+
+    // Step 3: 포스팅 생성 (Gemini 3.0 Pro)
+    logs.push('포스팅 생성 시작...');
+    const postData = await generatePostWithGeminiForPosting(client, trendsData, images);
+    logs.push(`포스팅 생성 완료: ${postData.title}`);
+
+    // Step 4: Posts 시트에 저장
+    logs.push('Posts 시트 저장 시작...');
+    await saveToPostsSheetForPosting(client, postData, nextFolder, images, env);
+    logs.push('Posts 시트 저장 완료');
+
+    return {
+      success: true,
+      post: postData,
+      logs
+    };
+
+  } catch (error) {
+    logs.push(`에러: ${error.message}`);
+    return {
+      success: false,
+      error: error.message,
+      logs
+    };
+  }
+}
+
+async function getClientFromSheetsForPosting(subdomain) {
+  const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+  const csvText = await response.text();
+  const rows = csvText.split('\n').map(row => {
+    const cols = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        cols.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    cols.push(current.trim());
+    return cols;
+  });
+
+  const headers = rows[0];
+  const subdomainIndex = headers.indexOf('subdomain');
+  const businessNameIndex = headers.indexOf('business_name');
+  const languageIndex = headers.indexOf('language');
+  const descriptionIndex = headers.indexOf('description');
+  const statusIndex = headers.indexOf('status');
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    let rowSubdomain = row[subdomainIndex] || '';
+
+    if (rowSubdomain.includes('.make-page.com')) {
+      rowSubdomain = rowSubdomain.replace('.make-page.com', '').replace('/', '');
+    }
+
+    if (rowSubdomain === subdomain && row[statusIndex] === 'active') {
+      return {
+        subdomain: rowSubdomain,
+        business_name: row[businessNameIndex],
+        language: row[languageIndex] || '한국어',
+        description: row[descriptionIndex] || ''
+      };
+    }
+  }
+
+  return null;
+}
+
+async function searchWithGeminiForPosting(client) {
+  const prompt = `
+[업종] ${client.business_name}
+[언어] ${client.language}
+
+다음 정보를 1000자 이내로 작성:
+1. ${client.language} 시장의 최신 트렌드
+2. 검색 키워드 상위 5개
+3. 소비자 관심사
+
+출력 형식: 텍스트만 (JSON 불필요)
+`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000
+        }
+      })
+    }
+  );
+
+  const data = await response.json();
+  return data.candidates[0].content.parts[0].text;
+}
+
+async function generatePostWithGeminiForPosting(client, trendsData, images) {
+  const prompt = `
+[거래처 정보]
+- 업체명: ${client.business_name}
+- 언어: ${client.language}
+- 소개: ${client.description}
+
+[트렌드 정보]
+${trendsData}
+
+[제공된 이미지]
+총 ${images.length}장의 이미지가 제공됩니다.
+
+[작성 규칙]
+1. 제목: 완전 자유 창작 (제한 없음)
+2. 본문 전체 글자수: **3000~3500자** (필수)
+3. 본문 구조: **반드시 ${images.length}개의 문단으로 작성**
+   - 1번째 이미지 → 1번째 문단
+   - 2번째 이미지 → 2번째 문단
+   - ...
+   - ${images.length}번째 이미지 → ${images.length}번째 문단
+4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 구체적으로 설명
+   - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 자세히 묘사
+   - 전체 3000~3500자를 ${images.length}개 문단에 균등 배분
+5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
+6. 금지어: 최고, 1등, 유일, 검증된
+7. 금지 창작: 경력, 학력, 자격증, 수상
+8. description 내용을 자연스럽게 포함 (필수)
+
+출력 형식 (JSON):
+{
+  "title": "제목",
+  "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
+}
+
+중요: body는 정확히 ${images.length}개의 문단으로 구성되어야 합니다.
+`;
+
+  const parts = [{ text: prompt }];
+
+  for (const image of images) {
+    parts.push({
+      inline_data: {
+        mime_type: image.mimeType,
+        data: image.data
+      }
+    });
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: parts
+        }],
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 8000
+        }
+      })
+    }
+  );
+
+  const data = await response.json();
+
+  if (!data.candidates || data.candidates.length === 0) {
+    throw new Error(`Gemini API error: ${JSON.stringify(data)}`);
+  }
+
+  const text = data.candidates[0].content.parts[0].text;
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
+
+  throw new Error('Failed to parse Gemini response');
+}
+
+async function getGoogleAccessTokenForPosting(env) {
+  const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+
+  const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const now = Math.floor(Date.now() / 1000);
+  const jwtClaimSet = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+
+  const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
+  const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
+
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToArrayBuffer(serviceAccount.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    privateKey,
+    new TextEncoder().encode(signatureInput)
+  );
+
+  const jwtSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const jwt = `${signatureInput}.${jwtSignature}`;
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  });
+
+  const tokenData = await tokenResponse.json();
+  return tokenData.access_token;
+}
+
+async function getFolderImagesForPosting(businessName, folderName, accessToken, env, logs) {
+  const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
+
+  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+
+  const businessFolderResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const businessFolderData = await businessFolderResponse.json();
+  if (!businessFolderData.files || businessFolderData.files.length === 0) {
+    logs.push('이미지 조회: 거래처 폴더 없음');
+    return [];
+  }
+
+  const businessFolderId = businessFolderData.files[0].id;
+  logs.push(`이미지 조회: 거래처 폴더 ID ${businessFolderId}`);
+
+  const targetFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' and '${businessFolderId}' in parents and trashed = false`;
+
+  const targetFolderResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(targetFolderQuery)}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const targetFolderData = await targetFolderResponse.json();
+  logs.push(`타겟 폴더 검색 결과: ${JSON.stringify(targetFolderData)}`);
+
+  if (!targetFolderData.files || targetFolderData.files.length === 0) {
+    logs.push('이미지 조회: 타겟 폴더 없음');
+    return [];
+  }
+
+  const targetFolderId = targetFolderData.files[0].id;
+  logs.push(`이미지 조회: 타겟 폴더 ID ${targetFolderId}`);
+
+  const filesQuery = `'${targetFolderId}' in parents and trashed = false`;
+
+  const filesResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(filesQuery)}&fields=files(id,name,mimeType)&pageSize=100`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const filesData = await filesResponse.json();
+  logs.push(`파일 검색 결과: ${JSON.stringify(filesData)}`);
+
+  const imageFiles = (filesData.files || []).filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+  logs.push(`이미지 파일 ${imageFiles.length}개 필터링됨`);
+
+  const images = [];
+  for (const file of imageFiles) {
+    try {
+      logs.push(`다운로드 시작: ${file.name}`);
+      const imageResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      if (!imageResponse.ok) {
+        logs.push(`다운로드 실패: ${file.name} - ${imageResponse.status}`);
+        continue;
+      }
+
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode.apply(null, chunk);
+      }
+      const base64 = btoa(binary);
+
+      images.push({
+        id: file.id,
+        name: file.name,
+        mimeType: file.mimeType,
+        data: base64
+      });
+      logs.push(`다운로드 완료: ${file.name}`);
+    } catch (error) {
+      logs.push(`다운로드 에러: ${file.name} - ${error.message}`);
+    }
+  }
+
+  logs.push(`총 ${images.length}개 이미지 다운로드 완료`);
+  return images;
+}
+
+async function getClientFoldersForPosting(businessName, accessToken, env, logs) {
+  const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
+
+  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+
+  const businessFolderResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const businessFolderData = await businessFolderResponse.json();
+  logs.push(`거래처 폴더 검색 결과: ${JSON.stringify(businessFolderData)}`);
+
+  if (!businessFolderData.files || businessFolderData.files.length === 0) {
+    logs.push('거래처 폴더를 찾을 수 없음');
+    return [];
+  }
+
+  const businessFolderId = businessFolderData.files[0].id;
+  logs.push(`거래처 폴더 ID: ${businessFolderId}`);
+
+  const subFoldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${businessFolderId}' in parents and trashed = false`;
+
+  const subFoldersResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(subFoldersQuery)}&fields=files(id,name)&orderBy=name`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const subFoldersData = await subFoldersResponse.json();
+  logs.push(`하위 폴더 조회 결과: ${JSON.stringify(subFoldersData)}`);
+
+  const folders = (subFoldersData.files || [])
+    .map(f => f.name)
+    .filter(name => {
+      const lowerName = name.toLowerCase();
+      return lowerName !== 'info' && lowerName !== 'video';
+    })
+    .sort();
+
+  logs.push(`필터링된 폴더: ${JSON.stringify(folders)}`);
+
+  return folders;
+}
+
+async function getLastUsedFolderForPosting(subdomain, env) {
+  try {
+    const POSTS_SHEET_GID = '1895987712';
+    const postsUrl = `https://docs.google.com/spreadsheets/d/${env.SHEETS_ID}/export?format=csv&gid=${POSTS_SHEET_GID}`;
+
+    const response = await fetch(postsUrl);
+    if (!response.ok) {
+      return null;
+    }
+
+    const csvText = await response.text();
+    const rows = csvText.split('\n').map(row => {
+      const cols = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          cols.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      cols.push(current.trim());
+      return cols;
+    });
+
+    if (rows.length < 2) {
+      return null;
+    }
+
+    const headers = rows[0];
+    const subdomainIndex = headers.indexOf('subdomain');
+    const folderNameIndex = headers.indexOf('folder_name');
+
+    let lastFolder = null;
+    for (let i = rows.length - 1; i >= 1; i--) {
+      const row = rows[i];
+      if (row[subdomainIndex] === subdomain) {
+        lastFolder = row[folderNameIndex] || null;
+        break;
+      }
+    }
+
+    return lastFolder;
+  } catch (error) {
+    return null;
+  }
+}
+
+function getNextFolderForPosting(folders, lastFolder) {
+  if (folders.length === 0) {
+    return null;
+  }
+
+  if (!lastFolder) {
+    return folders[0];
+  }
+
+  const currentIndex = folders.indexOf(lastFolder);
+  if (currentIndex === -1) {
+    return folders[0];
+  }
+
+  const nextIndex = (currentIndex + 1) % folders.length;
+  return folders[nextIndex];
+}
+
+async function saveToPostsSheetForPosting(client, postData, folderName, images, env) {
+  const accessToken = await getGoogleAccessTokenForPosting(env);
+
+  const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
+
+  const now = new Date();
+  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
+  const values = [[
+    client.subdomain,
+    client.business_name,
+    client.language,
+    postData.title,
+    postData.body,
+    timestamp,
+    folderName,
+    imageUrls
+  ]];
+
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H:append?valueInputOption=RAW`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values })
+    }
+  );
+}
