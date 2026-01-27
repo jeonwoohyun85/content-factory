@@ -79,7 +79,7 @@ function parseCSVLine(line) {
 }
 
 // Google Sheets에서 거래처 정보 조회
-async function getClientFromSheets(clientId) {
+async function getClientFromSheets(clientId, env) {
   try {
     const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
     const csvText = await response.text();
@@ -96,7 +96,7 @@ async function getClientFromSheets(clientId) {
 
     // Posts 조회 추가
     if (client) {
-      client.posts = await getRecentPosts(clientId);
+      client.posts = await getRecentPosts(clientId, env);
     }
 
     return client;
@@ -128,10 +128,10 @@ function formatKoreanTime(isoString) {
 }
 
 // Posts 시트에서 최근 포스팅 3개 조회
-async function getRecentPosts(subdomain) {
+async function getRecentPosts(subdomain, env) {
   try {
     // Service Account로 Posts 시트 조회
-    const serviceAccount = JSON.parse(GOOGLE_SERVICE_ACCOUNT_JSON);
+    const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
 
     // JWT 생성
     const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
@@ -179,7 +179,7 @@ async function getRecentPosts(subdomain) {
 
     // Posts 시트 데이터 조회
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}/values/Posts!A:G`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:G`,
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
@@ -957,7 +957,7 @@ export default {
 
     try {
       // Google Sheets에서 거래처 정보 조회
-      const client = await getClientFromSheets(subdomain);
+      const client = await getClientFromSheets(subdomain, env);
 
       if (!client) {
         return new Response('Not Found', { status: 404 });
