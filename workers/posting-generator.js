@@ -81,7 +81,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
     logs.push('폴더 내 이미지 조회 중...');
-    const images = await getFolderImages(driveBusinessName, nextFolder, accessToken, env);
+    const images = await getFolderImages(driveBusinessName, nextFolder, accessToken, env, logs);
     logs.push(`이미지 ${images.length}개 발견`);
 
     if (images.length === 0) {
@@ -387,7 +387,7 @@ async function getGoogleAccessToken(env) {
 }
 
 // 선택된 폴더에서 모든 이미지 파일 가져오기
-async function getFolderImages(businessName, folderName, accessToken, env) {
+async function getFolderImages(businessName, folderName, accessToken, env, logs) {
   const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
 
   // 1. 거래처 폴더 찾기
@@ -400,10 +400,12 @@ async function getFolderImages(businessName, folderName, accessToken, env) {
 
   const businessFolderData = await businessFolderResponse.json();
   if (!businessFolderData.files || businessFolderData.files.length === 0) {
+    logs.push('이미지 조회: 거래처 폴더 없음');
     return [];
   }
 
   const businessFolderId = businessFolderData.files[0].id;
+  logs.push(`이미지 조회: 거래처 폴더 ID ${businessFolderId}`);
 
   // 2. 타겟 폴더 찾기
   const targetFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' and '${businessFolderId}' in parents and trashed = false`;
@@ -414,31 +416,44 @@ async function getFolderImages(businessName, folderName, accessToken, env) {
   );
 
   const targetFolderData = await targetFolderResponse.json();
+  logs.push(`타겟 폴더 검색 결과: ${JSON.stringify(targetFolderData)}`);
+
   if (!targetFolderData.files || targetFolderData.files.length === 0) {
+    logs.push('이미지 조회: 타겟 폴더 없음');
     return [];
   }
 
   const targetFolderId = targetFolderData.files[0].id;
+  logs.push(`이미지 조회: 타겟 폴더 ID ${targetFolderId}`);
 
-  // 3. 폴더 내 이미지 파일 조회
-  const imagesQuery = `mimeType contains 'image/' and '${targetFolderId}' in parents and trashed = false`;
+  // 3. 폴더 내 모든 파일 조회 (확장자 제한 없음)
+  const filesQuery = `'${targetFolderId}' in parents and trashed = false`;
 
-  const imagesResponse = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(imagesQuery)}&fields=files(id,name,mimeType)&pageSize=100`,
+  const filesResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(filesQuery)}&fields=files(id,name,mimeType)&pageSize=100`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
-  const imagesData = await imagesResponse.json();
-  const imageFiles = imagesData.files || [];
+  const filesData = await filesResponse.json();
+  logs.push(`파일 검색 결과: ${JSON.stringify(filesData)}`);
+
+  const imageFiles = (filesData.files || []).filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+  logs.push(`이미지 파일 ${imageFiles.length}개 필터링됨`);
 
   // 4. 각 이미지 다운로드 및 Base64 인코딩
   const images = [];
   for (const file of imageFiles) {
     try {
+      logs.push(`다운로드 시작: ${file.name}`);
       const imageResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
+
+      if (!imageResponse.ok) {
+        logs.push(`다운로드 실패: ${file.name} - ${imageResponse.status}`);
+        continue;
+      }
 
       const arrayBuffer = await imageResponse.arrayBuffer();
       const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
@@ -447,11 +462,13 @@ async function getFolderImages(businessName, folderName, accessToken, env) {
         mimeType: file.mimeType,
         data: base64
       });
+      logs.push(`다운로드 완료: ${file.name}`);
     } catch (error) {
-      console.error(`Failed to download image ${file.name}:`, error);
+      logs.push(`다운로드 에러: ${file.name} - ${error.message}`);
     }
   }
 
+  logs.push(`총 ${images.length}개 이미지 다운로드 완료`);
   return images;
 }
 
