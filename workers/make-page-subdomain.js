@@ -1716,8 +1716,8 @@ async function getLastUsedFolderForPosting(subdomain, env) {
     const subdomainIndex = headers.indexOf('subdomain');
     const lastFolderIndex = headers.indexOf('folder_name');
     
-    // subdomain으로 찾기
-    for (let i = 1; i < rows.length; i++) {
+    // subdomain으로 찾기 (마지막 행부터 역순)
+    for (let i = rows.length - 1; i >= 1; i--) {
       const row = rows[i];
       const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
       if (rowSubdomain === subdomain) {
@@ -1782,4 +1782,5 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
     { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
   );
 }
+
 
