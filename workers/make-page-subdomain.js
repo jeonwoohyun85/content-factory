@@ -1353,10 +1353,15 @@ async function generatePostingForClient(subdomain, env) {
     const postData = await generatePostWithGeminiForPosting(client, trendsData, images);
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
-    // Step 4: Content Factory 시트에 저장
+    // Step 4: Content Factory 시트 저장 (post1_*, post2_* 업데이트)
     logs.push('Content Factory 시트 저장 시작...');
-    await saveToPostsSheetForPosting(client, postData, nextFolder, images, normalizedSubdomain, env);
+    await saveToContentFactorySheetForPosting(client, postData, images, normalizedSubdomain, env);
     logs.push('Content Factory 시트 저장 완료');
+
+    // Step 5: Posts 시트 저장 (이력 아카이브)
+    logs.push('Posts 시트 저장 시작...');
+    await saveToPostsSheetForPosting(client, postData, nextFolder, images, normalizedSubdomain, env);
+    logs.push('Posts 시트 저장 완료');
 
     return {
       success: true,
@@ -1714,18 +1719,20 @@ async function getLastUsedFolderForPosting(subdomain, env) {
     
     const headers = rows[0];
     const subdomainIndex = headers.indexOf('subdomain');
-    const lastFolderIndex = headers.indexOf('folder_name');
+    const folderNameIndex = headers.indexOf('folder_name');
     
-    // subdomain으로 찾기 (마지막 행부터 역순)
+    // 해당 subdomain의 마지막 행에서 folder_name 가져오기
+    let lastFolder = null;
     for (let i = rows.length - 1; i >= 1; i--) {
       const row = rows[i];
       const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
       if (rowSubdomain === subdomain) {
-        return row[lastFolderIndex] || null;
+        lastFolder = row[folderNameIndex] || null;
+        break;
       }
     }
     
-    return null;
+    return lastFolder;
   } catch (error) {
     return null;
   }
@@ -1760,6 +1767,86 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
+async function saveToContentFactorySheetForPosting(client, postData, images, normalizedSubdomain, env) {
+  const accessToken = await getGoogleAccessTokenForPosting(env);
+
+  // Content Factory 시트에서 전체 데이터 읽기
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'Content Factory'!A:Z`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const data = await response.json();
+  const rows = data.values || [];
+
+  if (rows.length < 2) {
+    throw new Error('Content Factory sheet is empty');
+  }
+
+  const headers = rows[0];
+  const subdomainIndex = headers.indexOf('subdomain');
+  const post1TitleIndex = headers.indexOf('post1_title');
+  const post1BodyIndex = headers.indexOf('post1_body');
+  const post1CreatedAtIndex = headers.indexOf('post1_created_at');
+  const post1ImagesIndex = headers.indexOf('post1_images');
+  const post2TitleIndex = headers.indexOf('post2_title');
+  const post2BodyIndex = headers.indexOf('post2_body');
+  const post2CreatedAtIndex = headers.indexOf('post2_created_at');
+  const post2ImagesIndex = headers.indexOf('post2_images');
+
+  // 해당 subdomain 행 찾기
+  let rowIndex = -1;
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
+    if (rowSubdomain === normalizedSubdomain) {
+      rowIndex = i + 1; // 1-indexed
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    throw new Error(`Client ${normalizedSubdomain} not found in Content Factory sheet`);
+  }
+
+  // 현재 post1을 post2로 이동
+  const currentPost1Title = rows[rowIndex - 1][post1TitleIndex] || '';
+  const currentPost1Body = rows[rowIndex - 1][post1BodyIndex] || '';
+  const currentPost1CreatedAt = rows[rowIndex - 1][post1CreatedAtIndex] || '';
+  const currentPost1Images = rows[rowIndex - 1][post1ImagesIndex] || '';
+
+  // 새 포스팅 데이터
+  const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
+  const now = new Date();
+  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
+
+  // post1, post2 업데이트 (배치 업데이트)
+  const updateRange = `'Content Factory'!${getColumnLetter(post1TitleIndex)}${rowIndex}:${getColumnLetter(post2ImagesIndex)}${rowIndex}`;
+  const updateValues = [[
+    postData.title,           // post1_title
+    postData.body,            // post1_body
+    timestamp,                // post1_created_at
+    imageUrls,                // post1_images
+    currentPost1Title,        // post2_title (기존 post1)
+    currentPost1Body,         // post2_body (기존 post1)
+    currentPost1CreatedAt,    // post2_created_at (기존 post1)
+    currentPost1Images        // post2_images (기존 post1)
+  ]];
+
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${updateRange}?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: updateValues })
+    }
+  );
+}
+
 async function saveToPostsSheetForPosting(client, postData, folderName, images, normalizedSubdomain, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
   const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
@@ -1782,5 +1869,4 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
     { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
   );
 }
-
 
