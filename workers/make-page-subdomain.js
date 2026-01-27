@@ -96,9 +96,9 @@ async function getClientFromSheets(clientId, env) {
       return normalizedSubdomain === clientId;
     });
 
-    // Posts 조회 추가
+    // Posts 조회 추가 (Content Factory 시트에서 post1_*, post2_* 읽기)
     if (client) {
-      client.posts = await getRecentPosts(clientId, env);
+      client.posts = getRecentPostsFromClient(client);
     }
 
     return client;
@@ -129,70 +129,41 @@ function formatKoreanTime(isoString) {
   }
 }
 
-// Posts 시트에서 최근 포스팅 3개 조회
-async function getRecentPosts(subdomain, env) {
-  try {
-    // Service Account로 Posts 시트 조회
-    const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+// Content Factory 시트에서 포스트 데이터 읽기 (client 객체에서 직접 추출)
+function getRecentPostsFromClient(client) {
+  const posts = [];
 
-    // Get access token
-    const accessToken = await getGoogleAccessTokenForPosting(env);
-
-    // Posts 시트 데이터 조회
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const data = await response.json();
-    const rows = data.values || [];
-
-    if (rows.length < 2) {
-      return [];
-    }
-
-    const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const businessNameIndex = headers.indexOf('business_name');
-    const languageIndex = headers.indexOf('language');
-    const titleIndex = headers.indexOf('title');
-    const bodyIndex = headers.indexOf('body');
-    const createdAtIndex = headers.indexOf('created_at');
-    const imagesIndex = headers.indexOf('images');
-
-    // subdomain으로 필터링 (정규화해서 비교)
-    const posts = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-      if (rowSubdomain === subdomain) {
-        posts.push({
-          subdomain: row[subdomainIndex],
-          business_name: row[businessNameIndex],
-          language: row[languageIndex],
-          title: row[titleIndex],
-          body: row[bodyIndex],
-          created_at: row[createdAtIndex],
-          images: row[imagesIndex] || ''
-        });
-      }
-    }
-
-    // created_at 기준 내림차순 정렬 (최신순)
-    posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    // 최근 3개 반환
-    return posts.slice(0, 3);
-  } catch (error) {
-    console.error('Posts fetch error:', error);
-    return [];
+  // post1 (최신)
+  if (client.post1_title && client.post1_body) {
+    posts.push({
+      subdomain: client.subdomain,
+      business_name: client.business_name,
+      language: client.language,
+      title: client.post1_title,
+      body: client.post1_body,
+      created_at: client.post1_created_at,
+      images: client.post1_images || ''
+    });
   }
+
+  // post2 (두번째)
+  if (client.post2_title && client.post2_body) {
+    posts.push({
+      subdomain: client.subdomain,
+      business_name: client.business_name,
+      language: client.language,
+      title: client.post2_title,
+      body: client.post2_body,
+      created_at: client.post2_created_at,
+      images: client.post2_images || ''
+    });
+  }
+
+  // created_at 기준 내림차순 정렬 (최신순)
+  posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  // 최근 3개 반환 (사실상 2개)
+  return posts.slice(0, 3);
 }
 
 function pemToArrayBuffer(pem) {
@@ -1079,14 +1050,11 @@ async function deletePost(subdomain, createdAt, password, env) {
   }
 
   try {
-    const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
-
-    // Access Token 가져오기
     const accessToken = await getGoogleAccessTokenForPosting(env);
 
-    // Posts 시트에서 모든 데이터 조회
+    // Content Factory 시트에서 모든 데이터 조회
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'Content Factory'!A:Z`,
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
@@ -1101,71 +1069,61 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     const headers = rows[0];
     const subdomainIndex = headers.indexOf('subdomain');
-    const createdAtIndex = headers.indexOf('created_at');
+    const post1CreatedAtIndex = headers.indexOf('post1_created_at');
+    const post2CreatedAtIndex = headers.indexOf('post2_created_at');
+    const post1TitleIndex = headers.indexOf('post1_title');
+    const post1BodyIndex = headers.indexOf('post1_body');
+    const post1ImagesIndex = headers.indexOf('post1_images');
+    const post2TitleIndex = headers.indexOf('post2_title');
+    const post2BodyIndex = headers.indexOf('post2_body');
+    const post2ImagesIndex = headers.indexOf('post2_images');
 
-    // 삭제할 행 찾기 (강제 삭제 모드: 날짜 무시, 최신 글 삭제)
+    // 삭제할 행 찾기
     let deleteRowIndex = -1;
-    let latestDate = 0;
+    let deleteColumn = null; // 'post1' or 'post2'
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      const rowSubdomain = String(row[subdomainIndex] || '').trim();
-      const targetSubdomain = String(subdomain || '').trim();
+      const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
       
-      // 서브도메인 일치하는 것 중
-      if (rowSubdomain === targetSubdomain) {
-        // 날짜 파싱하여 가장 최신(미래)인 것 찾기
-        const rowDate = new Date(row[createdAtIndex]).getTime();
-        if (!isNaN(rowDate) && rowDate >= latestDate) {
-          latestDate = rowDate;
-          deleteRowIndex = i + 1; // Sheets는 1-indexed
-        }
-      }
-    }
-
-    if (deleteRowIndex === -1) {
-      // 날짜 파싱 실패 시, 그냥 해당 서브도메인의 마지막 발견된 행 삭제 (시트는 보통 시간순 정렬되므로)
-      for (let i = rows.length - 1; i >= 1; i--) {
-        const row = rows[i];
-        if (String(row[subdomainIndex] || '').trim() === String(subdomain || '').trim()) {
+      if (rowSubdomain === subdomain) {
+        const post1Date = row[post1CreatedAtIndex];
+        const post2Date = row[post2CreatedAtIndex];
+        
+        if (post1Date === createdAt) {
+          deleteRowIndex = i + 1; // 1-indexed
+          deleteColumn = 'post1';
+          break;
+        } else if (post2Date === createdAt) {
           deleteRowIndex = i + 1;
+          deleteColumn = 'post2';
           break;
         }
       }
     }
 
     if (deleteRowIndex === -1) {
-      return { success: false, error: '삭제할 포스트가 없습니다' };
+      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
     }
 
-    // 행 삭제 (batchUpdate 사용)
-    const deleteResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+    // 해당 post 컬럼 비우기
+    const updateRange = deleteColumn === 'post1' 
+      ? `'Content Factory'!${getColumnLetter(post1TitleIndex)}${deleteRowIndex}:${getColumnLetter(post1ImagesIndex)}${deleteRowIndex}`
+      : `'Content Factory'!${getColumnLetter(post2TitleIndex)}${deleteRowIndex}:${getColumnLetter(post2ImagesIndex)}${deleteRowIndex}`;
+
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${updateRange}?valueInputOption=RAW`,
       {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          requests: [{
-            deleteDimension: {
-              range: {
-                sheetId: 1895987712, // Posts 시트 GID
-                dimension: 'ROWS',
-                startIndex: deleteRowIndex - 1, // 0-indexed
-                endIndex: deleteRowIndex
-              }
-            }
-          }]
+          values: [['', '', '', '']] // title, body, created_at, images 모두 비우기
         })
       }
     );
-
-    if (!deleteResponse.ok) {
-      const errorText = await deleteResponse.text();
-      return { success: false, error: `Google Sheets 삭제 실패: ${errorText}` };
-    }
 
     return { success: true };
 
@@ -1175,64 +1133,14 @@ async function deletePost(subdomain, createdAt, password, env) {
   }
 }
 
-// ==================== Posts 시트 복구 ====================
-
-async function fixPostsSheetHeader(env) {
-  try {
-    const accessToken = await getGoogleAccessTokenForPosting(env);
-    
-    // 1. G1에 "folder_name" 헤더 추가
-    await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!G1?valueInputOption=RAW`,
-      {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          values: [['folder_name']]
-        })
-      }
-    );
-    
-    // 2. 모든 데이터 행 삭제 (헤더는 유지)
-    const readRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const data = await readRes.json();
-    const rowCount = (data.values || []).length;
-    
-    if (rowCount > 1) {
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            requests: [{
-              deleteDimension: {
-                range: {
-                  sheetId: 1895987712,
-                  dimension: 'ROWS',
-                  startIndex: 1,
-                  endIndex: rowCount
-                }
-              }
-            }]
-          })
-        }
-      );
-    }
-    
-    return { success: true, message: 'Posts 시트 복구 완료 (G1에 folder_name 추가, 데이터 초기화)' };
-  } catch (error) {
-    return { success: false, error: error.message };
+// 컬럼 인덱스를 문자로 변환 (0 -> A, 1 -> B, ...)
+function getColumnLetter(index) {
+  let letter = '';
+  while (index >= 0) {
+    letter = String.fromCharCode((index % 26) + 65) + letter;
+    index = Math.floor(index / 26) - 1;
   }
+  return letter;
 }
 
 // ==================== 라우팅 ====================
@@ -1251,9 +1159,9 @@ export default {
       // 2. 포스팅 생성
       for (const client of clients) {
         try {
-          // 오늘 이미 포스팅했는지 확인 (최근 1개 조회)
-          const recentPosts = await getRecentPosts(client.subdomain, env);
-          const lastPostDate = recentPosts.length > 0 ? new Date(recentPosts[0].created_at) : null;
+          // 오늘 이미 포스팅했는지 확인
+          const posts = getRecentPostsFromClient(client);
+          const lastPostDate = posts.length > 0 ? new Date(posts[0].created_at) : null;
           const today = new Date();
           
           const isToday = lastPostDate && 
@@ -1263,7 +1171,8 @@ export default {
 
           if (!isToday) {
             console.log(`Generating post for ${client.subdomain}...`);
-            await generatePostingForClient(client.subdomain, env);
+            const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+            await generatePostingForClient(normalizedSubdomain, env);
           } else {
             console.log(`Skipping ${client.subdomain}: already posted today`);
           }
@@ -1325,93 +1234,7 @@ export default {
           });
         }
       }
-      // Posts 시트 복구 엔드포인트
-      if (pathname === '/fix-posts-sheet' && request.method === 'POST') {
-        try {
-          const result = await fixPostsSheetHeader(env);
-          return new Response(JSON.stringify(result), {
-            status: result.success ? 200 : 500,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        } catch (error) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: error.message
-          }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-      }
       // 메인 도메인은 404 (랜딩페이지 없음)
-      if (pathname === '/cleanup-now-please') {
-        try {
-          const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
-          const accessToken = await getGoogleAccessTokenForPosting(env);
-
-          // 1. Read all posts
-          const readRes = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:F`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
-          const data = await readRes.json();
-          const rows = data.values || [];
-
-          if (rows.length < 2) return new Response('No data', { status: 200 });
-
-          // 2. Group by subdomain
-          const postsMap = new Map();
-          const pHeaders = rows[0];
-          const subIdx = pHeaders.indexOf('subdomain');
-          const dateIdx = pHeaders.indexOf('created_at');
-
-          for (let i = 1; i < rows.length; i++) {
-            const sub = rows[i][subIdx];
-            const date = rows[i][dateIdx];
-            if (!postsMap.has(sub)) postsMap.set(sub, []);
-            postsMap.get(sub).push({ index: i, date: new Date(date) });
-          }
-
-          // 3. Identify rows to delete
-          const deleteRanges = [];
-          for (const [sub, subPosts] of postsMap.entries()) {
-            if (subPosts.length <= 1) continue;
-            subPosts.sort((a, b) => b.date - a.date);
-            for (let i = 1; i < subPosts.length; i++) {
-              const rowIdx = subPosts[i].index;
-              deleteRanges.push({
-                sheetId: 1895987712,
-                dimension: "ROWS",
-                startIndex: rowIdx,
-                endIndex: rowIdx + 1
-              });
-            }
-          }
-
-          deleteRanges.sort((a, b) => b.startIndex - a.startIndex);
-
-          if (deleteRanges.length > 0) {
-            await fetch(
-              `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  requests: deleteRanges.map(range => ({ deleteDimension: { range } }))
-                })
-              }
-            );
-            return new Response(`Cleaned up ${deleteRanges.length} old posts.`, { status: 200 });
-          } else {
-            return new Response('Nothing to clean up.', { status: 200 });
-          }
-        } catch (e) {
-          return new Response(e.message, { status: 500 });
-        }
-      }
       return new Response('Not Found', { status: 404 });
     }
 
@@ -1530,10 +1353,10 @@ async function generatePostingForClient(subdomain, env) {
     const postData = await generatePostWithGeminiForPosting(client, trendsData, images);
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
-    // Step 4: Posts 시트에 저장
-    logs.push('Posts 시트 저장 시작...');
-    await saveToPostsSheetForPosting(client, postData, nextFolder, images, normalizedSubdomain, env);
-    logs.push('Posts 시트 저장 완료');
+    // Step 4: Content Factory 시트에 저장
+    logs.push('Content Factory 시트 저장 시작...');
+    await saveToContentFactorySheetForPosting(client, postData, nextFolder, images, normalizedSubdomain, env);
+    logs.push('Content Factory 시트 저장 완료');
 
     return {
       success: true,
@@ -1874,7 +1697,7 @@ async function getLastUsedFolderForPosting(subdomain, env) {
     const accessToken = await getGoogleAccessTokenForPosting(env);
     
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:G`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'Content Factory'!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     
@@ -1891,19 +1714,18 @@ async function getLastUsedFolderForPosting(subdomain, env) {
     
     const headers = rows[0];
     const subdomainIndex = headers.indexOf('subdomain');
-    const folderNameIndex = headers.indexOf('folder_name');
+    const lastFolderIndex = headers.indexOf('last_folder');
     
-    let lastFolder = null;
-    for (let i = rows.length - 1; i >= 1; i--) {
+    // subdomain으로 찾기
+    for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
       if (rowSubdomain === subdomain) {
-        lastFolder = row[folderNameIndex] || null;
-        break;
+        return row[lastFolderIndex] || null;
       }
     }
     
-    return lastFolder;
+    return null;
   } catch (error) {
     return null;
   }
@@ -1938,110 +1760,100 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
-// Retention Policy: 오래된 포스트 삭제 (추가 전에 실행)
-async function cleanupOldPostsForPosting(normalizedSubdomain, env, accessToken) {
-  try {
-    // Posts 시트 전체 조회
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const data = await response.json();
-    const rows = data.values || [];
-    
-    if (rows.length < 2) {
-      return;
-    }
-
-    const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const createdAtIndex = headers.indexOf('created_at');
-
-    // 해당 서브도메인의 글 찾기
-    const clientPosts = [];
-    for (let i = 1; i < rows.length; i++) {
-      const rowSubdomain = String(rows[i][subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-      if (rowSubdomain === normalizedSubdomain) {
-        clientPosts.push({
-          rowIndex: i,
-          date: new Date(rows[i][createdAtIndex]).getTime()
-        });
-      }
-    }
-
-    // 2개 이상이면 삭제 (최신 1개만 유지)
-    if (clientPosts.length >= 2) {
-      // 최신순 정렬
-      clientPosts.sort((a, b) => b.date - a.date);
-
-      // 최신 1개를 제외한 나머지 삭제
-              const postsToDelete = clientPosts.slice(1);
-      
-      // 뒤에서부터 삭제 (인덱스 꼬이지 않게)
-      postsToDelete.sort((a, b) => b.rowIndex - a.rowIndex);
-
-      const requests = postsToDelete.map(p => ({
-        deleteDimension: {
-          range: {
-            sheetId: 1895987712,
-            dimension: 'ROWS',
-            startIndex: p.rowIndex,
-            endIndex: p.rowIndex + 1
-          }
-        }
-      }));
-
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ requests })
-        }
-      );
-      console.log(`Cleaned up ${postsToDelete.length} old posts for ${normalizedSubdomain} (before adding new one)`);
-    }
-  } catch (error) {
-    console.error('Cleanup old posts error:', error);
-  }
-}
-
-async function saveToPostsSheetForPosting(client, postData, folderName, images, normalizedSubdomain, env) {
+async function saveToContentFactorySheetForPosting(client, postData, folderName, images, normalizedSubdomain, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
 
-  // 1. 먼저 오래된 포스트 삭제 (추가하기 전에)
-  await cleanupOldPostsForPosting(normalizedSubdomain, env, accessToken);
-
-  // 2. 새 포스트 추가 (subdomain을 클릭 가능한 도메인 형태로 저장)
+  // 이미지 URL 생성
   const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
 
+  // 한국 시간 생성
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
-  
-  const values = [[
-    `${normalizedSubdomain}.make-page.com`,  // 클릭 가능한 도메인 형태
-    client.business_name,
-    client.language,
-    postData.title,
-    postData.body,
-    timestamp,
-    folderName,
-    imageUrls
-  ]];
 
+  // 1. Content Factory 시트에서 해당 거래처 행 찾기
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'Content Factory'!A:Z`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  const data = await response.json();
+  const rows = data.values || [];
+  const headers = rows[0];
+
+  const subdomainIndex = headers.indexOf('subdomain');
+  const lastFolderIndex = headers.indexOf('last_folder');
+  const post1TitleIndex = headers.indexOf('post1_title');
+  const post1BodyIndex = headers.indexOf('post1_body');
+  const post1CreatedAtIndex = headers.indexOf('post1_created_at');
+  const post1ImagesIndex = headers.indexOf('post1_images');
+  const post2TitleIndex = headers.indexOf('post2_title');
+  const post2BodyIndex = headers.indexOf('post2_body');
+  const post2CreatedAtIndex = headers.indexOf('post2_created_at');
+  const post2ImagesIndex = headers.indexOf('post2_images');
+
+  // 해당 거래처 행 찾기
+  let targetRowIndex = -1;
+  for (let i = 1; i < rows.length; i++) {
+    const rowSubdomain = String(rows[i][subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
+    if (rowSubdomain === normalizedSubdomain) {
+      targetRowIndex = i + 1; // 1-indexed
+      break;
+    }
+  }
+
+  if (targetRowIndex === -1) {
+    throw new Error('Client not found in Content Factory sheet');
+  }
+
+  const targetRow = rows[targetRowIndex - 1];
+
+  // 2. post2에 기존 post1 이동, post1에 새 글 추가
+  const updates = [];
+
+  // last_folder 업데이트
+  updates.push({
+    range: `'Content Factory'!${getColumnLetter(lastFolderIndex)}${targetRowIndex}`,
+    values: [[folderName]]
+  });
+
+  // post2 = 기존 post1 (시프트)
+  if (targetRow[post1TitleIndex]) {
+    updates.push({
+      range: `'Content Factory'!${getColumnLetter(post2TitleIndex)}${targetRowIndex}:${getColumnLetter(post2ImagesIndex)}${targetRowIndex}`,
+      values: [[
+        targetRow[post1TitleIndex],
+        targetRow[post1BodyIndex],
+        targetRow[post1CreatedAtIndex],
+        targetRow[post1ImagesIndex]
+      ]]
+    });
+  }
+
+  // post1 = 새 글
+  updates.push({
+    range: `'Content Factory'!${getColumnLetter(post1TitleIndex)}${targetRowIndex}:${getColumnLetter(post1ImagesIndex)}${targetRowIndex}`,
+    values: [[
+      postData.title,
+      postData.body,
+      timestamp,
+      imageUrls
+    ]]
+  });
+
+  // 3. batchUpdate로 한번에 업데이트
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values:batchUpdate`,
     {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ values })
+      body: JSON.stringify({
+        valueInputOption: 'RAW',
+        data: updates
+      })
     }
   );
 }
