@@ -98,9 +98,12 @@
 
 - [x] Cloudflare Workers 배포 자동화 (GitHub Actions)
 - [x] 00001 서브도메인 템플릿 배포
-- [ ] 동적 거래처 데이터 연동 (Supabase → Worker)
-- [ ] 거래처별 콘텐츠 자동 생성
+- [x] Drive → Sheets 자동화 완료
 - [ ] 자동 포스팅 시스템 구축
+  - Gemini API 콘텐츠 생성
+  - **description 컬럼: AI가 포스팅에 반영** (참고 아님, 필수 반영)
+  - 날짜 기반 Drive 폴더 구조
+  - 블로그 UI 추가
 
 ---
 
