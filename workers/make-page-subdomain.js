@@ -225,8 +225,8 @@ async function getRecentPosts(subdomain, env) {
     // created_at 기준 내림차순 정렬 (최신순)
     posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    // 최근 1개만 반환 (중복 방지)
-    return posts.slice(0, 1);
+    // 최근 3개 반환
+    return posts.slice(0, 3);
   } catch (error) {
     console.error('Posts fetch error:', error);
     return [];
@@ -421,8 +421,8 @@ async function getRecentPostsOLD_CSV(subdomain) {
     // created_at 기준 내림차순 정렬 (최신순)
     posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    // 최근 1개만 반환 (중복 방지)
-    return posts.slice(0, 1);
+    // 최근 3개 반환
+    return posts.slice(0, 3);
   } catch (error) {
     console.error('Posts fetch error:', error);
     return [];
@@ -909,8 +909,14 @@ function generateClientPage(client) {
         /* Posts Section */
         .posts-grid {
             display: grid;
-            grid-template-columns: repeat(1, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .posts-grid {
+                grid-template-columns: repeat(1, 1fr);
+            }
         }
 
         .post-card {
