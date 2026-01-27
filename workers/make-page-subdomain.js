@@ -1418,9 +1418,8 @@ async function generatePostingForClient(subdomain, env) {
     // Step 1.5: Google Drive 폴더 순환 선택
     logs.push('Google Drive 폴더 조회 중...');
     const accessToken = await getGoogleAccessTokenForPosting(env);
-    const driveBusinessName = `${client.subdomain} ${client.business_name}`;
-    logs.push(`Drive 폴더명: ${driveBusinessName}`);
-    const folders = await getClientFoldersForPosting(driveBusinessName, accessToken, env, logs);
+    logs.push(`Drive 폴더 검색: subdomain=${client.subdomain}`);
+    const folders = await getClientFoldersForPosting(client.subdomain, accessToken, env, logs);
 
     if (folders.length === 0) {
       return { success: false, error: 'No folders found (Info/Video excluded)', logs };
@@ -1434,7 +1433,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
     logs.push('폴더 내 이미지 조회 중...');
-    const images = await getFolderImagesForPosting(driveBusinessName, nextFolder, accessToken, env, logs);
+    const images = await getFolderImagesForPosting(client.subdomain, nextFolder, accessToken, env, logs);
     logs.push(`이미지 ${images.length}개 발견`);
 
     if (images.length === 0) {
@@ -1645,10 +1644,10 @@ async function getGoogleAccessTokenForPosting(env) {
   return tokenData.access_token;
 }
 
-async function getFolderImagesForPosting(businessName, folderName, accessToken, env, logs) {
+async function getFolderImagesForPosting(subdomain, folderName, accessToken, env, logs) {
   const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
 
-  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name contains '${subdomain}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
 
   const businessFolderResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
@@ -1742,10 +1741,10 @@ async function getFolderImagesForPosting(businessName, folderName, accessToken, 
   return images;
 }
 
-async function getClientFoldersForPosting(businessName, accessToken, env, logs) {
+async function getClientFoldersForPosting(subdomain, accessToken, env, logs) {
   const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
 
-  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name contains '${subdomain}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
 
   const businessFolderResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
