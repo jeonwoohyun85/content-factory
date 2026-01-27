@@ -479,7 +479,6 @@ function generateClientPage(client) {
     <section class="profile-section">
         <div class="profile-content">
             <h2 class="profile-title">${escapeHtml(client.business_name)}</h2>
-            ${client.description ? '<p style="font-size: 16px; color: #666; margin-bottom: 24px; max-width: 600px; margin-left: auto; margin-right: auto;">' + escapeHtml(client.description) + '</p>' : ''}
             <div class="contact-info">
                 ${client.address ? '<div class="contact-item"><span class="contact-icon">📍</span><span>' + escapeHtml(client.address) + '</span></div>' : ''}
                 ${client.phone ? '<div class="contact-item"><span class="contact-icon">📞</span><span>' + escapeHtml(client.phone) + '</span></div>' : ''}
