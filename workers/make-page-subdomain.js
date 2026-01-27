@@ -1857,6 +1857,9 @@ function getNextFolderForPosting(folders, lastFolder) {
 async function saveToPostsSheetForPosting(client, postData, folderName, images, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
 
+  // subdomain 정규화
+  const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+
   // 1. 새 포스트 추가
   const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
 
@@ -1904,7 +1907,7 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
     // 해당 서브도메인의 글 찾기 (인덱스 포함)
     const clientPosts = [];
     for (let i = 1; i < rows.length; i++) {
-      if (rows[i][subdomainIndex] === client.subdomain) {
+      if (rows[i][subdomainIndex] === normalizedSubdomain) {
         clientPosts.push({
           rowIndex: i, // 0-indexed (API용)
           date: new Date(rows[i][createdAtIndex]).getTime()
@@ -1945,7 +1948,7 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
           body: JSON.stringify({ requests })
         }
       );
-      console.log(`Cleaned up ${postsToDelete.length} old posts for ${client.subdomain}`);
+      console.log(`Cleaned up ${postsToDelete.length} old posts for ${normalizedSubdomain}`);
     }
   } catch (error) {
     console.error('Retention policy error:', error);
