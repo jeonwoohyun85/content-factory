@@ -65,7 +65,9 @@ async function generatePostingForClient(subdomain, env) {
     // Step 1.5: Google Drive 폴더 순환 선택
     logs.push('Google Drive 폴더 조회 중...');
     const accessToken = await getGoogleAccessToken(env);
-    const folders = await getClientFolders(client.business_name, accessToken, env);
+    const driveBusinessName = `${client.subdomain} ${client.business_name}`;
+    logs.push(`Drive 폴더명: ${driveBusinessName}`);
+    const folders = await getClientFolders(driveBusinessName, accessToken, env);
 
     if (folders.length === 0) {
       return { success: false, error: 'No folders found (Info/Video excluded)', logs };
@@ -79,7 +81,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
     logs.push('폴더 내 이미지 조회 중...');
-    const images = await getFolderImages(client.business_name, nextFolder, accessToken, env);
+    const images = await getFolderImages(driveBusinessName, nextFolder, accessToken, env);
     logs.push(`이미지 ${images.length}개 발견`);
 
     if (images.length === 0) {
