@@ -1235,7 +1235,7 @@ async function deletePost(subdomain, createdAt, password, env) {
     let deleteRowIndex = -1;
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (row[subdomainIndex] === subdomain && row[createdAtIndex] === createdAt) {
+      const rowDate = new Date(row[createdAtIndex]).getTime(); const reqDate = new Date(createdAt).getTime(); if (row[subdomainIndex] === subdomain && (row[createdAtIndex] === createdAt || (!isNaN(rowDate) && !isNaN(reqDate) && Math.abs(rowDate - reqDate) < 1000))) {
         deleteRowIndex = i + 1; // Sheets는 1-indexed
         break;
       }
