@@ -1,4 +1,4 @@
-name: Deploy Cloudflare Workers
+name: 클라우드플레어 워커 배포
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Cloudflare Workers
+    name: 워커 배포 작업
     steps:
       - uses: actions/checkout@v4
 
@@ -20,14 +20,14 @@ jobs:
           chmod +x .github/scripts/check-code-quality.sh
           .github/scripts/check-code-quality.sh
 
-      - name: Set make-page-subdomain Service Account Secret
+      - name: 서브도메인 워커 서비스 계정 설정
         run: |
           cd workers
           echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' | npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON --config wrangler.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
-      - name: 서브도메인 페이지 생성기 배포
+      - name: 서브도메인 생성기 배포
         uses: cloudflare/wrangler-action@v3
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -36,7 +36,7 @@ jobs:
           workingDirectory: 'workers'
           command: deploy --config wrangler.toml
 
-      - name: Set Service Account Secret
+      - name: 자동화 워커 서비스 계정 설정
         run: |
           cd workers
           echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' | npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON --config wrangler-drive-to-sheets.toml
