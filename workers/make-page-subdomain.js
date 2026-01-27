@@ -1070,7 +1070,7 @@ function generateClientPage(client) {
     ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
 
     <!-- Posts Section -->
-    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<a href="/post" style="text-decoration: none; color: inherit;"><article class="post-card"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></article></a>').join('') + '</div></section>' : ''}
+    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><article class="post-card"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></article></a>').join('') + '</div></section>' : ''}
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
@@ -1275,7 +1275,18 @@ export default {
 
       // 포스트 상세 페이지
       if (pathname === '/post' && client.posts && client.posts.length > 0) {
-        const post = client.posts[0];
+        // Query parameter에서 post ID 추출
+        const postId = url.searchParams.get('id');
+
+        // created_at으로 포스트 찾기
+        const post = postId
+          ? client.posts.find(p => p.created_at === postId)
+          : client.posts[0];
+
+        if (!post) {
+          return new Response('Post not found', { status: 404 });
+        }
+
         return new Response(generatePostPage(client, post), {
           headers: {
             'Content-Type': 'text/html; charset=utf-8',
