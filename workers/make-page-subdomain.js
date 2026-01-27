@@ -179,7 +179,7 @@ async function getRecentPosts(subdomain, env) {
 
     // Posts 시트 데이터 조회
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:G`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
@@ -203,6 +203,7 @@ async function getRecentPosts(subdomain, env) {
     const titleIndex = headers.indexOf('title');
     const bodyIndex = headers.indexOf('body');
     const createdAtIndex = headers.indexOf('created_at');
+    const imagesIndex = headers.indexOf('images');
 
     // subdomain으로 필터링
     const posts = [];
@@ -215,7 +216,8 @@ async function getRecentPosts(subdomain, env) {
           language: row[languageIndex],
           title: row[titleIndex],
           body: row[bodyIndex],
-          created_at: row[createdAtIndex]
+          created_at: row[createdAtIndex],
+          images: row[imagesIndex] || ''
         });
       }
     }
@@ -288,6 +290,7 @@ async function getRecentPostsOLD_CSV(subdomain) {
     const titleIndex = headers.indexOf('title');
     const bodyIndex = headers.indexOf('body');
     const createdAtIndex = headers.indexOf('created_at');
+    const imagesIndex = headers.indexOf('images');
 
     // subdomain으로 필터링
     const posts = [];
@@ -300,7 +303,8 @@ async function getRecentPostsOLD_CSV(subdomain) {
           language: row[languageIndex],
           title: row[titleIndex],
           body: row[bodyIndex],
-          created_at: row[createdAtIndex]
+          created_at: row[createdAtIndex],
+          images: row[imagesIndex] || ''
         });
       }
     }
@@ -417,6 +421,9 @@ function convertToEmbedUrl(url) {
 
 // 포스트 상세 페이지 생성
 function generatePostPage(client, post) {
+  // 이미지 URL 파싱
+  const imageUrls = (post.images || '').split(',').map(url => url.trim()).filter(url => url);
+
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -487,6 +494,20 @@ function generatePostPage(client, post) {
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
+        .post-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .post-image {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
         .post-body {
             font-size: 17px;
             color: #333;
@@ -527,6 +548,7 @@ function generatePostPage(client, post) {
         </div>
 
         <div class="post-content">
+            ${imageUrls.length > 0 ? '<div class="post-images">' + imageUrls.map(url => '<img src="' + escapeHtml(url) + '" alt="Post Image" class="post-image">').join('') + '</div>' : ''}
             <div class="post-body">${escapeHtml(post.body || '')}</div>
         </div>
     </div>

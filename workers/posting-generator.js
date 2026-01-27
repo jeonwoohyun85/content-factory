@@ -119,7 +119,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 4: Posts 시트에 저장
     logs.push('Posts 시트 저장 시작...');
-    await saveToPostsSheet(client, postData, nextFolder, env);
+    await saveToPostsSheet(client, postData, nextFolder, images, env);
     logs.push('Posts 시트 저장 완료');
 
     return {
@@ -366,7 +366,7 @@ async function createPostsSheet(env) {
               title: 'Posts',
               gridProperties: {
                 rowCount: 1000,
-                columnCount: 6
+                columnCount: 8
               }
             }
           }
@@ -382,10 +382,10 @@ async function createPostsSheet(env) {
   }
 
   // 2. 헤더 추가
-  const headers = [['subdomain', 'business_name', 'language', 'title', 'body', 'created_at', 'folder_name']];
+  const headers = [['subdomain', 'business_name', 'language', 'title', 'body', 'created_at', 'folder_name', 'images']];
 
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A1:G1?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A1:H1?valueInputOption=RAW`,
     {
       method: 'PUT',
       headers: {
@@ -531,6 +531,8 @@ async function getFolderImages(businessName, folderName, accessToken, env, logs)
       const base64 = btoa(binary);
 
       images.push({
+        id: file.id,
+        name: file.name,
         mimeType: file.mimeType,
         data: base64
       });
@@ -666,8 +668,11 @@ function getNextFolder(folders, lastFolder) {
 }
 
 // Posts 시트에 저장
-async function saveToPostsSheet(client, postData, folderName, env) {
+async function saveToPostsSheet(client, postData, folderName, images, env) {
   const accessToken = await getGoogleAccessToken(env);
+
+  // 이미지 URL 생성 (Google Drive thumbnail)
+  const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
 
   // Append to Posts sheet
   // 한국 시간 (UTC+9)
@@ -681,11 +686,12 @@ async function saveToPostsSheet(client, postData, folderName, env) {
     postData.title,
     postData.body,
     timestamp,
-    folderName
+    folderName,
+    imageUrls
   ]];
 
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:G:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
