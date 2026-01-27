@@ -21,6 +21,7 @@ binding = "POSTING_QUEUE"
 
 [vars]
 API_BASE_URL = "https://caps-chatbot.fly.dev"
+SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
 
 # Staging 환경
 [env.staging]
