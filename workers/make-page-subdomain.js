@@ -1605,15 +1605,10 @@ async function generatePostingForClient(subdomain, env) {
     await saveToContentFactorySheetForPosting(client, postData, images, normalizedSubdomain, env);
     logs.push('ContentFactory 시트 저장 완료');
 
-    // Step 5: Posts 시트 저장 (이력 아카이브)
-    logs.push('Posts 시트 저장 시작...');
-    await saveToPostsSheetForPosting(client, postData, nextFolder, images, normalizedSubdomain, env);
-    logs.push('Posts 시트 저장 완료');
-
-    // Step 6: 최신 포스팅 시트 저장
-    logs.push('최신 포스팅 시트 저장 시작...');
+    // Step 5: 저장소 + 최신 포스팅 시트 저장
+    logs.push('저장소/최신포스팅 시트 저장 시작...');
     await saveToLatestPostingSheet(client, postData, normalizedSubdomain, env);
-    logs.push('최신 포스팅 시트 저장 완료');
+    logs.push('저장소/최신포스팅 시트 저장 완료');
 
     return {
       success: true,
@@ -2093,29 +2088,6 @@ async function saveToContentFactorySheetForPosting(client, postData, images, nor
       },
       body: JSON.stringify({ values: updateValues })
     }
-  );
-}
-
-async function saveToPostsSheetForPosting(client, postData, folderName, images, normalizedSubdomain, env) {
-  const accessToken = await getGoogleAccessTokenForPosting(env);
-  const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
-  const now = new Date();
-  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
-  const values = [[
-    `${normalizedSubdomain}.make-page.com`,
-    client.business_name,
-    client.language,
-    postData.title,
-    postData.body,
-    timestamp,
-    folderName,
-    imageUrls,
-    client.industry || ''
-  ]];
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:I:append?valueInputOption=RAW`,
-    { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
   );
 }
 
