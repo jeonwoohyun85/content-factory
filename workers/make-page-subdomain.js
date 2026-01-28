@@ -1610,6 +1610,11 @@ async function generatePostingForClient(subdomain, env) {
     await saveToPostsSheetForPosting(client, postData, nextFolder, images, normalizedSubdomain, env);
     logs.push('Posts 시트 저장 완료');
 
+    // Step 6: 최신 포스팅 시트 저장
+    logs.push('최신 포스팅 시트 저장 시작...');
+    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, env);
+    logs.push('최신 포스팅 시트 저장 완료');
+
     return {
       success: true,
       post: postData,
@@ -2111,5 +2116,35 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
   await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:I:append?valueInputOption=RAW`,
     { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
+  );
+}
+
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, env) {
+  const accessToken = await getGoogleAccessTokenForPosting(env);
+  const now = new Date();
+  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
+
+  // 최신 포스팅 시트 컬럼: 도메인, 상호명, 제목, 생성일시, 언어, 업종
+  const sheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+  const values = [[
+    `${normalizedSubdomain}.make-page.com`,  // 도메인
+    client.business_name,                     // 상호명
+    postData.title,                           // 제목
+    timestamp,                                // 생성일시
+    client.language || 'ko',                  // 언어
+    client.industry || ''                     // 업종
+  ]];
+
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(sheetName)}!A:F:append?valueInputOption=RAW`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values })
+    }
   );
 }
