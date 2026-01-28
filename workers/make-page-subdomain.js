@@ -113,7 +113,8 @@ function normalizeClient(client) {
 // Google Sheets에서 거래처 정보 조회
 async function getClientFromSheets(clientId, env) {
   try {
-    const response = await fetchWithTimeout(env.GOOGLE_SHEETS_CSV_URL, {}, 10000);
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
     const csvText = await response.text();
     const clients = parseCSV(csvText).map(normalizeClient);
 
@@ -1022,7 +1023,8 @@ Sitemap: https://make-page.com/sitemap.xml`;
 async function handleSitemap(env) {
   try {
     // Google Sheets에서 활성 거래처 조회
-    const response = await fetchWithTimeout(env.GOOGLE_SHEETS_CSV_URL, {}, 10000);
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
     const csvText = await response.text();
     const clients = parseCSV(csvText).map(normalizeClient);
 
@@ -1180,7 +1182,8 @@ export default {
     console.log('Scheduled trigger started at', new Date().toISOString());
     try {
       // 1. 모든 활성 거래처 조회
-      const response = await fetch(env.GOOGLE_SHEETS_CSV_URL);
+      const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+      const response = await fetch(SHEET_URL);
       const csvText = await response.text();
       const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === '구독');
       
@@ -1291,10 +1294,12 @@ export default {
         return new Response('Not Found', { status: 404 });
       }
 
-      // 비활성 거래처는 표시 안함
+      // 비활성 거래처는 표시 안함 (일시적으로 해제)
+      /*
       if (client.status !== '구독') {
         return new Response('This page is inactive', { status: 403 });
       }
+      */
 
       // 포스트 상세 페이지
       if (pathname === '/post' && client.posts && client.posts.length > 0) {
@@ -1410,7 +1415,8 @@ async function generatePostingForClient(subdomain, env) {
 }
 
 async function getClientFromSheetsForPosting(subdomain, env) {
-  const response = await fetch(env.GOOGLE_SHEETS_CSV_URL);
+  const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+  const response = await fetch(SHEET_URL);
   const csvText = await response.text();
   const clients = parseCSV(csvText).map(normalizeClient);
   
