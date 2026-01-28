@@ -92,6 +92,7 @@ function normalizeClient(client) {
     '거래처_정보': 'description',
     '소개': 'description',
     '비고기타': 'links',
+    '바로가기': 'links',
     'info': 'info',
     'video': 'video',
     '업종': 'industry',
