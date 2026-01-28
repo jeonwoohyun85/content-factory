@@ -93,6 +93,7 @@ function normalizeClient(client) {
     '전화번호': 'phone',
     '영업시간': 'business_hours',
     '키워드_업체': 'description',
+    '거래처_정보': 'description',
     '소개': 'description',
     '비고기타': 'links',
     'info': 'info',
@@ -1028,7 +1029,7 @@ async function handleSitemap() {
     const csvText = await response.text();
     const clients = parseCSV(csvText).map(normalizeClient);
 
-    const activeClients = clients.filter(client => client.status === 'active');
+    const activeClients = clients.filter(client => client.status === '구독');
 
     let urls = [];
 
@@ -1184,7 +1185,7 @@ export default {
       // 1. 모든 활성 거래처 조회
       const response = await fetch(GOOGLE_SHEETS_CSV_URL);
       const csvText = await response.text();
-      const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === 'active');
+      const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === '구독');
       
       console.log(`Found ${clients.length} active clients`);
 
@@ -1294,7 +1295,7 @@ export default {
       }
 
       // 비활성 거래처는 표시 안함
-      if (client.status !== 'active') {
+      if (client.status !== '구독') {
         return new Response('This page is inactive', { status: 403 });
       }
 
@@ -1418,7 +1419,7 @@ async function getClientFromSheetsForPosting(subdomain) {
   
   return clients.find(c => {
     let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
-    return normalized === subdomain && c.status === 'active';
+    return normalized === subdomain && c.status === '구독';
   }) || null;
 }
 
