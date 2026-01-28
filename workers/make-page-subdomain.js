@@ -1529,15 +1529,19 @@ export default {
 
         const result = await generatePostingForClient(subdomain, env);
 
+        console.log(`Queue result:`, JSON.stringify(result, null, 2));
+
         if (result.success) {
           console.log(`Queue: Successfully generated posting for ${subdomain}`);
           message.ack();
         } else {
           console.error(`Queue: Failed to generate posting for ${subdomain}:`, result.error);
+          console.error(`Queue: Logs:`, result.logs);
           message.retry();
         }
       } catch (error) {
         console.error(`Queue: Error processing message:`, error);
+        console.error(`Queue: Error stack:`, error.stack);
         message.retry();
       }
     }
