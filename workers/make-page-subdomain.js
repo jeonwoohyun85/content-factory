@@ -113,7 +113,7 @@ function normalizeClient(client) {
 // Google Sheets에서 거래처 정보 조회
 async function getClientFromSheets(clientId, env) {
   try {
-    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
     const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
     const csvText = await response.text();
     
@@ -1041,7 +1041,7 @@ Sitemap: https://make-page.com/sitemap.xml`;
 async function handleSitemap(env) {
   try {
     // Google Sheets에서 활성 거래처 조회
-    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
     const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
     const csvText = await response.text();
     const clients = parseCSV(csvText).map(normalizeClient);
@@ -1200,7 +1200,7 @@ export default {
     console.log('Scheduled trigger started at', new Date().toISOString());
     try {
       // 1. 모든 활성 거래처 조회
-      const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+      const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
       const response = await fetch(SHEET_URL);
       const csvText = await response.text();
       const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === '구독');
@@ -1433,7 +1433,7 @@ async function generatePostingForClient(subdomain, env) {
 }
 
 async function getClientFromSheetsForPosting(subdomain, env) {
-  const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
+  const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
   const response = await fetch(SHEET_URL);
   const csvText = await response.text();
   const clients = parseCSV(csvText).map(normalizeClient);
@@ -1501,7 +1501,7 @@ ${trendsData}
 4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 구체적으로 설명
    - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 자세히 묘사
    - 전체 3000~3500자를 ${images.length}개 문단에 균등 배분
-5. 문단 구분: 문단 사이에 빈 줄 2개 (\n\n)로 명확히 구분
+5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
 6. 금지어: 최고, 1등, 유일, 검증된
 7. 금지 창작: 경력, 학력, 자격증, 수상
 8. **본문의 모든 내용은 '${client.description}'의 주제와 자연스럽게 연결되어야 함 (최우선 순위)**
@@ -1509,7 +1509,7 @@ ${trendsData}
 출력 형식 (JSON):
 {
   "title": "제목",
-  "body": "문단1\n\n문단2\n\n문단3\n\n..."
+  "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
 }
 
 중요: body는 정확히 ${images.length}개의 문단으로 구성되어야 하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
