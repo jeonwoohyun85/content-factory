@@ -1638,7 +1638,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 4: 저장소 + 최신 포스팅 시트 저장
     logs.push('저장소/최신포스팅 시트 저장 시작...');
-    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, env);
+    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, env);
     logs.push('저장소/최신포스팅 시트 저장 완료');
 
     return {
@@ -1978,38 +1978,38 @@ async function getClientFoldersForPosting(folderName, subdomain, accessToken, en
 async function getLastUsedFolderForPosting(subdomain, env) {
   try {
     const accessToken = await getGoogleAccessTokenForPosting(env);
-    
+    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:G`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    
+
     if (!response.ok) {
       return null;
     }
-    
+
     const data = await response.json();
     const rows = data.values || [];
-    
+
     if (rows.length < 2) {
       return null;
     }
-    
-    const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const folderNameIndex = headers.indexOf('folder_name');
-    
-    // 해당 subdomain의 마지막 행에서 folder_name 가져오기
+
+    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+    const domain = `${normalizedSubdomain}.make-page.com`;
+
+    // 해당 도메인의 마지막 행에서 폴더명 가져오기 (G열: 폴더명)
     let lastFolder = null;
     for (let i = rows.length - 1; i >= 1; i--) {
       const row = rows[i];
-      const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-      if (rowSubdomain === subdomain) {
-        lastFolder = row[folderNameIndex] || null;
+      const rowDomain = row[0] || ''; // A열: 도메인
+      if (rowDomain === domain) {
+        lastFolder = row[6] || null; // G열: 폴더명
         break;
       }
     }
-    
+
     return lastFolder;
   } catch (error) {
     return null;
@@ -2045,27 +2045,28 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
-async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, env) {
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
   const domain = `${normalizedSubdomain}.make-page.com`;
 
-  // 컬럼: 도메인, 상호명, 제목, 생성일시, 언어, 업종
+  // 컬럼: 도메인, 상호명, 제목, 생성일시, 언어, 업종, 폴더명
   const rowData = [
     domain,                      // 도메인
     client.business_name,        // 상호명
     postData.title,              // 제목
     timestamp,                   // 생성일시
     client.language || 'ko',     // 언어
-    client.industry || ''        // 업종
+    client.industry || '',       // 업종
+    folderName || ''             // 폴더명
   ];
 
   // 1. 저장소 탭에 append (아카이브)
   const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:F:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:G:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
@@ -2079,7 +2080,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, e
   // 2. 최신 포스팅 탭 읽기
   const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
   const getResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:F`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:G`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const getData = await getResponse.json();
@@ -2126,7 +2127,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, e
 
   // 5. 최신 포스팅 탭에 append
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:F:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:G:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
