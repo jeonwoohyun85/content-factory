@@ -707,7 +707,7 @@ async function generateClientPage(client, debugInfo, env) {
       // Google Drive /view URL을 /thumbnail로 변환
       if (url.includes('drive.google.com/file/d/')) {
         const fileId = url.split('/d/')[1].split('/')[0];
-        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
       }
       return url;
     });
@@ -1716,7 +1716,7 @@ async function searchWithGeminiForPosting(client, env) {
 `;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${env.GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1941,8 +1941,8 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
     try {
       logs.push(`썸네일 다운로드: ${file.name}`);
 
-      // Google Drive 썸네일 API 사용 (w800 크기)
-      const thumbnailUrl = `https://lh3.googleusercontent.com/d/${file.id}=w800`;
+      // Google Drive 썸네일 API 사용 (w400 크기)
+      const thumbnailUrl = `https://lh3.googleusercontent.com/d/${file.id}=w400`;
       const imageResponse = await fetch(thumbnailUrl);
 
       if (!imageResponse.ok) {
