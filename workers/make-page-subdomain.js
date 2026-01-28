@@ -1054,7 +1054,7 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     // Content Factory 시트에서 모든 데이터 조회
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/ContentFactory!A:Z`,
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
@@ -1108,8 +1108,8 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     // 해당 post 컬럼 비우기
     const updateRange = deleteColumn === 'post1' 
-      ? `'Content Factory'!${getColumnLetter(post1TitleIndex)}${deleteRowIndex}:${getColumnLetter(post1ImagesIndex)}${deleteRowIndex}`
-      : `'Content Factory'!${getColumnLetter(post2TitleIndex)}${deleteRowIndex}:${getColumnLetter(post2ImagesIndex)}${deleteRowIndex}`;
+      ? `ContentFactory!${getColumnLetter(post1TitleIndex)}${deleteRowIndex}:${getColumnLetter(post1ImagesIndex)}${deleteRowIndex}`
+      : `ContentFactory!${getColumnLetter(post2TitleIndex)}${deleteRowIndex}:${getColumnLetter(post2ImagesIndex)}${deleteRowIndex}`;
 
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${updateRange}?valueInputOption=RAW`,
@@ -1354,9 +1354,9 @@ async function generatePostingForClient(subdomain, env) {
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
     // Step 4: Content Factory 시트 저장 (post1_*, post2_* 업데이트)
-    logs.push('Content Factory 시트 저장 시작...');
+    logs.push('ContentFactory 시트 저장 시작...');
     await saveToContentFactorySheetForPosting(client, postData, images, normalizedSubdomain, env);
-    logs.push('Content Factory 시트 저장 완료');
+    logs.push('ContentFactory 시트 저장 완료');
 
     // Step 5: Posts 시트 저장 (이력 아카이브)
     logs.push('Posts 시트 저장 시작...');
@@ -1770,9 +1770,9 @@ function getNextFolderForPosting(folders, lastFolder) {
 async function saveToContentFactorySheetForPosting(client, postData, images, normalizedSubdomain, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
 
-  // Content Factory 시트에서 전체 데이터 읽기
+  // ContentFactory 시트에서 전체 데이터 읽기
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'Content Factory'!A:Z`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/ContentFactory!A:Z`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
@@ -1780,7 +1780,7 @@ async function saveToContentFactorySheetForPosting(client, postData, images, nor
   const rows = data.values || [];
 
   if (rows.length < 2) {
-    throw new Error('Content Factory sheet is empty');
+    throw new Error('ContentFactory sheet is empty');
   }
 
   const headers = rows[0];
@@ -1806,7 +1806,7 @@ async function saveToContentFactorySheetForPosting(client, postData, images, nor
   }
 
   if (rowIndex === -1) {
-    throw new Error(`Client ${normalizedSubdomain} not found in Content Factory sheet`);
+    throw new Error(`Client ${normalizedSubdomain} not found in ContentFactory sheet`);
   }
 
   // 현재 post1을 post2로 이동
@@ -1822,7 +1822,7 @@ async function saveToContentFactorySheetForPosting(client, postData, images, nor
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
 
   // post1, post2 업데이트 (배치 업데이트)
-  const updateRange = `'Content Factory'!${getColumnLetter(post1TitleIndex)}${rowIndex}:${getColumnLetter(post2ImagesIndex)}${rowIndex}`;
+  const updateRange = `ContentFactory!${getColumnLetter(post1TitleIndex)}${rowIndex}:${getColumnLetter(post2ImagesIndex)}${rowIndex}`;
   const updateValues = [[
     postData.title,           // post1_title
     postData.body,            // post1_body
@@ -1869,4 +1869,3 @@ async function saveToPostsSheetForPosting(client, postData, folderName, images, 
     { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ values }) }
   );
 }
-
