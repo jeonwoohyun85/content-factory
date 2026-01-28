@@ -1407,7 +1407,19 @@ async function checkAllSheetsColumns(env) {
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        result[sheet.name] = { error: `API Error: ${response.status} - ${errorText}` };
+        continue;
+      }
+
+      const responseText = await response.text();
+      if (!responseText) {
+        result[sheet.name] = { error: '응답 본문 없음' };
+        continue;
+      }
+
+      const data = JSON.parse(responseText);
       const rows = data.values || [];
 
       if (rows.length === 0) {
