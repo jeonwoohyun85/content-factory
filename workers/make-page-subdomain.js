@@ -1614,20 +1614,45 @@ export default {
           );
           const archiveData = await archiveResponse.json();
 
+          // 열 너비 정보 가져오기
+          const spreadsheetResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const spreadsheetData = await spreadsheetResponse.json();
+
+          // 각 시트의 열 너비 찾기
+          const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
+          const archiveSheet = spreadsheetData.sheets.find(s => s.properties.title === archiveSheetName);
+          const mainSheet = spreadsheetData.sheets[0]; // 관리자 시트
+
+          const getColumnWidths = (sheet) => {
+            if (!sheet || !sheet.data || !sheet.data[0] || !sheet.data[0].columnMetadata) {
+              return [];
+            }
+            return sheet.data[0].columnMetadata.slice(0, 9).map(col => col.pixelSize || 100);
+          };
+
           return new Response(JSON.stringify({
             latest: {
               sheetName: latestSheetName,
               rowCount: (latestData.values || []).length,
               headers: (latestData.values || [])[0] || [],
               firstDataRow: (latestData.values || [])[1] || [],
-              allRows: latestData.values || []
+              allRows: latestData.values || [],
+              columnWidths: getColumnWidths(latestSheet)
             },
             archive: {
               sheetName: archiveSheetName,
               rowCount: (archiveData.values || []).length,
               headers: (archiveData.values || [])[0] || [],
               firstDataRow: (archiveData.values || [])[1] || [],
-              allRows: archiveData.values || []
+              allRows: archiveData.values || [],
+              columnWidths: getColumnWidths(archiveSheet)
+            },
+            main: {
+              sheetName: mainSheet?.properties?.title || '관리자',
+              columnWidths: getColumnWidths(mainSheet)
             }
           }, null, 2), {
             headers: { 'Content-Type': 'application/json' }
@@ -2388,56 +2413,40 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
   }
 
-  // 6. 관리자 시트의 열 너비를 가져와서 저장소/최신 포스팅 시트에 적용
+  // 6. 최신 포스팅 시트의 열 너비를 저장소 시트에 복사
   const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
   const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
 
-  // 관리자 시트(첫 번째 시트) 정보 가져오기
+  // 최신 포스팅 시트의 열 너비 가져오기
   const spreadsheetResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties,data.columnMetadata.pixelSize)`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const spreadsheetData = await spreadsheetResponse.json();
 
-  // 첫 번째 시트(관리자 시트)의 열 너비 가져오기
-  const mainSheet = spreadsheetData.sheets[0];
-  const columnWidths = mainSheet.data && mainSheet.data[0] && mainSheet.data[0].columnMetadata
-    ? mainSheet.data[0].columnMetadata.map(col => col.pixelSize || 100)
+  // 최신 포스팅 시트 찾기
+  const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
+  const columnWidths = latestSheet && latestSheet.data && latestSheet.data[0] && latestSheet.data[0].columnMetadata
+    ? latestSheet.data[0].columnMetadata.map(col => col.pixelSize || 100)
     : [];
 
-  // 열 너비 적용 요청 생성 (처음 9개 열만)
+  // 저장소 시트에만 열 너비 적용 (처음 9개 열)
   const updateRequests = [];
   for (let i = 0; i < Math.min(9, columnWidths.length); i++) {
-    updateRequests.push(
-      {
-        updateDimensionProperties: {
-          range: {
-            sheetId: archiveSheetId,
-            dimension: 'COLUMNS',
-            startIndex: i,
-            endIndex: i + 1
-          },
-          properties: {
-            pixelSize: columnWidths[i]
-          },
-          fields: 'pixelSize'
-        }
-      },
-      {
-        updateDimensionProperties: {
-          range: {
-            sheetId: latestSheetId,
-            dimension: 'COLUMNS',
-            startIndex: i,
-            endIndex: i + 1
-          },
-          properties: {
-            pixelSize: columnWidths[i]
-          },
-          fields: 'pixelSize'
-        }
+    updateRequests.push({
+      updateDimensionProperties: {
+        range: {
+          sheetId: archiveSheetId,
+          dimension: 'COLUMNS',
+          startIndex: i,
+          endIndex: i + 1
+        },
+        properties: {
+          pixelSize: columnWidths[i]
+        },
+        fields: 'pixelSize'
       }
-    );
+    });
   }
 
   if (updateRequests.length > 0) {
