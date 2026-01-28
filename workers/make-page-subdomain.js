@@ -1490,7 +1490,7 @@ export default {
     }
   },
 
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const hostname = url.hostname;
     const pathname = url.pathname;
@@ -1520,13 +1520,29 @@ export default {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
       }
-      // Generate posting
+      // Generate posting (백그라운드 처리)
       if (pathname === '/generate-posting' && request.method === 'POST') {
         try {
           const { subdomain } = await request.json();
-          const result = await generatePostingForClient(subdomain, env);
-          return new Response(JSON.stringify(result), {
-            status: 200,
+
+          // 백그라운드에서 포스팅 생성 (timeout 회피)
+          ctx.waitUntil(
+            generatePostingForClient(subdomain, env)
+              .then(result => {
+                console.log(`Background posting completed for ${subdomain}:`, result.success);
+              })
+              .catch(error => {
+                console.error(`Background posting failed for ${subdomain}:`, error);
+              })
+          );
+
+          // 즉시 202 응답
+          return new Response(JSON.stringify({
+            success: true,
+            message: "포스팅 생성이 시작되었습니다. 완료까지 2-3분 소요됩니다.",
+            subdomain: subdomain
+          }), {
+            status: 202,
             headers: { 'Content-Type': 'application/json' }
           });
         } catch (error) {
