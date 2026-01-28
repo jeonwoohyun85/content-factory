@@ -1490,6 +1490,30 @@ export default {
     }
   },
 
+  async queue(batch, env) {
+    console.log(`Queue consumer processing ${batch.messages.length} messages`);
+
+    for (const message of batch.messages) {
+      try {
+        const { subdomain } = message.body;
+        console.log(`Processing queue message for subdomain: ${subdomain}`);
+
+        const result = await generatePostingForClient(subdomain, env);
+
+        if (result.success) {
+          console.log(`Queue: Successfully generated posting for ${subdomain}`);
+          message.ack();
+        } else {
+          console.error(`Queue: Failed to generate posting for ${subdomain}:`, result.error);
+          message.retry();
+        }
+      } catch (error) {
+        console.error(`Queue: Error processing message:`, error);
+        message.retry();
+      }
+    }
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const hostname = url.hostname;
@@ -1520,26 +1544,18 @@ export default {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
       }
-      // Generate posting (백그라운드 처리)
+      // Generate posting (Queue 전송)
       if (pathname === '/generate-posting' && request.method === 'POST') {
         try {
           const { subdomain } = await request.json();
 
-          // 백그라운드에서 포스팅 생성 (timeout 회피)
-          ctx.waitUntil(
-            generatePostingForClient(subdomain, env)
-              .then(result => {
-                console.log(`Background posting completed for ${subdomain}:`, result.success);
-              })
-              .catch(error => {
-                console.error(`Background posting failed for ${subdomain}:`, error);
-              })
-          );
+          // Queue에 메시지 전송
+          await env.POSTING_QUEUE.send({ subdomain });
 
           // 즉시 202 응답
           return new Response(JSON.stringify({
             success: true,
-            message: "포스팅 생성이 시작되었습니다. 완료까지 2-3분 소요됩니다.",
+            message: "포스팅 생성이 Queue에 추가되었습니다. 완료까지 2-3분 소요됩니다.",
             subdomain: subdomain
           }), {
             status: 202,

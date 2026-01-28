@@ -20,6 +20,11 @@ routes = [
 queue = "posting-queue"
 binding = "POSTING_QUEUE"
 
+[[queues.consumers]]
+queue = "posting-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+
 [vars]
 API_BASE_URL = "https://caps-chatbot.fly.dev"
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
