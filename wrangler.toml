@@ -6,10 +6,25 @@ compatibility_date = "2024-01-29"
 GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0"
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
 DRIVE_FOLDER_ID = "1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt"
+ARCHIVE_SHEET_NAME = "저장소_2026"
+LATEST_POSTING_SHEET_NAME = "최신 포스팅"
 # Secrets are managed via `wrangler secret put` or dashboard
 # GEMINI_API_KEY
 # GOOGLE_SERVICE_ACCOUNT_JSON
 # DELETE_PASSWORD
+
+[[kv_namespaces]]
+binding = "POSTING_KV"
+id = "posting_kv_namespace"
+
+[[queues.producers]]
+binding = "POSTING_QUEUE"
+queue = "posting-queue"
+
+[[queues.consumers]]
+queue = "posting-queue"
+max_batch_size = 10
+max_batch_timeout = 30
 
 [triggers]
 crons = ["0 0 * * *"] # 매일 자정 (UTC) -> 한국 시간 오전 9시

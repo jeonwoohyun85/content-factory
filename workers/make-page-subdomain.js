@@ -1474,46 +1474,70 @@ async function deletePost(subdomain, createdAt, password, env) {
 
 export default {
   async scheduled(event, env, ctx) {
-    // KST 시간 계산
     const nowUtc = new Date();
     const nowKst = new Date(nowUtc.getTime() + (9 * 60 * 60 * 1000));
-    console.log('Scheduled trigger started at (KST)', nowKst.toISOString().replace('T', ' ').substring(0, 19));
+    const timestamp = nowKst.toISOString().replace('T', ' ').substring(0, 19);
+    console.log('Scheduled trigger started at (KST)', timestamp);
+
+    // 동시 실행 방지 (KV 플래그)
+    const lockKey = 'cron_posting_lock';
+    const lockValue = await env.POSTING_KV.get(lockKey);
+
+    if (lockValue) {
+      console.log('Cron already running, skipping...');
+      return;
+    }
 
     try {
-      // 1. 모든 활성 거래처 조회
+      // 락 설정 (10분 TTL)
+      await env.POSTING_KV.put(lockKey, timestamp, { expirationTtl: 600 });
+
+      // 1. 모든 구독 거래처 조회
       const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
-      const response = await fetch(SHEET_URL);
+      const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+      if (!response.ok) {
+        throw new Error(`Sheets fetch failed: ${response.status}`);
+      }
+
       const csvText = await response.text();
       const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === '구독');
 
       console.log(`Found ${clients.length} active clients`);
 
-      // 2. 포스팅 생성
-      for (const client of clients) {
-        try {
-          // 오늘 이미 포스팅했는지 확인 (KST 기준)
-          const posts = getRecentPostsFromClient(client);
-          const lastPostDate = posts.length > 0 ? new Date(posts[0].created_at) : null;
-          const todayKst = nowKst;
+      // 2. 배치 처리 (10개씩 Queue 전송)
+      const batchSize = 10;
+      let successCount = 0;
+      let failCount = 0;
 
-          const isToday = lastPostDate &&
-                          lastPostDate.getFullYear() === todayKst.getUTCFullYear() &&
-                          lastPostDate.getMonth() === todayKst.getUTCMonth() &&
-                          lastPostDate.getDate() === todayKst.getUTCDate();
+      for (let i = 0; i < clients.length; i += batchSize) {
+        const batch = clients.slice(i, i + batchSize);
 
-          if (!isToday) {
-            console.log(`Generating post for ${client.subdomain}...`);
+        for (const client of batch) {
+          try {
             const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
-            await generatePostingForClient(normalizedSubdomain, env);
-          } else {
-            console.log(`Skipping ${client.subdomain}: already posted today`);
+            await env.POSTING_QUEUE.send({ subdomain: normalizedSubdomain });
+            successCount++;
+            console.log(`Queue sent: ${normalizedSubdomain}`);
+          } catch (err) {
+            failCount++;
+            console.error(`Queue send failed for ${client.subdomain}:`, err);
           }
-        } catch (err) {
-          console.error(`Error processing ${client.subdomain}:`, err);
+        }
+
+        // 배치 간 1초 대기
+        if (i + batchSize < clients.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
+
+      console.log(`Cron completed: ${successCount} queued, ${failCount} failed`);
+
     } catch (error) {
       console.error('Scheduled handler error:', error);
+    } finally {
+      // 락 해제
+      await env.POSTING_KV.delete(lockKey);
     }
   },
 
@@ -1812,9 +1836,7 @@ async function generatePostingForClient(subdomain, env) {
     const images = await getFolderImagesForPosting(normalizedSubdomain, nextFolder, accessToken, env, logs);
     logs.push(`이미지 ${images.length}개 발견`);
 
-    if (images.length === 0) {
-      return { success: false, error: 'No images found in folder', logs };
-    }
+    // 이미지 없어도 텍스트 포스팅 생성 진행
 
     // Step 2: 웹 검색 (Gemini 2.5 Flash)
     logs.push('웹 검색 시작...');
@@ -1928,7 +1950,10 @@ async function searchWithGeminiForPosting(client, env) {
 }
 
 async function generatePostWithGeminiForPosting(client, trendsData, images, env) {
-  const prompt = `
+  const hasImages = images.length > 0;
+  const imageCount = images.length;
+
+  const prompt = hasImages ? `
 [거래처 정보]
 - 업체명: ${client.business_name}
 - 언어: ${client.language}
@@ -1938,16 +1963,16 @@ async function generatePostWithGeminiForPosting(client, trendsData, images, env)
 ${trendsData}
 
 [제공된 이미지]
-총 ${images.length}장의 이미지가 제공됩니다.
+총 ${imageCount}장의 이미지가 제공됩니다.
 
 [작성 규칙]
 1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
 2. 본문 전체 글자수: **공백 포함 2800~3200자** (필수)
-3. 본문 구조: **반드시 ${images.length}개의 문단으로 작성**
+3. 본문 구조: **반드시 ${imageCount}개의 문단으로 작성**
    - 1번째 이미지 → 1번째 문단
    - 2번째 이미지 → 2번째 문단
    - ...
-   - ${images.length}번째 이미지 → ${images.length}번째 문단
+   - ${imageCount}번째 이미지 → ${imageCount}번째 문단
 4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 간결하게 설명
    - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 묘사
    - **각 문단은 공백 포함 약 280~320자 내외로 작성**
@@ -1964,7 +1989,41 @@ ${trendsData}
   "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
 }
 
-중요: body는 정확히 ${images.length}개의 문단으로 구성되어야 하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
+중요: body는 정확히 ${imageCount}개의 문단으로 구성되어야 하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
+` : `
+[거래처 정보]
+- 업체명: ${client.business_name}
+- 언어: ${client.language}
+- **핵심 주제 및 소개 (필수 반영): ${client.description}**
+
+[트렌드 정보]
+${trendsData}
+
+[제공된 이미지]
+이미지가 제공되지 않았습니다. 텍스트만으로 작성해주세요.
+
+[작성 규칙]
+1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
+2. 본문 전체 글자수: **공백 포함 2800~3200자** (필수)
+3. 본문 구조: **8~10개의 문단으로 작성** (이미지 없음)
+   - 각 문단은 '${client.description}' 주제의 다양한 측면을 다룸
+   - [트렌드 정보]를 활용하여 흥미롭게 작성
+4. 각 문단:
+   - **각 문단은 공백 포함 약 280~320자 내외로 작성**
+   - **[트렌드 정보]를 적극 활용하여 풍부한 내용 구성**
+5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
+6. 금지어: 최고, 1등, 유일, 검증된
+7. 금지 창작: 경력, 학력, 자격증, 수상
+8. **본문의 모든 내용은 '${client.description}'의 주제와 자연스럽게 연결되어야 함 (최우선 순위)**
+9. **간결하고 핵심적인 표현 사용 - 장황한 설명 금지**
+
+출력 형식 (JSON):
+{
+  "title": "제목",
+  "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
+}
+
+중요: 이미지 없이 텍스트만으로 매력적인 포스팅을 작성하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
 `;
 
   const parts = [{ text: prompt }];
