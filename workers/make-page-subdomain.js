@@ -1577,6 +1577,26 @@ export default {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
       }
+      // Test posting generation (직접 실행, Queue 우회)
+      if (pathname === '/test-posting' && request.method === 'POST') {
+        try {
+          const { subdomain } = await request.json();
+          const result = await generatePostingForClient(subdomain, env);
+
+          return new Response(JSON.stringify(result, null, 2), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       // Generate posting (Queue 전송)
       if (pathname === '/generate-posting' && request.method === 'POST') {
         try {
