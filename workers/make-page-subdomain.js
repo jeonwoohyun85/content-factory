@@ -356,13 +356,25 @@ function formatKoreanTime(isoString) {
 // 최신 포스팅 시트에서 포스트 데이터 읽기 (홈페이지 표시용)
 async function getPostsFromArchive(subdomain, env) {
   try {
-    const accessToken = await getGoogleAccessTokenForPosting(env);
+    // Step 1: 토큰 발급
+    let accessToken;
+    try {
+      accessToken = await getGoogleAccessTokenForPosting(env);
+    } catch (tokenError) {
+      return { posts: [], error: `Token error: ${tokenError.message}` };
+    }
+
     const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
+    // Step 2: 시트 읽기
     const response = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+
+    if (!response.ok) {
+      return { posts: [], error: `Sheets API error: ${response.status}` };
+    }
 
     const data = await response.json();
     const rows = data.values || [];
@@ -419,7 +431,7 @@ async function getPostsFromArchive(subdomain, env) {
     return { posts, error: null };
   } catch (error) {
     console.error('Error fetching posts from latest sheet:', error);
-    return { posts: [], error: error.message };
+    return { posts: [], error: `${error.message} (${error.stack?.substring(0, 100) || 'no stack'})` };
   }
 }
 
