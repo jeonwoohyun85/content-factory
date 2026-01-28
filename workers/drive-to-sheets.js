@@ -220,25 +220,27 @@ async function getRecentDriveFiles(accessToken, folderId, logs = []) {
   for (const businessFolder of businessFolders) {
     logs.push(`Checking ${businessFolder.name}...`);
 
-    // Find "Info" subfolder
-    const infoQuery = `mimeType = 'application/vnd.google-apps.folder' and name = 'Info' and '${businessFolder.id}' in parents and trashed = false`;
+    // Get all subfolders (case-insensitive search for "Info")
+    const subfoldersQuery = `mimeType = 'application/vnd.google-apps.folder' and '${businessFolder.id}' in parents and trashed = false`;
 
-    const infoResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(infoQuery)}&fields=files(id,name)`,
+    const subfoldersResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(subfoldersQuery)}&fields=files(id,name)`,
       {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
 
-    const infoData = await infoResponse.json();
-    const infoFolders = infoData.files || [];
+    const subfoldersData = await subfoldersResponse.json();
+    const subfolders = subfoldersData.files || [];
 
-    if (infoFolders.length === 0) {
+    // Find Info folder (case-insensitive)
+    const infoFolder = subfolders.find(f => f.name.toLowerCase() === 'info');
+
+    if (!infoFolder) {
       logs.push(`  No Info folder found`);
       continue;
     }
 
-    const infoFolder = infoFolders[0];
     logs.push(`  Found Info folder: ${infoFolder.id}`);
 
     // Get all images in Info folder
