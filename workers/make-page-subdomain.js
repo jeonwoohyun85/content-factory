@@ -80,16 +80,48 @@ function parseCSVLine(line) {
   return result;
 }
 
+// 한글 컬럼명을 영어 키로 정규화
+function normalizeClient(client) {
+  const mapping = {
+    '도메인': 'subdomain',
+    '서브도메인': 'subdomain',
+    '상호명': 'business_name',
+    '업체': 'partner_name',
+    '주소': 'address',
+    '언어': 'language',
+    '연락처': 'phone',
+    '전화번호': 'phone',
+    '영업시간': 'business_hours',
+    '키워드_업체': 'description',
+    '소개': 'description',
+    '비고기타': 'links',
+    'info': 'info',
+    'video': 'video',
+    '업종': 'industry',
+    '상태': 'status'
+  };
+
+  const normalized = {};
+
+  // 기존 키 복사
+  Object.keys(client).forEach(key => {
+    const mappedKey = mapping[key] || key;
+    normalized[mappedKey] = client[key];
+  });
+
+  return normalized;
+}
+
 // Google Sheets에서 거래처 정보 조회
 async function getClientFromSheets(clientId, env) {
   try {
     const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
     const csvText = await response.text();
-    const clients = parseCSV(csvText);
+    const clients = parseCSV(csvText).map(normalizeClient);
 
     const client = clients.find(c => {
       // subdomain 정규화: "00001.make-page.com" → "00001"
-      let normalizedSubdomain = c.subdomain;
+      let normalizedSubdomain = c.subdomain || '';
       if (normalizedSubdomain.includes('.make-page.com')) {
         normalizedSubdomain = normalizedSubdomain.replace('.make-page.com', '').replace('/', '');
       }
@@ -994,7 +1026,7 @@ async function handleSitemap() {
     // Google Sheets에서 활성 거래처 조회
     const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
     const csvText = await response.text();
-    const clients = parseCSV(csvText);
+    const clients = parseCSV(csvText).map(normalizeClient);
 
     const activeClients = clients.filter(client => client.status === 'active');
 
@@ -1152,7 +1184,7 @@ export default {
       // 1. 모든 활성 거래처 조회
       const response = await fetch(GOOGLE_SHEETS_CSV_URL);
       const csvText = await response.text();
-      const clients = parseCSV(csvText).filter(c => c.status === 'active');
+      const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === 'active');
       
       console.log(`Found ${clients.length} active clients`);
 
@@ -1382,10 +1414,10 @@ async function generatePostingForClient(subdomain, env) {
 async function getClientFromSheetsForPosting(subdomain) {
   const response = await fetch(GOOGLE_SHEETS_CSV_URL);
   const csvText = await response.text();
-  const clients = parseCSV(csvText);
+  const clients = parseCSV(csvText).map(normalizeClient);
   
   return clients.find(c => {
-    let normalized = c.subdomain.replace('.make-page.com', '').replace('/', '');
+    let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
     return normalized === subdomain && c.status === 'active';
   }) || null;
 }
