@@ -2124,27 +2124,100 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, e
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
+  const domain = `${normalizedSubdomain}.make-page.com`;
 
-  // 최신 포스팅 시트 컬럼: 도메인, 상호명, 제목, 생성일시, 언어, 업종
-  const sheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
-  const values = [[
-    `${normalizedSubdomain}.make-page.com`,  // 도메인
-    client.business_name,                     // 상호명
-    postData.title,                           // 제목
-    timestamp,                                // 생성일시
-    client.language || 'ko',                  // 언어
-    client.industry || ''                     // 업종
-  ]];
+  // 컬럼: 도메인, 상호명, 제목, 생성일시, 언어, 업종
+  const rowData = [
+    domain,                      // 도메인
+    client.business_name,        // 상호명
+    postData.title,              // 제목
+    timestamp,                   // 생성일시
+    client.language || 'ko',     // 언어
+    client.industry || ''        // 업종
+  ];
 
+  // 1. 저장소 탭에 append (아카이브)
+  const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(sheetName)}!A:F:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:F:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ values })
+      body: JSON.stringify({ values: [rowData] })
     }
   );
+
+  // 2. 최신 포스팅 탭 읽기
+  const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+  const getResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:F`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const getData = await getResponse.json();
+  const rows = getData.values || [];
+
+  // 3. 해당 도메인의 행들 찾기 (헤더 제외)
+  const domainRows = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === domain) {
+      domainRows.push({ index: i + 1, createdAt: rows[i][3] || '' }); // 1-indexed
+    }
+  }
+
+  // 4. 2개 이상이면 가장 오래된 행 삭제
+  if (domainRows.length >= 2) {
+    // 생성일시 기준 정렬 (오래된 순)
+    domainRows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    const oldestRowIndex = domainRows[0].index;
+
+    // 행 삭제
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requests: [{
+            deleteDimension: {
+              range: {
+                sheetId: await getSheetId(env.SHEETS_ID, latestSheetName, accessToken),
+                dimension: 'ROWS',
+                startIndex: oldestRowIndex - 1,
+                endIndex: oldestRowIndex
+              }
+            }
+          }]
+        })
+      }
+    );
+  }
+
+  // 5. 최신 포스팅 탭에 append
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:F:append?valueInputOption=RAW`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: [rowData] })
+    }
+  );
+}
+
+async function getSheetId(sheetsId, sheetName, accessToken) {
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}?fields=sheets(properties(sheetId,title))`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const data = await response.json();
+  const sheet = data.sheets.find(s => s.properties.title === sheetName);
+  return sheet ? sheet.properties.sheetId : 0;
 }
