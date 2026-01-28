@@ -1474,28 +1474,32 @@ async function deletePost(subdomain, createdAt, password, env) {
 
 export default {
   async scheduled(event, env, ctx) {
-    console.log('Scheduled trigger started at', new Date().toISOString());
+    // KST 시간 계산
+    const nowUtc = new Date();
+    const nowKst = new Date(nowUtc.getTime() + (9 * 60 * 60 * 1000));
+    console.log('Scheduled trigger started at (KST)', nowKst.toISOString().replace('T', ' ').substring(0, 19));
+
     try {
       // 1. 모든 활성 거래처 조회
       const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
       const response = await fetch(SHEET_URL);
       const csvText = await response.text();
       const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === '구독');
-      
+
       console.log(`Found ${clients.length} active clients`);
 
       // 2. 포스팅 생성
       for (const client of clients) {
         try {
-          // 오늘 이미 포스팅했는지 확인
+          // 오늘 이미 포스팅했는지 확인 (KST 기준)
           const posts = getRecentPostsFromClient(client);
           const lastPostDate = posts.length > 0 ? new Date(posts[0].created_at) : null;
-          const today = new Date();
-          
-          const isToday = lastPostDate && 
-                          lastPostDate.getFullYear() === today.getFullYear() &&
-                          lastPostDate.getMonth() === today.getMonth() &&
-                          lastPostDate.getDate() === today.getDate();
+          const todayKst = nowKst;
+
+          const isToday = lastPostDate &&
+                          lastPostDate.getFullYear() === todayKst.getUTCFullYear() &&
+                          lastPostDate.getMonth() === todayKst.getUTCMonth() &&
+                          lastPostDate.getDate() === todayKst.getUTCDate();
 
           if (!isToday) {
             console.log(`Generating post for ${client.subdomain}...`);
