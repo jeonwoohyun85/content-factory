@@ -2414,26 +2414,38 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   }
 
   // 6. 최신 포스팅 시트의 열 너비를 저장소 시트에 복사
-  const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
-  const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
+  try {
+    const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
+    const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
 
-  // 최신 포스팅 시트의 열 너비 가져오기
-  const spreadsheetResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const spreadsheetData = await spreadsheetResponse.json();
+    console.log(`저장소 SheetID: ${archiveSheetId}, 최신 포스팅 SheetID: ${latestSheetId}`);
 
-  // 최신 포스팅 시트 찾기
-  const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
-  const columnWidths = latestSheet && latestSheet.data && latestSheet.data[0] && latestSheet.data[0].columnMetadata
-    ? latestSheet.data[0].columnMetadata.map(col => col.pixelSize || 100)
-    : [];
+    // 최신 포스팅 시트의 열 너비 가져오기
+    const spreadsheetResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
 
-  // 저장소 시트에만 열 너비 적용 (처음 9개 열)
-  const updateRequests = [];
-  for (let i = 0; i < Math.min(9, columnWidths.length); i++) {
-    updateRequests.push({
+    if (!spreadsheetResponse.ok) {
+      console.error(`열 너비 조회 실패: ${spreadsheetResponse.status}`);
+      return;
+    }
+
+    const spreadsheetData = await spreadsheetResponse.json();
+
+    // 최신 포스팅 시트 찾기
+    const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
+
+    if (!latestSheet || !latestSheet.data || !latestSheet.data[0] || !latestSheet.data[0].columnMetadata) {
+      console.error('최신 포스팅 시트 열 너비 정보를 찾을 수 없음');
+      return;
+    }
+
+    const columnWidths = latestSheet.data[0].columnMetadata.slice(0, 9).map(col => col.pixelSize || 100);
+    console.log(`복사할 열 너비: ${JSON.stringify(columnWidths)}`);
+
+    // 저장소 시트에 열 너비 적용
+    const updateRequests = columnWidths.map((width, i) => ({
       updateDimensionProperties: {
         range: {
           sheetId: archiveSheetId,
@@ -2442,15 +2454,13 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
           endIndex: i + 1
         },
         properties: {
-          pixelSize: columnWidths[i]
+          pixelSize: width
         },
         fields: 'pixelSize'
       }
-    });
-  }
+    }));
 
-  if (updateRequests.length > 0) {
-    await fetch(
+    const updateResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
       {
         method: 'POST',
@@ -2461,6 +2471,15 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
         body: JSON.stringify({ requests: updateRequests })
       }
     );
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error(`열 너비 업데이트 실패: ${updateResponse.status} - ${errorText}`);
+    } else {
+      console.log('저장소 시트 열 너비 업데이트 성공');
+    }
+  } catch (error) {
+    console.error(`열 너비 복사 중 에러: ${error.message}`);
   }
 }
 
