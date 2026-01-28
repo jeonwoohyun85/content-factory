@@ -2294,7 +2294,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
 
   // 저장소 탭에 append
-  await fetch(
+  const archiveAppendResponse = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z/append?valueInputOption=RAW`,
     {
       method: 'POST',
@@ -2305,6 +2305,11 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
       body: JSON.stringify({ values: [archiveRowData] })
     }
   );
+
+  if (!archiveAppendResponse.ok) {
+    const errorText = await archiveAppendResponse.text();
+    throw new Error(`저장소 시트 append 실패: ${archiveAppendResponse.status} - ${errorText}`);
+  }
 
   // 2. 최신 포스팅 탭 읽기 (헤더 포함)
   const getResponse = await fetch(
@@ -2366,7 +2371,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   // 5. 최신 포스팅 탭에 append (헤더 순서대로)
   const latestRowData = latestHeaders.map(header => postDataMap[header] || '');
 
-  await fetch(
+  const latestAppendResponse = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z/append?valueInputOption=RAW`,
     {
       method: 'POST',
@@ -2377,6 +2382,11 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
       body: JSON.stringify({ values: [latestRowData] })
     }
   );
+
+  if (!latestAppendResponse.ok) {
+    const errorText = await latestAppendResponse.text();
+    throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
+  }
 }
 
 async function getSheetId(sheetsId, sheetName, accessToken) {
