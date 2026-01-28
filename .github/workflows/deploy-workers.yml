@@ -35,17 +35,3 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: 'workers'
           command: deploy --config wrangler.toml
-
-      - name: 서비스 계정 보안 설정 (동기화)
-        run: |
-          cd workers
-          echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' | npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON --config wrangler-drive-to-sheets.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
-      - name: 드라이브 동기화 워커 배포 실행
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: 'workers'
-          command: deploy drive-to-sheets.js --config wrangler-drive-to-sheets.toml
