@@ -390,6 +390,8 @@ async function getPostsFromArchive(subdomain, env) {
     const createdAtIndex = headers.indexOf('생성일시');
     const languageIndex = headers.indexOf('언어');
     const industryIndex = headers.indexOf('업종');
+    const bodyIndex = headers.indexOf('본문');
+    const imagesIndex = headers.indexOf('이미지');
 
     if (domainIndex === -1) {
       console.error('최신 포스팅 시트에 "도메인" 컬럼이 없습니다');
@@ -415,8 +417,8 @@ async function getPostsFromArchive(subdomain, env) {
           created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
           language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
           industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
-          body: '', // 최신 포스팅에는 body 없음 (제목만)
-          images: '' // 최신 포스팅에는 images 없음
+          body: bodyIndex !== -1 ? (row[bodyIndex] || '') : '',
+          images: imagesIndex !== -1 ? (row[imagesIndex] || '') : ''
         });
       }
     }
@@ -1727,6 +1729,10 @@ async function generatePostingForClient(subdomain, env) {
     const postData = await generatePostWithGeminiForPosting(client, trendsData, images, env);
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
+    // Step 3.5: 이미지 URL 추가
+    const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
+    postData.images = imageUrls;
+
     // Step 4: 저장소 + 최신 포스팅 시트 저장
     logs.push('저장소/최신포스팅 시트 저장 시작...');
     await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, env);
@@ -2199,7 +2205,9 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     '생성일시': timestamp,
     '언어': client.language || 'ko',
     '업종': client.industry || '',
-    '폴더명': folderName || ''
+    '폴더명': folderName || '',
+    '본문': postData.body || '',
+    '이미지': postData.images || ''
   };
 
   // 1. 저장소 탭 헤더 읽기
