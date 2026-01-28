@@ -2388,44 +2388,71 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
   }
 
-  // 6. 저장소 및 최신 포스팅 시트 열 너비 자동 정렬
+  // 6. 관리자 시트의 열 너비를 가져와서 저장소/최신 포스팅 시트에 적용
   const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
   const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
 
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        requests: [
-          {
-            autoResizeDimensions: {
-              dimensions: {
-                sheetId: archiveSheetId,
-                dimension: 'COLUMNS',
-                startIndex: 0,
-                endIndex: 9
-              }
-            }
-          },
-          {
-            autoResizeDimensions: {
-              dimensions: {
-                sheetId: latestSheetId,
-                dimension: 'COLUMNS',
-                startIndex: 0,
-                endIndex: 9
-              }
-            }
-          }
-        ]
-      })
-    }
+  // 관리자 시트(첫 번째 시트) 정보 가져오기
+  const spreadsheetResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties,data.columnMetadata.pixelSize)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
+  const spreadsheetData = await spreadsheetResponse.json();
+
+  // 첫 번째 시트(관리자 시트)의 열 너비 가져오기
+  const mainSheet = spreadsheetData.sheets[0];
+  const columnWidths = mainSheet.data && mainSheet.data[0] && mainSheet.data[0].columnMetadata
+    ? mainSheet.data[0].columnMetadata.map(col => col.pixelSize || 100)
+    : [];
+
+  // 열 너비 적용 요청 생성 (처음 9개 열만)
+  const updateRequests = [];
+  for (let i = 0; i < Math.min(9, columnWidths.length); i++) {
+    updateRequests.push(
+      {
+        updateDimensionProperties: {
+          range: {
+            sheetId: archiveSheetId,
+            dimension: 'COLUMNS',
+            startIndex: i,
+            endIndex: i + 1
+          },
+          properties: {
+            pixelSize: columnWidths[i]
+          },
+          fields: 'pixelSize'
+        }
+      },
+      {
+        updateDimensionProperties: {
+          range: {
+            sheetId: latestSheetId,
+            dimension: 'COLUMNS',
+            startIndex: i,
+            endIndex: i + 1
+          },
+          properties: {
+            pixelSize: columnWidths[i]
+          },
+          fields: 'pixelSize'
+        }
+      }
+    );
+  }
+
+  if (updateRequests.length > 0) {
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ requests: updateRequests })
+      }
+    );
+  }
 }
 
 async function getSheetId(sheetsId, sheetName, accessToken) {
