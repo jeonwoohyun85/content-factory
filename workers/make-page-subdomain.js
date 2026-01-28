@@ -1881,7 +1881,13 @@ ${trendsData}
 async function getGoogleAccessTokenForPosting(env) {
   const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
 
-  const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  // Base64URL 인코딩 (UTF-8 안전)
+  function base64urlEncode(str) {
+    const base64 = btoa(unescape(encodeURIComponent(str)));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  const jwtHeader = base64urlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const now = Math.floor(Date.now() / 1000);
   const jwtClaimSet = {
     iss: serviceAccount.client_email,
@@ -1891,7 +1897,7 @@ async function getGoogleAccessTokenForPosting(env) {
     iat: now
   };
 
-  const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
+  const jwtClaimSetEncoded = base64urlEncode(JSON.stringify(jwtClaimSet));
   const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
 
   const privateKey = await crypto.subtle.importKey(
