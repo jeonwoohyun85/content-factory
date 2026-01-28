@@ -2187,7 +2187,7 @@ async function getLastUsedFolderForPosting(subdomain, env) {
     const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
 
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
