@@ -349,14 +349,14 @@ function formatKoreanTime(isoString) {
   }
 }
 
-// 저장소 탭에서 포스트 데이터 읽기
+// 최신 포스팅 시트에서 포스트 데이터 읽기 (홈페이지 표시용)
 async function getPostsFromArchive(subdomain, env) {
   try {
     const accessToken = await getGoogleAccessTokenForPosting(env);
-    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
@@ -376,7 +376,7 @@ async function getPostsFromArchive(subdomain, env) {
     const industryIndex = headers.indexOf('업종');
 
     if (domainIndex === -1) {
-      console.error('저장소 시트에 "도메인" 컬럼이 없습니다');
+      console.error('최신 포스팅 시트에 "도메인" 컬럼이 없습니다');
       return [];
     }
 
@@ -399,8 +399,8 @@ async function getPostsFromArchive(subdomain, env) {
           created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
           language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
           industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
-          body: '', // 저장소에는 body 없음 (제목만)
-          images: '' // 저장소에는 images 없음
+          body: '', // 최신 포스팅에는 body 없음 (제목만)
+          images: '' // 최신 포스팅에는 images 없음
         });
       }
     }
@@ -414,7 +414,7 @@ async function getPostsFromArchive(subdomain, env) {
 
     return posts;
   } catch (error) {
-    console.error('Error fetching posts from archive:', error);
+    console.error('Error fetching posts from latest sheet:', error);
     return [];
   }
 }
