@@ -24,6 +24,7 @@ jobs:
         run: |
           cd workers
           echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' | npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON --config wrangler.toml
+          echo '${{ secrets.GEMINI_API_KEY }}' | npx wrangler secret put GEMINI_API_KEY --config wrangler.toml
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
