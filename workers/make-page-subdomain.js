@@ -234,6 +234,11 @@ function getLinkInfo(url) {
   if (!url) return null;
 
   url = url.trim();
+  
+  // 유효한 URL인지 확인 (http/https/tel:로 시작하는 것만 처리)
+  if (!url.startsWith('http') && !url.startsWith('tel:')) {
+    return null;
+  }
 
   if (url.startsWith('tel:')) {
     return { icon: '📞', text: '전화하기', url };
@@ -803,7 +808,8 @@ function generateClientPage(client, debugInfo = {}) {
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
+            height: 100%
+;
             background: rgba(0, 0, 0, 0.9);
             align-items: center;
             justify-content: center;
