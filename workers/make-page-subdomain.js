@@ -316,9 +316,9 @@ async function getClientFromSheets(clientId, env) {
       return normalizedSubdomain === clientId;
     });
 
-    // Posts 조회 추가 (Content Factory 시트에서 post1_*, post2_* 읽기)
+    // Posts 조회 추가 (저장소 탭에서 읽기)
     if (client) {
-      client.posts = getRecentPostsFromClient(client);
+      client.posts = await getPostsFromArchive(clientId, env);
     }
 
     return { client, debugInfo };
@@ -349,41 +349,62 @@ function formatKoreanTime(isoString) {
   }
 }
 
-// Content Factory 시트에서 포스트 데이터 읽기 (client 객체에서 직접 추출)
-function getRecentPostsFromClient(client) {
-  const posts = [];
+// 저장소 탭에서 포스트 데이터 읽기
+async function getPostsFromArchive(subdomain, env) {
+  try {
+    const accessToken = await getGoogleAccessTokenForPosting(env);
+    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
 
-  // post1 (최신)
-  if (client.post1_title && client.post1_body) {
-    posts.push({
-      subdomain: client.subdomain,
-      business_name: client.business_name,
-      language: client.language,
-      title: client.post1_title,
-      body: client.post1_body,
-      created_at: client.post1_created_at,
-      images: client.post1_images || ''
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:F`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const data = await response.json();
+    const rows = data.values || [];
+
+    if (rows.length < 2) {
+      return [];
+    }
+
+    const headers = rows[0];
+    const posts = [];
+
+    // 첫 번째 행은 헤더이므로 1부터 시작
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const domain = row[0] || '';
+
+      // 도메인 매칭 (00001.make-page.com 또는 00001)
+      const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+      const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+
+      if (normalizedDomain === normalizedSubdomain) {
+        posts.push({
+          subdomain: domain,
+          business_name: row[1] || '',
+          title: row[2] || '',
+          created_at: row[3] || '',
+          language: row[4] || '',
+          industry: row[5] || '',
+          body: '', // 저장소에는 body 없음 (제목만)
+          images: '' // 저장소에는 images 없음
+        });
+      }
+    }
+
+    // created_at 기준 내림차순 정렬 (최신순)
+    posts.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return dateB - dateA;
     });
+
+    return posts;
+  } catch (error) {
+    console.error('Error fetching posts from archive:', error);
+    return [];
   }
-
-  // post2 (두번째)
-  if (client.post2_title && client.post2_body) {
-    posts.push({
-      subdomain: client.subdomain,
-      business_name: client.business_name,
-      language: client.language,
-      title: client.post2_title,
-      body: client.post2_body,
-      created_at: client.post2_created_at,
-      images: client.post2_images || ''
-    });
-  }
-
-  // created_at 기준 내림차순 정렬 (최신순)
-  posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-  // 최근 3개 반환 (사실상 2개)
-  return posts.slice(0, 3);
 }
 
 function pemToArrayBuffer(pem) {
@@ -1296,79 +1317,95 @@ async function deletePost(subdomain, createdAt, password, env) {
 
   try {
     const accessToken = await getGoogleAccessTokenForPosting(env);
+    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
-    // Content Factory 시트에서 모든 데이터 조회
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/ContentFactory!A:Z`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
+    // 도메인 정규화
+    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+    const domain = `${normalizedSubdomain}.make-page.com`;
+
+    // 1. 저장소 탭에서 삭제
+    const archiveResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:F`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+    const archiveData = await archiveResponse.json();
+    const archiveRows = archiveData.values || [];
 
-    const data = await response.json();
-    const rows = data.values || [];
-
-    if (rows.length < 2) {
-      return { success: false, error: '삭제할 포스트 데이터가 없습니다' };
-    }
-
-    const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const post1CreatedAtIndex = headers.indexOf('post1_created_at');
-    const post2CreatedAtIndex = headers.indexOf('post2_created_at');
-    const post1TitleIndex = headers.indexOf('post1_title');
-    const post1BodyIndex = headers.indexOf('post1_body');
-    const post1ImagesIndex = headers.indexOf('post1_images');
-    const post2TitleIndex = headers.indexOf('post2_title');
-    const post2BodyIndex = headers.indexOf('post2_body');
-    const post2ImagesIndex = headers.indexOf('post2_images');
-
-    // 삭제할 행 찾기
-    let deleteRowIndex = -1;
-    let deleteColumn = null; // 'post1' or 'post2'
-
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-      
-      if (rowSubdomain === subdomain) {
-        const post1Date = row[post1CreatedAtIndex];
-        const post2Date = row[post2CreatedAtIndex];
-        
-        if (post1Date === createdAt) {
-          deleteRowIndex = i + 1; // 1-indexed
-          deleteColumn = 'post1';
-          break;
-        } else if (post2Date === createdAt) {
-          deleteRowIndex = i + 1;
-          deleteColumn = 'post2';
-          break;
-        }
+    let foundInArchive = false;
+    for (let i = 1; i < archiveRows.length; i++) {
+      const row = archiveRows[i];
+      if (row[0] === domain && row[3] === createdAt) {
+        // 행 삭제
+        const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              requests: [{
+                deleteDimension: {
+                  range: {
+                    sheetId: archiveSheetId,
+                    dimension: 'ROWS',
+                    startIndex: i,
+                    endIndex: i + 1
+                  }
+                }
+              }]
+            })
+          }
+        );
+        foundInArchive = true;
+        break;
       }
     }
 
-    if (deleteRowIndex === -1) {
+    // 2. 최신 포스팅 탭에서도 삭제
+    const latestResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:F`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const latestData = await latestResponse.json();
+    const latestRows = latestData.values || [];
+
+    for (let i = 1; i < latestRows.length; i++) {
+      const row = latestRows[i];
+      if (row[0] === domain && row[3] === createdAt) {
+        const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              requests: [{
+                deleteDimension: {
+                  range: {
+                    sheetId: latestSheetId,
+                    dimension: 'ROWS',
+                    startIndex: i,
+                    endIndex: i + 1
+                  }
+                }
+              }]
+            })
+          }
+        );
+        break;
+      }
+    }
+
+    if (!foundInArchive) {
       return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
     }
-
-    // 해당 post 컬럼 비우기
-    const updateRange = deleteColumn === 'post1' 
-      ? `ContentFactory!${getColumnLetter(post1TitleIndex)}${deleteRowIndex}:${getColumnLetter(post1ImagesIndex)}${deleteRowIndex}`
-      : `ContentFactory!${getColumnLetter(post2TitleIndex)}${deleteRowIndex}:${getColumnLetter(post2ImagesIndex)}${deleteRowIndex}`;
-
-    await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${updateRange}?valueInputOption=RAW`,
-      {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          values: [['', '', '', '']] // title, body, created_at, images 모두 비우기
-        })
-      }
-    );
 
     return { success: true };
 
@@ -1376,79 +1413,6 @@ async function deletePost(subdomain, createdAt, password, env) {
     console.error('Delete post error:', error);
     return { success: false, error: error.message };
   }
-}
-
-// 컬럼 인덱스를 문자로 변환 (0 -> A, 1 -> B, ...)
-function getColumnLetter(index) {
-  let letter = '';
-  while (index >= 0) {
-    letter = String.fromCharCode((index % 26) + 65) + letter;
-    index = Math.floor(index / 26) - 1;
-  }
-  return letter;
-}
-
-// ==================== 임시 시트 조회 함수 ====================
-
-async function checkAllSheetsColumns(env) {
-  const accessToken = await getGoogleAccessTokenForPosting(env);
-  const sheets = [
-    { name: '관리자', gid: 0 },
-    { name: '최신 포스팅', gid: null },
-    { name: '저장소', gid: null }
-  ];
-
-  const result = {};
-
-  for (const sheet of sheets) {
-    try {
-      const response = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${sheet.name}'!A1:Z2`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        result[sheet.name] = { error: `API Error: ${response.status} - ${errorText}` };
-        continue;
-      }
-
-      const responseText = await response.text();
-      if (!responseText) {
-        result[sheet.name] = { error: '응답 본문 없음' };
-        continue;
-      }
-
-      const data = JSON.parse(responseText);
-      const rows = data.values || [];
-
-      if (rows.length === 0) {
-        result[sheet.name] = { error: '데이터 없음' };
-        continue;
-      }
-
-      const headers = rows[0];
-      const sampleData = rows.length > 1 ? rows[1] : null;
-
-      result[sheet.name] = {
-        columnCount: headers.length,
-        columns: headers.map((header, index) => ({
-          index,
-          letter: String.fromCharCode(65 + index),
-          name: header,
-          sampleValue: sampleData && sampleData[index]
-            ? (sampleData[index].length > 50
-                ? sampleData[index].substring(0, 50) + '...'
-                : sampleData[index])
-            : '(비어있음)'
-        }))
-      };
-    } catch (error) {
-      result[sheet.name] = { error: error.message };
-    }
-  }
-
-  return result;
 }
 
 // ==================== 라우팅 ====================
@@ -1538,21 +1502,6 @@ export default {
             error: error.message,
             stack: error.stack
           }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-      }
-      // 임시 시트 조회 엔드포인트
-      if (pathname === '/check-sheets') {
-        try {
-          const result = await checkAllSheetsColumns(env);
-          return new Response(JSON.stringify(result, null, 2), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json; charset=utf-8' }
-          });
-        } catch (error) {
-          return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
           });
@@ -1687,12 +1636,7 @@ async function generatePostingForClient(subdomain, env) {
     const postData = await generatePostWithGeminiForPosting(client, trendsData, images, env);
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
-    // Step 4: Content Factory 시트 저장 (post1_*, post2_* 업데이트)
-    logs.push('ContentFactory 시트 저장 시작...');
-    await saveToContentFactorySheetForPosting(client, postData, images, normalizedSubdomain, env);
-    logs.push('ContentFactory 시트 저장 완료');
-
-    // Step 5: 저장소 + 최신 포스팅 시트 저장
+    // Step 4: 저장소 + 최신 포스팅 시트 저장
     logs.push('저장소/최신포스팅 시트 저장 시작...');
     await saveToLatestPostingSheet(client, postData, normalizedSubdomain, env);
     logs.push('저장소/최신포스팅 시트 저장 완료');
@@ -2099,86 +2043,6 @@ function getNextFolderForPosting(folders, lastFolder) {
 
   const nextIndex = (currentIndex + 1) % folders.length;
   return folders[nextIndex];
-}
-
-async function saveToContentFactorySheetForPosting(client, postData, images, normalizedSubdomain, env) {
-  const accessToken = await getGoogleAccessTokenForPosting(env);
-
-  // ContentFactory 시트에서 전체 데이터 읽기
-  const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/ContentFactory!A:Z`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-
-  const data = await response.json();
-  const rows = data.values || [];
-
-  if (rows.length < 2) {
-    throw new Error('ContentFactory sheet is empty');
-  }
-
-  const headers = rows[0];
-  const subdomainIndex = headers.indexOf('subdomain');
-  const post1TitleIndex = headers.indexOf('post1_title');
-  const post1BodyIndex = headers.indexOf('post1_body');
-  const post1CreatedAtIndex = headers.indexOf('post1_created_at');
-  const post1ImagesIndex = headers.indexOf('post1_images');
-  const post2TitleIndex = headers.indexOf('post2_title');
-  const post2BodyIndex = headers.indexOf('post2_body');
-  const post2CreatedAtIndex = headers.indexOf('post2_created_at');
-  const post2ImagesIndex = headers.indexOf('post2_images');
-
-  // 해당 subdomain 행 찾기
-  let rowIndex = -1;
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-    if (rowSubdomain === normalizedSubdomain) {
-      rowIndex = i + 1; // 1-indexed
-      break;
-    }
-  }
-
-  if (rowIndex === -1) {
-    throw new Error(`Client ${normalizedSubdomain} not found in ContentFactory sheet`);
-  }
-
-  // 현재 post1을 post2로 이동
-  const currentPost1Title = rows[rowIndex - 1][post1TitleIndex] || '';
-  const currentPost1Body = rows[rowIndex - 1][post1BodyIndex] || '';
-  const currentPost1CreatedAt = rows[rowIndex - 1][post1CreatedAtIndex] || '';
-  const currentPost1Images = rows[rowIndex - 1][post1ImagesIndex] || '';
-
-  // 새 포스팅 데이터
-  const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
-  const now = new Date();
-  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
-
-  // post1, post2 업데이트 (배치 업데이트)
-  const updateRange = `ContentFactory!${getColumnLetter(post1TitleIndex)}${rowIndex}:${getColumnLetter(post2ImagesIndex)}${rowIndex}`;
-  const updateValues = [[
-    postData.title,           // post1_title
-    postData.body,            // post1_body
-    timestamp,                // post1_created_at
-    imageUrls,                // post1_images
-    currentPost1Title,        // post2_title (기존 post1)
-    currentPost1Body,         // post2_body (기존 post1)
-    currentPost1CreatedAt,    // post2_created_at (기존 post1)
-    currentPost1Images        // post2_images (기존 post1)
-  ]];
-
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${updateRange}?valueInputOption=RAW`,
-    {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ values: updateValues })
-    }
-  );
 }
 
 async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, env) {
