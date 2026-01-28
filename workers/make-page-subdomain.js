@@ -1803,7 +1803,7 @@ async function generatePostingForClient(subdomain, env) {
 
     logs.push(`폴더 ${folders.length}개 발견`);
 
-    const lastUsedFolder = await getLastUsedFolderForPosting(subdomain, env);
+    const lastUsedFolder = await getLastUsedFolderForPosting(subdomain, accessToken, env);
     const nextFolder = getNextFolderForPosting(folders, lastUsedFolder);
     logs.push(`선택된 폴더: ${nextFolder}`);
 
@@ -1832,7 +1832,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 4: 저장소 + 최신 포스팅 시트 저장
     logs.push('저장소/최신포스팅 시트 저장 시작...');
-    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, env);
+    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, accessToken, env);
     logs.push('저장소/최신포스팅 시트 저장 완료');
 
     return {
@@ -1853,14 +1853,25 @@ async function generatePostingForClient(subdomain, env) {
 
 async function getClientFromSheetsForPosting(subdomain, env) {
   const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
-  const response = await fetch(SHEET_URL);
-  const csvText = await response.text();
-  const clients = parseCSV(csvText).map(normalizeClient);
-  
-  return clients.find(c => {
-    let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
-    return normalized === subdomain && c.status === '구독';
-  }) || null;
+
+  try {
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+    if (!response.ok) {
+      throw new Error(`Sheets CSV fetch failed: ${response.status}`);
+    }
+
+    const csvText = await response.text();
+    const clients = parseCSV(csvText).map(normalizeClient);
+
+    return clients.find(c => {
+      let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
+      return normalized === subdomain && c.status === '구독';
+    }) || null;
+  } catch (error) {
+    console.error(`getClientFromSheetsForPosting 에러: ${error.message}`);
+    throw error;
+  }
 }
 
 
@@ -1877,33 +1888,43 @@ async function searchWithGeminiForPosting(client, env) {
 출력 형식: 텍스트만 (JSON 불필요)
 `;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${env.GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{"parts": [{"text": prompt}]}],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 600
-        }
-      })
+  try {
+    const response = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{"parts": [{"text": prompt}]}],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 600
+          }
+        })
+      },
+      30000
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini API HTTP error: ${response.status}`);
     }
-  );
 
-  const data = await response.json();
+    const data = await response.json();
 
-  // 에러 처리
-  if (data.error) {
-    throw new Error(`Gemini API error: ${data.error.message}`);
+    // 에러 처리
+    if (data.error) {
+      throw new Error(`Gemini API error: ${data.error.message}`);
+    }
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
+    }
+
+    return data.candidates[0].content.parts[0].text;
+  } catch (error) {
+    console.error(`searchWithGeminiForPosting 에러: ${error.message}`);
+    throw error;
   }
-
-  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-    throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
-  }
-
-  return data.candidates[0].content.parts[0].text;
 }
 
 async function generatePostWithGeminiForPosting(client, trendsData, images, env) {
@@ -1957,46 +1978,52 @@ ${trendsData}
     });
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${env.GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{"parts": parts}],
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 8000
-        }
-      })
+  try {
+    const response = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{"parts": parts}],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 8000
+          }
+        })
+      },
+      60000
+    );
+
+    // HTTP 응답 상태 확인
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
     }
-  );
 
-  // HTTP 응답 상태 확인
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+    const data = await response.json();
+
+    // 에러 처리
+    if (data.error) {
+      throw new Error(`Gemini API error: ${data.error.message}`);
+    }
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
+    }
+
+    const text = data.candidates[0].content.parts[0].text;
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+
+    throw new Error('Failed to parse Gemini response');
+  } catch (error) {
+    console.error(`generatePostWithGeminiForPosting 에러: ${error.message}`);
+    throw error;
   }
-
-  const data = await response.json();
-
-  // 에러 처리
-  if (data.error) {
-    throw new Error(`Gemini API error: ${data.error.message}`);
-  }
-
-  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-    throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
-  }
-
-  const text = data.candidates[0].content.parts[0].text;
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]);
-  }
-
-  throw new Error('Failed to parse Gemini response');
 }
 
 async function getGoogleAccessTokenForPosting(env) {
@@ -2208,14 +2235,14 @@ async function getClientFoldersForPosting(folderName, subdomain, accessToken, en
   return folders;
 }
 
-async function getLastUsedFolderForPosting(subdomain, env) {
+async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
   try {
-    const accessToken = await getGoogleAccessTokenForPosting(env);
     const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
 
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
     );
 
     if (!response.ok) {
@@ -2286,8 +2313,7 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
-async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, env) {
-  const accessToken = await getGoogleAccessTokenForPosting(env);
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env) {
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
@@ -2309,45 +2335,22 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     '이미지': postData.images || ''
   };
 
-  // 1. 저장소 탭 헤더 읽기
-  const archiveHeaderResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!1:1`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  const archiveHeaderData = await archiveHeaderResponse.json();
-  const archiveHeaders = (archiveHeaderData.values && archiveHeaderData.values[0]) || [];
-
-  // 헤더 순서대로 rowData 생성
-  const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
-
-  // 저장소 탭에 append
-  const archiveAppendResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=RAW`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ values: [archiveRowData] })
-    }
+  // 1. 최신 포스팅 탭 먼저 처리 (트랜잭션 방식 - 실패 시 저장소 저장 안함)
+  const getResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    10000
   );
 
-  if (!archiveAppendResponse.ok) {
-    const errorText = await archiveAppendResponse.text();
-    throw new Error(`저장소 시트 append 실패: ${archiveAppendResponse.status} - ${errorText}`);
+  if (!getResponse.ok) {
+    throw new Error(`최신 포스팅 시트 읽기 실패: ${getResponse.status}`);
   }
 
-  // 2. 최신 포스팅 탭 읽기 (헤더 포함)
-  const getResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
   const getData = await getResponse.json();
   const rows = getData.values || [];
 
   if (rows.length < 1) {
-    return; // 헤더 없으면 종료
+    throw new Error('최신 포스팅 시트에 헤더가 없습니다');
   }
 
   const latestHeaders = rows[0];
@@ -2358,15 +2361,15 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     throw new Error('최신 포스팅 시트에 필수 컬럼(도메인, 생성일시)이 없습니다');
   }
 
-  // 3. 시트 메타데이터 한 번만 조회 (API 중복 호출 방지)
-  const spreadsheetResponse = await fetch(
+  // 2. 시트 메타데이터 한 번만 조회 (API 중복 호출 방지)
+  const spreadsheetResponse = await fetchWithTimeout(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    10000
   );
 
   if (!spreadsheetResponse.ok) {
-    console.error(`시트 메타데이터 조회 실패: ${spreadsheetResponse.status}`);
-    return;
+    throw new Error(`시트 메타데이터 조회 실패: ${spreadsheetResponse.status}`);
   }
 
   const spreadsheetData = await spreadsheetResponse.json();
@@ -2376,11 +2379,10 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   const latestSheetId = latestSheet ? latestSheet.properties.sheetId : 0;
   const archiveSheetId = archiveSheet ? archiveSheet.properties.sheetId : 0;
-  const adminSheetId = adminSheet ? adminSheet.properties.sheetId : 0;
 
-  console.log(`SheetID - 최신포스팅: ${latestSheetId}, 저장소: ${archiveSheetId}, 관리자: ${adminSheetId}`);
+  console.log(`SheetID - 최신포스팅: ${latestSheetId}, 저장소: ${archiveSheetId}`);
 
-  // 4. 해당 도메인의 행들 찾기
+  // 3. 해당 도메인의 행들 찾기
   const domainRows = [];
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][domainIndex] === domain) {
@@ -2388,12 +2390,12 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     }
   }
 
-  // 5. 2개 이상이면 가장 오래된 행 삭제
+  // 4. 2개 이상이면 가장 오래된 행 삭제
   if (domainRows.length >= 2) {
     domainRows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
     const oldestRowIndex = domainRows[0].index;
 
-    await fetch(
+    const deleteResponse = await fetchWithTimeout(
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
       {
         method: 'POST',
@@ -2413,14 +2415,19 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
             }
           }]
         })
-      }
+      },
+      10000
     );
+
+    if (!deleteResponse.ok) {
+      throw new Error(`최신 포스팅 행 삭제 실패: ${deleteResponse.status}`);
+    }
   }
 
-  // 6. 최신 포스팅 탭에 append (헤더 순서대로)
+  // 5. 최신 포스팅 탭에 append (헤더 순서대로)
   const latestRowData = latestHeaders.map(header => postDataMap[header] || '');
 
-  const latestAppendResponse = await fetch(
+  const latestAppendResponse = await fetchWithTimeout(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z:append?valueInputOption=RAW`,
     {
       method: 'POST',
@@ -2429,12 +2436,51 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ values: [latestRowData] })
-    }
+    },
+    10000
   );
 
   if (!latestAppendResponse.ok) {
     const errorText = await latestAppendResponse.text();
     throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
+  }
+
+  // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (트랜잭션 완료)
+  const archiveHeaderResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!1:1`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    10000
+  );
+
+  if (!archiveHeaderResponse.ok) {
+    console.error(`저장소 시트 헤더 읽기 실패: ${archiveHeaderResponse.status}`);
+    return; // 최신 포스팅은 이미 저장됨, 저장소만 실패
+  }
+
+  const archiveHeaderData = await archiveHeaderResponse.json();
+  const archiveHeaders = (archiveHeaderData.values && archiveHeaderData.values[0]) || [];
+
+  // 헤더 순서대로 rowData 생성
+  const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
+
+  // 저장소 탭에 append
+  const archiveAppendResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=RAW`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: [archiveRowData] })
+    },
+    10000
+  );
+
+  if (!archiveAppendResponse.ok) {
+    const errorText = await archiveAppendResponse.text();
+    console.error(`저장소 시트 append 실패: ${archiveAppendResponse.status} - ${errorText}`);
+    // 최신 포스팅은 이미 저장됨, 저장소 저장 실패는 치명적이지 않음
   }
 
   // 7. 관리자 시트의 열 너비를 저장소 시트에 복사
