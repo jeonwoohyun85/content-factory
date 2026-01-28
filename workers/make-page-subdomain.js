@@ -482,8 +482,18 @@ function generateClientPage(client, debugInfo = {}) {
   // Links 파싱 (쉼표 구분)
   const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(getLinkInfo).filter(l => l);
 
-  // Info 이미지 파싱 (쉼표 구분)
-  let infoImages = (client.info || '').split(',').map(i => i.trim()).filter(i => i);
+  // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환
+  let infoImages = (client.info || '').split(',')
+    .map(i => i.trim())
+    .filter(i => i)
+    .map(url => {
+      // Google Drive /view URL을 /thumbnail로 변환
+      if (url.includes('drive.google.com/file/d/')) {
+        const fileId = url.split('/d/')[1].split('/')[0];
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+      }
+      return url;
+    });
 
   // 랜덤으로 섞고 최대 6개만 선택
   if (infoImages.length > 6) {
