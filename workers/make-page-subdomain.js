@@ -38,8 +38,8 @@ function escapeHtml(text) {
 function parseCSV(csvText) {
   const lines = csvText.trim().split('\n');
 
-  // 헤더 파싱
-  const headers = parseCSVLine(lines[0]);
+  // 헤더 파싱 (BOM 제거 및 공백 제거)
+  const headers = parseCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim());
 
   const clients = [];
   for (let i = 1; i < lines.length; i++) {
