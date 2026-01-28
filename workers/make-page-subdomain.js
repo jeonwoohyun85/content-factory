@@ -1808,6 +1808,12 @@ ${trendsData}
     }
   );
 
+  // HTTP 응답 상태 확인
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+  }
+
   const data = await response.json();
 
   // 에러 처리
@@ -2227,4 +2233,3 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
   const sheet = data.sheets.find(s => s.properties.title === sheetName);
   return sheet ? sheet.properties.sheetId : 0;
 }
-
