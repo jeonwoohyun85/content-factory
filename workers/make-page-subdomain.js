@@ -1,10 +1,6 @@
 // Content Factory - Minimal Version (Google Sheets Only)
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
 
-const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
-const GEMINI_API_KEY = 'AIzaSyCGaxsMXJ5UvUrU9wQCOH2ou7m9TP2pB88';
-const DELETE_PASSWORD = '55000';
-
 // ==================== 유틸리티 함수 ====================
 
 // Timeout이 있는 fetch
@@ -35,7 +31,7 @@ function escapeHtml(text) {
     '"': '&quot;',
     "'": '&#039;'
   };
-  return text.toString().replace(/[&<>"']/g, m => map[m]);
+  return text.toString().replace(/[&<>'"']/g, m => map[m]);
 }
 
 // CSV 파싱 (큰따옴표로 감싸진 필드 처리)
@@ -116,7 +112,7 @@ function normalizeClient(client) {
 // Google Sheets에서 거래처 정보 조회
 async function getClientFromSheets(clientId, env) {
   try {
-    const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
+    const response = await fetchWithTimeout(env.GOOGLE_SHEETS_CSV_URL, {}, 10000);
     const csvText = await response.text();
     const clients = parseCSV(csvText).map(normalizeClient);
 
@@ -963,7 +959,7 @@ function generateClientPage(client) {
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
-        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <span class="lightbox-close" onclick="closeLightbox()">×</span>
         <span class="lightbox-nav lightbox-prev" onclick="event.stopPropagation(); prevImage()">&#10094;</span>
         <div class="lightbox-content" onclick="event.stopPropagation()">
             <img id="lightbox-image" class="lightbox-image" src="" alt="Info">
@@ -1022,10 +1018,10 @@ Sitemap: https://make-page.com/sitemap.xml`;
 
 // ==================== Sitemap ====================
 
-async function handleSitemap() {
+async function handleSitemap(env) {
   try {
     // Google Sheets에서 활성 거래처 조회
-    const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
+    const response = await fetchWithTimeout(env.GOOGLE_SHEETS_CSV_URL, {}, 10000);
     const csvText = await response.text();
     const clients = parseCSV(csvText).map(normalizeClient);
 
@@ -1078,7 +1074,7 @@ ${urls.map(url => `  <url>
 
 async function deletePost(subdomain, createdAt, password, env) {
   // 비밀번호 확인
-  if (password !== DELETE_PASSWORD) {
+  if (password !== env.DELETE_PASSWORD) {
     return { success: false, error: '비밀번호가 올바르지 않습니다' };
   }
 
@@ -1183,7 +1179,7 @@ export default {
     console.log('Scheduled trigger started at', new Date().toISOString());
     try {
       // 1. 모든 활성 거래처 조회
-      const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+      const response = await fetch(env.GOOGLE_SHEETS_CSV_URL);
       const csvText = await response.text();
       const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === '구독');
       
@@ -1235,7 +1231,7 @@ export default {
     // make-page.com (메인 도메인) 처리
     if (hostname === 'make-page.com' || hostname === 'staging.make-page.com') {
       if (pathname === '/sitemap.xml') {
-        return handleSitemap();
+        return handleSitemap(env);
       }
       if (pathname === '/robots.txt') {
         return new Response(generateRobotsTxt(), {
@@ -1344,7 +1340,7 @@ async function generatePostingForClient(subdomain, env) {
   try {
     // Step 1: 거래처 정보 조회
     logs.push('거래처 정보 조회 중...');
-    const client = await getClientFromSheetsForPosting(subdomain);
+    const client = await getClientFromSheetsForPosting(subdomain, env);
     if (!client) {
       return { success: false, error: 'Client not found', logs };
     }
@@ -1378,12 +1374,12 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 2: 웹 검색 (Gemini 2.5 Flash)
     logs.push('웹 검색 시작...');
-    const trendsData = await searchWithGeminiForPosting(client);
+    const trendsData = await searchWithGeminiForPosting(client, env);
     logs.push(`웹 검색 완료: ${trendsData.substring(0, 100)}...`);
 
     // Step 3: 포스팅 생성 (Gemini 3.0 Pro)
     logs.push('포스팅 생성 시작...');
-    const postData = await generatePostWithGeminiForPosting(client, trendsData, images);
+    const postData = await generatePostWithGeminiForPosting(client, trendsData, images, env);
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
     // Step 4: Content Factory 시트 저장 (post1_*, post2_* 업데이트)
@@ -1412,8 +1408,8 @@ async function generatePostingForClient(subdomain, env) {
   }
 }
 
-async function getClientFromSheetsForPosting(subdomain) {
-  const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+async function getClientFromSheetsForPosting(subdomain, env) {
+  const response = await fetch(env.GOOGLE_SHEETS_CSV_URL);
   const csvText = await response.text();
   const clients = parseCSV(csvText).map(normalizeClient);
   
@@ -1424,7 +1420,7 @@ async function getClientFromSheetsForPosting(subdomain) {
 }
 
 
-async function searchWithGeminiForPosting(client) {
+async function searchWithGeminiForPosting(client, env) {
   const prompt = `
 [업종] ${client.industry || client.business_name}
 [언어] ${client.language}
@@ -1438,14 +1434,12 @@ async function searchWithGeminiForPosting(client) {
 `;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
+        contents: [{"parts": [{"text": prompt}]}],
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 1000
@@ -1458,7 +1452,7 @@ async function searchWithGeminiForPosting(client) {
   return data.candidates[0].content.parts[0].text;
 }
 
-async function generatePostWithGeminiForPosting(client, trendsData, images) {
+async function generatePostWithGeminiForPosting(client, trendsData, images, env) {
   const prompt = `
 [거래처 정보]
 - 업체명: ${client.business_name}
@@ -1482,7 +1476,7 @@ ${trendsData}
 4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 구체적으로 설명
    - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 자세히 묘사
    - 전체 3000~3500자를 ${images.length}개 문단에 균등 배분
-5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
+5. 문단 구분: 문단 사이에 빈 줄 2개 (\n\n)로 명확히 구분
 6. 금지어: 최고, 1등, 유일, 검증된
 7. 금지 창작: 경력, 학력, 자격증, 수상
 8. **본문의 모든 내용은 '${client.description}'의 주제와 자연스럽게 연결되어야 함 (최우선 순위)**
@@ -1490,7 +1484,7 @@ ${trendsData}
 출력 형식 (JSON):
 {
   "title": "제목",
-  "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
+  "body": "문단1\n\n문단2\n\n문단3\n\n..."
 }
 
 중요: body는 정확히 ${images.length}개의 문단으로 구성되어야 하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
@@ -1508,14 +1502,12 @@ ${trendsData}
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${env.GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: parts
-        }],
+        contents: [{"parts": parts}],
         generationConfig: {
           temperature: 0.8,
           maxOutputTokens: 8000
