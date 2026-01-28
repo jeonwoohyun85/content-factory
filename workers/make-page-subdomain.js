@@ -116,9 +116,25 @@ async function getClientFromSheets(clientId, env) {
     const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712';
     const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
     const csvText = await response.text();
-    const clients = parseCSV(csvText).map(normalizeClient);
+    
+    // 수동 파싱 및 디버그 정보 수집
+    const lines = csvText.trim().split('\n');
+    const headers = parseCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim());
+    const debugInfo = { headers, rawLine: lines[0] };
 
-    const client = clients.find(c => {
+    const clients = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      const client = {};
+      headers.forEach((header, index) => {
+        client[header] = values[index] || '';
+      });
+      clients.push(client);
+    }
+
+    const normalizedClients = clients.map(normalizeClient);
+
+    const client = normalizedClients.find(c => {
       // subdomain 정규화: "00001.make-page.com" → "00001"
       let normalizedSubdomain = c.subdomain || '';
       if (normalizedSubdomain.includes('.make-page.com')) {
@@ -132,10 +148,10 @@ async function getClientFromSheets(clientId, env) {
       client.posts = getRecentPostsFromClient(client);
     }
 
-    return client;
+    return { client, debugInfo };
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
-    return null;
+    return { client: null, debugInfo: { error: error.message } };
   }
 }
 
@@ -462,7 +478,7 @@ function generatePostPage(client, post) {
 }
 
 // 거래처 페이지 생성
-function generateClientPage(client) {
+function generateClientPage(client, debugInfo = {}) {
   // Links 파싱 (쉼표 구분)
   const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(getLinkInfo).filter(l => l);
 
@@ -1006,6 +1022,8 @@ function generateClientPage(client) {
             if (e.key === 'ArrowLeft') prevImage();
         });
     </script>
+    <!-- DEBUG CLIENT: ${JSON.stringify(client)} -->
+    <!-- DEBUG HEADERS: ${JSON.stringify(debugInfo)} -->
 </body>
 </html>`;
 }
@@ -1288,7 +1306,7 @@ export default {
       }
 
       // Google Sheets에서 거래처 정보 조회
-      const client = await getClientFromSheets(subdomain, env);
+      const { client, debugInfo } = await getClientFromSheets(subdomain, env);
 
       if (!client) {
         return new Response('Not Found', { status: 404 });
@@ -1324,7 +1342,7 @@ export default {
       }
 
       // 거래처 페이지 생성
-      return new Response(generateClientPage(client), {
+      return new Response(generateClientPage(client, debugInfo), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'public, max-age=300'
