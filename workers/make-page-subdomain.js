@@ -1707,7 +1707,7 @@ async function searchWithGeminiForPosting(client, env) {
 [업종] ${client.industry || client.business_name}
 [언어] ${client.language}
 
-다음 정보를 1000자 이내로 작성:
+다음 정보를 500자 이내로 작성:
 1. ${client.language} 시장의 최신 트렌드
 2. 검색 키워드 상위 5개
 3. 소비자 관심사
@@ -1724,7 +1724,7 @@ async function searchWithGeminiForPosting(client, env) {
         contents: [{"parts": [{"text": prompt}]}],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1000
+          maxOutputTokens: 600
         }
       })
     }
@@ -1749,7 +1749,7 @@ ${trendsData}
 
 [작성 규칙]
 1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
-2. 본문 전체 글자수: **3000~3500자** (필수)
+2. 본문 전체 글자수: **2800~3200자** (필수)
 3. 본문 구조: **반드시 ${images.length}개의 문단으로 작성**
    - 1번째 이미지 → 1번째 문단
    - 2번째 이미지 → 2번째 문단
@@ -1757,7 +1757,7 @@ ${trendsData}
    - ${images.length}번째 이미지 → ${images.length}번째 문단
 4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 구체적으로 설명
    - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 자세히 묘사
-   - 전체 3000~3500자를 ${images.length}개 문단에 균등 배분
+   - 전체 2800~3200자를 ${images.length}개 문단에 균등 배분
 5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
 6. 금지어: 최고, 1등, 유일, 검증된
 7. 금지 창작: 경력, 학력, 자격증, 수상
