@@ -316,9 +316,13 @@ async function getClientFromSheets(clientId, env) {
       return normalizedSubdomain === clientId;
     });
 
-    // Posts 조회 추가 (저장소 탭에서 읽기)
+    // Posts 조회 추가 (최신 포스팅 시트에서 읽기)
     if (client) {
-      client.posts = await getPostsFromArchive(clientId, env);
+      const postsResult = await getPostsFromArchive(clientId, env);
+      client.posts = postsResult.posts;
+      if (postsResult.error) {
+        debugInfo.postsError = postsResult.error;
+      }
     }
 
     return { client, debugInfo };
@@ -364,7 +368,7 @@ async function getPostsFromArchive(subdomain, env) {
     const rows = data.values || [];
 
     if (rows.length < 2) {
-      return [];
+      return { posts: [], error: 'No data rows in sheet' };
     }
 
     const headers = rows[0];
@@ -377,7 +381,7 @@ async function getPostsFromArchive(subdomain, env) {
 
     if (domainIndex === -1) {
       console.error('최신 포스팅 시트에 "도메인" 컬럼이 없습니다');
-      return [];
+      return { posts: [], error: 'No domain column' };
     }
 
     const posts = [];
@@ -412,10 +416,10 @@ async function getPostsFromArchive(subdomain, env) {
       return dateB - dateA;
     });
 
-    return posts;
+    return { posts, error: null };
   } catch (error) {
     console.error('Error fetching posts from latest sheet:', error);
-    return [];
+    return { posts: [], error: error.message };
   }
 }
 
