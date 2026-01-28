@@ -2172,7 +2172,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   // 저장소 탭에 append
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z/append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
@@ -2244,7 +2244,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   const latestRowData = latestHeaders.map(header => postDataMap[header] || '');
 
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z/append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
