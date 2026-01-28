@@ -1977,8 +1977,11 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
   const results = await Promise.all(downloadPromises);
   const images = results.filter(img => img !== null);
 
-  logs.push(`총 ${images.length}개 이미지 다운로드 완료`);
-  return images;
+  // Gemini API timeout 방지를 위해 최대 5개로 제한
+  const limitedImages = images.slice(0, 5);
+
+  logs.push(`총 ${images.length}개 이미지 다운로드 완료, ${limitedImages.length}개 사용`);
+  return limitedImages;
 }
 
 async function getClientFoldersForPosting(folderName, subdomain, accessToken, env, logs) {
