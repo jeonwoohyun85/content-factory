@@ -368,7 +368,7 @@ async function getPostsFromArchive(subdomain, env) {
 
     // Step 2: 시트 읽기
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
