@@ -337,17 +337,15 @@ function formatKoreanTime(isoString) {
   if (!isoString) return '';
 
   try {
-    const date = new Date(isoString);
-    // UTC+9 (한국 시간)
-    const koreaTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+    // 시트에 이미 KST 시간이 저장되어 있으므로 그대로 파싱
+    const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+    if (match) {
+      const [_, year, month, day, hours, minutes] = match;
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
 
-    const year = koreaTime.getUTCFullYear();
-    const month = String(koreaTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(koreaTime.getUTCDate()).padStart(2, '0');
-    const hours = String(koreaTime.getUTCHours()).padStart(2, '0');
-    const minutes = String(koreaTime.getUTCMinutes()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    // 폴백: ISO 형식이 아닌 경우
+    return isoString;
   } catch (error) {
     return isoString;
   }
@@ -1896,21 +1894,21 @@ ${trendsData}
 
 [작성 규칙]
 1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
-2. 본문 전체 글자수: **2800~3200자** (필수)
+2. 본문 전체 글자수: **공백 포함 2800~3200자** (필수)
 3. 본문 구조: **반드시 ${images.length}개의 문단으로 작성**
    - 1번째 이미지 → 1번째 문단
    - 2번째 이미지 → 2번째 문단
    - ...
    - ${images.length}번째 이미지 → ${images.length}번째 문단
-4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 구체적으로 설명
-   - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 자세히 묘사
-   - **[트렌드 정보]의 시장 트렌드, 고객 니즈, 최신 동향을 문단 내용에 자연스럽게 녹여낼 것**
-   - 전체 2800~3200자를 ${images.length}개 문단에 균등 배분
+4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 간결하게 설명
+   - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 묘사
+   - **각 문단은 공백 포함 약 280~320자 내외로 작성**
+   - **[트렌드 정보]는 문단당 1~2문장 정도만 간결하게 배경 설명으로 활용**
 5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
 6. 금지어: 최고, 1등, 유일, 검증된
 7. 금지 창작: 경력, 학력, 자격증, 수상
 8. **본문의 모든 내용은 '${client.description}'의 주제와 자연스럽게 연결되어야 함 (최우선 순위)**
-9. **[트렌드 정보]를 반드시 활용하여 시장 상황, 고객 요구, 최신 트렌드와 연결할 것**
+9. **간결하고 핵심적인 표현 사용 - 장황한 설명 금지**
 
 출력 형식 (JSON):
 {
@@ -2389,6 +2387,45 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     const errorText = await latestAppendResponse.text();
     throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
   }
+
+  // 6. 저장소 및 최신 포스팅 시트 열 너비 자동 정렬
+  const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
+  const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
+
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: [
+          {
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: archiveSheetId,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: 9
+              }
+            }
+          },
+          {
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: latestSheetId,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: 9
+              }
+            }
+          }
+        ]
+      })
+    }
+  );
 }
 
 async function getSheetId(sheetsId, sheetName, accessToken) {
