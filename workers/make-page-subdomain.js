@@ -34,6 +34,81 @@ function escapeHtml(text) {
   return text.toString().replace(/[&<>'"']/g, m => map[m]);
 }
 
+// 언어 코드 정규화
+function normalizeLanguage(lang) {
+  if (!lang) return 'ko';
+  const lower = lang.toLowerCase();
+  if (lower.includes('한글') || lower.includes('korean') || lower === 'ko') return 'ko';
+  if (lower.includes('영어') || lower.includes('english') || lower === 'en') return 'en';
+  if (lower.includes('일본') || lower.includes('japanese') || lower === 'ja') return 'ja';
+  if (lower.includes('중국') || lower.includes('chinese') || lower === 'zh') return 'zh';
+  return 'ko';
+}
+
+// 언어별 텍스트 매핑
+const LANGUAGE_TEXTS = {
+  ko: {
+    info: 'Info',
+    video: 'Video',
+    posts: 'Posts',
+    backToHome: '홈으로',
+    phone: '전화하기',
+    instagram: '인스타그램',
+    youtube: '유튜브',
+    facebook: '페이스북',
+    kakao: '카카오톡',
+    location: '위치보기',
+    blog: '블로그',
+    booking: '예약하기',
+    link: '링크'
+  },
+  en: {
+    info: 'Gallery',
+    video: 'Videos',
+    posts: 'Posts',
+    backToHome: 'Back to Home',
+    phone: 'Call',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    kakao: 'KakaoTalk',
+    location: 'Location',
+    blog: 'Blog',
+    booking: 'Book Now',
+    link: 'Link'
+  },
+  ja: {
+    info: 'ギャラリー',
+    video: '動画',
+    posts: '投稿',
+    backToHome: 'ホームに戻る',
+    phone: '電話する',
+    instagram: 'インスタグラム',
+    youtube: 'ユーチューブ',
+    facebook: 'フェイスブック',
+    kakao: 'カカオトーク',
+    location: '位置を見る',
+    blog: 'ブログ',
+    booking: '予約する',
+    link: 'リンク'
+  },
+  zh: {
+    info: '画廊',
+    video: '视频',
+    posts: '帖子',
+    backToHome: '返回主页',
+    phone: '打电话',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    kakao: 'KakaoTalk',
+    location: '查看位置',
+    blog: '博客',
+    booking: '预订',
+    link: '链接'
+  }
+};
+
 // CSV 파싱 (큰따옴표로 감싸진 필드 처리)
 function parseCSV(csvText) {
   const lines = csvText.trim().split('\n');
@@ -229,8 +304,8 @@ function pemToArrayBuffer(pem) {
 
 
 
-// 링크 타입 자동 감지
-function getLinkInfo(url) {
+// 링크 타입 자동 감지 (언어별 텍스트)
+function getLinkInfo(url, langCode = 'ko') {
   if (!url) return null;
 
   url = url.trim();
@@ -240,51 +315,53 @@ function getLinkInfo(url) {
     return null;
   }
 
+  const texts = LANGUAGE_TEXTS[langCode] || LANGUAGE_TEXTS.ko;
+
   if (url.startsWith('tel:')) {
-    return { icon: '📞', text: '전화하기', url };
+    return { icon: '📞', text: texts.phone, url };
   }
 
   if (url.includes('instagram.com')) {
-    return { icon: '📷', text: '인스타그램', url };
+    return { icon: '📷', text: texts.instagram, url };
   }
 
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return { icon: '▶️', text: '유튜브', url };
+    return { icon: '▶️', text: texts.youtube, url };
   }
 
   if (url.includes('facebook.com')) {
-    return { icon: '👥', text: '페이스북', url };
+    return { icon: '👥', text: texts.facebook, url };
   }
 
   if (url.includes('pf.kakao.com') || url.includes('talk.kakao')) {
-    return { icon: '💬', text: '카카오톡', url };
+    return { icon: '💬', text: texts.kakao, url };
   }
 
   if (url.includes('map.naver.com') || url.includes('naver.me')) {
-    return { icon: '📍', text: '위치보기', url };
+    return { icon: '📍', text: texts.location, url };
   }
 
   if (url.includes('maps.google.com') || url.includes('goo.gl/maps')) {
-    return { icon: '📍', text: '위치보기', url };
+    return { icon: '📍', text: texts.location, url };
   }
 
   if (url.includes('map.kakao.com')) {
-    return { icon: '📍', text: '위치보기', url };
+    return { icon: '📍', text: texts.location, url };
   }
 
   if (url.includes('blog.naver.com')) {
-    return { icon: '📝', text: '블로그', url };
+    return { icon: '📝', text: texts.blog, url };
   }
 
   if (url.includes('tistory.com')) {
-    return { icon: '📝', text: '블로그', url };
+    return { icon: '📝', text: texts.blog, url };
   }
 
   if (url.includes('booking') || url.includes('reserve')) {
-    return { icon: '📅', text: '예약하기', url };
+    return { icon: '📅', text: texts.booking, url };
   }
 
-  return { icon: '🔗', text: '링크', url };
+  return { icon: '🔗', text: texts.link, url };
 }
 
 // 영상 URL을 임베드 형식으로 변환
@@ -335,6 +412,9 @@ function convertToEmbedUrl(url) {
 
 // 포스트 상세 페이지 생성
 function generatePostPage(client, post) {
+  const langCode = normalizeLanguage(client.language);
+  const texts = LANGUAGE_TEXTS[langCode];
+
   // 이미지 URL 파싱
   const imageUrls = (post.images || '').split(',').map(url => url.trim()).filter(url => url);
 
@@ -357,7 +437,7 @@ function generatePostPage(client, post) {
   }
 
   return `<!DOCTYPE html>
-<html lang="ko">
+<html lang="${langCode}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -463,7 +543,7 @@ function generatePostPage(client, post) {
 </head>
 <body>
     <div class="container">
-        <a href="/" class="back-button">← ${escapeHtml(client.business_name)} 홈으로</a>
+        <a href="/" class="back-button">← ${escapeHtml(client.business_name)} ${texts.backToHome}</a>
 
         <div class="post-header">
             <h1 class="post-title">${escapeHtml(post.title)}</h1>
@@ -484,8 +564,11 @@ function generatePostPage(client, post) {
 
 // 거래처 페이지 생성
 function generateClientPage(client, debugInfo = {}) {
-  // Links 파싱 (쉼표 구분)
-  const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(getLinkInfo).filter(l => l);
+  const langCode = normalizeLanguage(client.language);
+  const texts = LANGUAGE_TEXTS[langCode];
+
+  // Links 파싱 (쉼표 구분) - 언어 코드 전달
+  const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(url => getLinkInfo(url, langCode)).filter(l => l);
 
   // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환
   let infoImages = (client.info || '').split(',')
@@ -513,11 +596,11 @@ function generateClientPage(client, debugInfo = {}) {
 
   // 전화번호 링크 추가
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
-    links.unshift({ icon: '📞', text: '전화하기', url: `tel:${client.phone}` });
+    links.unshift({ icon: '📞', text: texts.phone, url: `tel:${client.phone}` });
   }
 
   return `<!DOCTYPE html>
-<html lang="ko">
+<html lang="${langCode}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -983,13 +1066,13 @@ function generateClientPage(client, debugInfo = {}) {
     </section>
 
     <!-- Info Section -->
-    ${infoImages.length > 0 ? '<section><h2 class="section-title">Info</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="Info" class="gallery-image"></div>').join('') + '</div></section>' : ''}
+    ${infoImages.length > 0 ? '<section><h2 class="section-title">' + texts.info + '</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="Info" class="gallery-image"></div>').join('') + '</div></section>' : ''}
 
     <!-- Video Section -->
-    ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
+    ${videoUrls.length > 0 ? '<section><h2 class="section-title">' + texts.video + '</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
 
     <!-- Posts Section -->
-    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
+    ${posts.length > 0 ? '<section><h2 class="section-title">' + texts.posts + '</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
