@@ -1601,22 +1601,36 @@ export default {
       if (pathname === '/test-sheet' && request.method === 'GET') {
         try {
           const accessToken = await getGoogleAccessTokenForPosting(env);
+          const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
           const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
-          const response = await fetch(
+          const latestResponse = await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
             { headers: { Authorization: `Bearer ${accessToken}` } }
           );
+          const latestData = await latestResponse.json();
 
-          const data = await response.json();
+          const archiveResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const archiveData = await archiveResponse.json();
 
           return new Response(JSON.stringify({
-            sheetName: latestSheetName,
-            sheetsId: env.SHEETS_ID,
-            rowCount: (data.values || []).length,
-            headers: (data.values || [])[0] || [],
-            firstDataRow: (data.values || [])[1] || [],
-            allRows: data.values || []
+            latest: {
+              sheetName: latestSheetName,
+              rowCount: (latestData.values || []).length,
+              headers: (latestData.values || [])[0] || [],
+              firstDataRow: (latestData.values || [])[1] || [],
+              allRows: latestData.values || []
+            },
+            archive: {
+              sheetName: archiveSheetName,
+              rowCount: (archiveData.values || []).length,
+              headers: (archiveData.values || [])[0] || [],
+              firstDataRow: (archiveData.values || [])[1] || [],
+              allRows: archiveData.values || []
+            }
           }, null, 2), {
             headers: { 'Content-Type': 'application/json' }
           });
