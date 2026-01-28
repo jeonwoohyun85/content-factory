@@ -2413,14 +2413,14 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
   }
 
-  // 6. 최신 포스팅 시트의 열 너비를 저장소 시트에 복사
+  // 6. 관리자 시트의 열 너비를 저장소 시트에 복사
   try {
     const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
-    const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
+    const adminSheetId = await getSheetId(env.SHEETS_ID, '관리자', accessToken);
 
-    console.log(`저장소 SheetID: ${archiveSheetId}, 최신 포스팅 SheetID: ${latestSheetId}`);
+    console.log(`저장소 SheetID: ${archiveSheetId}, 관리자 SheetID: ${adminSheetId}`);
 
-    // 최신 포스팅 시트의 열 너비 가져오기
+    // 관리자 시트의 열 너비 가져오기
     const spreadsheetResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -2433,16 +2433,16 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
     const spreadsheetData = await spreadsheetResponse.json();
 
-    // 최신 포스팅 시트 찾기
-    const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
+    // 관리자 시트 찾기
+    const adminSheet = spreadsheetData.sheets.find(s => s.properties.title === '관리자');
 
-    if (!latestSheet || !latestSheet.data || !latestSheet.data[0] || !latestSheet.data[0].columnMetadata) {
-      console.error('최신 포스팅 시트 열 너비 정보를 찾을 수 없음');
+    if (!adminSheet || !adminSheet.data || !adminSheet.data[0] || !adminSheet.data[0].columnMetadata) {
+      console.error('관리자 시트 열 너비 정보를 찾을 수 없음');
       return;
     }
 
-    const columnWidths = latestSheet.data[0].columnMetadata.slice(0, 9).map(col => col.pixelSize || 100);
-    console.log(`복사할 열 너비: ${JSON.stringify(columnWidths)}`);
+    const columnWidths = adminSheet.data[0].columnMetadata.slice(0, 9).map(col => col.pixelSize || 100);
+    console.log(`관리자 시트 열 너비 (복사할 값): ${JSON.stringify(columnWidths)}`);
 
     // 저장소 시트에 열 너비 적용
     const updateRequests = columnWidths.map((width, i) => ({
@@ -2474,9 +2474,9 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
     if (!updateResponse.ok) {
       const errorText = await updateResponse.text();
-      console.error(`열 너비 업데이트 실패: ${updateResponse.status} - ${errorText}`);
+      console.error(`저장소 시트 열 너비 업데이트 실패: ${updateResponse.status} - ${errorText}`);
     } else {
-      console.log('저장소 시트 열 너비 업데이트 성공');
+      console.log('저장소 시트 열 너비 업데이트 성공 (관리자 시트 기준)');
     }
   } catch (error) {
     console.error(`열 너비 복사 중 에러: ${error.message}`);
