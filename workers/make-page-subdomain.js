@@ -356,7 +356,7 @@ async function getPostsFromArchive(subdomain, env) {
     const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
 
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:F`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
@@ -368,12 +368,24 @@ async function getPostsFromArchive(subdomain, env) {
     }
 
     const headers = rows[0];
+    const domainIndex = headers.indexOf('도메인');
+    const businessNameIndex = headers.indexOf('상호명');
+    const titleIndex = headers.indexOf('제목');
+    const createdAtIndex = headers.indexOf('생성일시');
+    const languageIndex = headers.indexOf('언어');
+    const industryIndex = headers.indexOf('업종');
+
+    if (domainIndex === -1) {
+      console.error('저장소 시트에 "도메인" 컬럼이 없습니다');
+      return [];
+    }
+
     const posts = [];
 
     // 첫 번째 행은 헤더이므로 1부터 시작
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      const domain = row[0] || '';
+      const domain = row[domainIndex] || '';
 
       // 도메인 매칭 (00001.make-page.com 또는 00001)
       const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
@@ -382,11 +394,11 @@ async function getPostsFromArchive(subdomain, env) {
       if (normalizedDomain === normalizedSubdomain) {
         posts.push({
           subdomain: domain,
-          business_name: row[1] || '',
-          title: row[2] || '',
-          created_at: row[3] || '',
-          language: row[4] || '',
-          industry: row[5] || '',
+          business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
+          title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
+          created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
+          language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
+          industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
           body: '', // 저장소에는 body 없음 (제목만)
           images: '' // 저장소에는 images 없음
         });
@@ -1326,16 +1338,28 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     // 1. 저장소 탭에서 삭제
     const archiveResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:F`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     const archiveData = await archiveResponse.json();
     const archiveRows = archiveData.values || [];
 
+    if (archiveRows.length < 2) {
+      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
+    }
+
+    const archiveHeaders = archiveRows[0];
+    const archiveDomainIndex = archiveHeaders.indexOf('도메인');
+    const archiveCreatedAtIndex = archiveHeaders.indexOf('생성일시');
+
+    if (archiveDomainIndex === -1 || archiveCreatedAtIndex === -1) {
+      return { success: false, error: '저장소 시트 구조 오류' };
+    }
+
     let foundInArchive = false;
     for (let i = 1; i < archiveRows.length; i++) {
       const row = archiveRows[i];
-      if (row[0] === domain && row[3] === createdAt) {
+      if (row[archiveDomainIndex] === domain && row[archiveCreatedAtIndex] === createdAt) {
         // 행 삭제
         const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
         await fetch(
@@ -1367,16 +1391,22 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     // 2. 최신 포스팅 탭에서도 삭제
     const latestResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:F`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     const latestData = await latestResponse.json();
     const latestRows = latestData.values || [];
 
-    for (let i = 1; i < latestRows.length; i++) {
-      const row = latestRows[i];
-      if (row[0] === domain && row[3] === createdAt) {
-        const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
+    if (latestRows.length >= 2) {
+      const latestHeaders = latestRows[0];
+      const latestDomainIndex = latestHeaders.indexOf('도메인');
+      const latestCreatedAtIndex = latestHeaders.indexOf('생성일시');
+
+      if (latestDomainIndex !== -1 && latestCreatedAtIndex !== -1) {
+        for (let i = 1; i < latestRows.length; i++) {
+          const row = latestRows[i];
+          if (row[latestDomainIndex] === domain && row[latestCreatedAtIndex] === createdAt) {
+            const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
         await fetch(
           `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
           {
@@ -1400,6 +1430,8 @@ async function deletePost(subdomain, createdAt, password, env) {
           }
         );
         break;
+      }
+    }
       }
     }
 
@@ -1638,7 +1670,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 4: 저장소 + 최신 포스팅 시트 저장
     logs.push('저장소/최신포스팅 시트 저장 시작...');
-    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, env);
+    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, env);
     logs.push('저장소/최신포스팅 시트 저장 완료');
 
     return {
@@ -1675,7 +1707,7 @@ async function searchWithGeminiForPosting(client, env) {
 [업종] ${client.industry || client.business_name}
 [언어] ${client.language}
 
-다음 정보를 1000자 이내로 작성:
+다음 정보를 500자 이내로 작성:
 1. ${client.language} 시장의 최신 트렌드
 2. 검색 키워드 상위 5개
 3. 소비자 관심사
@@ -1692,13 +1724,23 @@ async function searchWithGeminiForPosting(client, env) {
         contents: [{"parts": [{"text": prompt}]}],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1000
+          maxOutputTokens: 600
         }
       })
     }
   );
 
   const data = await response.json();
+
+  // 에러 처리
+  if (data.error) {
+    throw new Error(`Gemini API error: ${data.error.message}`);
+  }
+
+  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+    throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
+  }
+
   return data.candidates[0].content.parts[0].text;
 }
 
@@ -1717,7 +1759,7 @@ ${trendsData}
 
 [작성 규칙]
 1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
-2. 본문 전체 글자수: **3000~3500자** (필수)
+2. 본문 전체 글자수: **2800~3200자** (필수)
 3. 본문 구조: **반드시 ${images.length}개의 문단으로 작성**
    - 1번째 이미지 → 1번째 문단
    - 2번째 이미지 → 2번째 문단
@@ -1725,7 +1767,7 @@ ${trendsData}
    - ${images.length}번째 이미지 → ${images.length}번째 문단
 4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 구체적으로 설명
    - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 자세히 묘사
-   - 전체 3000~3500자를 ${images.length}개 문단에 균등 배분
+   - 전체 2800~3200자를 ${images.length}개 문단에 균등 배분
 5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
 6. 금지어: 최고, 1등, 유일, 검증된
 7. 금지 창작: 경력, 학력, 자격증, 수상
@@ -1768,8 +1810,13 @@ ${trendsData}
 
   const data = await response.json();
 
-  if (!data.candidates || data.candidates.length === 0) {
-    throw new Error(`Gemini API error: ${JSON.stringify(data)}`);
+  // 에러 처리
+  if (data.error) {
+    throw new Error(`Gemini API error: ${data.error.message}`);
+  }
+
+  if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+    throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
   }
 
   const text = data.candidates[0].content.parts[0].text;
@@ -1978,38 +2025,46 @@ async function getClientFoldersForPosting(folderName, subdomain, accessToken, en
 async function getLastUsedFolderForPosting(subdomain, env) {
   try {
     const accessToken = await getGoogleAccessTokenForPosting(env);
-    
+    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    
+
     if (!response.ok) {
       return null;
     }
-    
+
     const data = await response.json();
     const rows = data.values || [];
-    
+
     if (rows.length < 2) {
       return null;
     }
-    
+
     const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const folderNameIndex = headers.indexOf('folder_name');
-    
-    // 해당 subdomain의 마지막 행에서 folder_name 가져오기
+    const domainIndex = headers.indexOf('도메인');
+    const folderNameIndex = headers.indexOf('폴더명');
+
+    if (domainIndex === -1 || folderNameIndex === -1) {
+      return null;
+    }
+
+    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+    const domain = `${normalizedSubdomain}.make-page.com`;
+
+    // 해당 도메인의 마지막 행에서 폴더명 가져오기
     let lastFolder = null;
     for (let i = rows.length - 1; i >= 1; i--) {
       const row = rows[i];
-      const rowSubdomain = String(row[subdomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-      if (rowSubdomain === subdomain) {
+      const rowDomain = row[domainIndex] || '';
+      if (rowDomain === domain) {
         lastFolder = row[folderNameIndex] || null;
         break;
       }
     }
-    
+
     return lastFolder;
   } catch (error) {
     return null;
@@ -2045,61 +2100,84 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
-async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, env) {
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, env) {
   const accessToken = await getGoogleAccessTokenForPosting(env);
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
   const domain = `${normalizedSubdomain}.make-page.com`;
 
-  // 컬럼: 도메인, 상호명, 제목, 생성일시, 언어, 업종
-  const rowData = [
-    domain,                      // 도메인
-    client.business_name,        // 상호명
-    postData.title,              // 제목
-    timestamp,                   // 생성일시
-    client.language || 'ko',     // 언어
-    client.industry || ''        // 업종
-  ];
-
-  // 1. 저장소 탭에 append (아카이브)
   const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+  const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+
+  // 데이터 객체 (컬럼명: 값)
+  const postDataMap = {
+    '도메인': domain,
+    '상호명': client.business_name,
+    '제목': postData.title,
+    '생성일시': timestamp,
+    '언어': client.language || 'ko',
+    '업종': client.industry || '',
+    '폴더명': folderName || ''
+  };
+
+  // 1. 저장소 탭 헤더 읽기
+  const archiveHeaderResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!1:1`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const archiveHeaderData = await archiveHeaderResponse.json();
+  const archiveHeaders = (archiveHeaderData.values && archiveHeaderData.values[0]) || [];
+
+  // 헤더 순서대로 rowData 생성
+  const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
+
+  // 저장소 탭에 append
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:F:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ values: [rowData] })
+      body: JSON.stringify({ values: [archiveRowData] })
     }
   );
 
-  // 2. 최신 포스팅 탭 읽기
-  const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+  // 2. 최신 포스팅 탭 읽기 (헤더 포함)
   const getResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:F`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const getData = await getResponse.json();
   const rows = getData.values || [];
 
-  // 3. 해당 도메인의 행들 찾기 (헤더 제외)
+  if (rows.length < 1) {
+    return; // 헤더 없으면 종료
+  }
+
+  const latestHeaders = rows[0];
+  const domainIndex = latestHeaders.indexOf('도메인');
+  const createdAtIndex = latestHeaders.indexOf('생성일시');
+
+  if (domainIndex === -1 || createdAtIndex === -1) {
+    throw new Error('최신 포스팅 시트에 필수 컬럼(도메인, 생성일시)이 없습니다');
+  }
+
+  // 3. 해당 도메인의 행들 찾기
   const domainRows = [];
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === domain) {
-      domainRows.push({ index: i + 1, createdAt: rows[i][3] || '' }); // 1-indexed
+    if (rows[i][domainIndex] === domain) {
+      domainRows.push({ index: i + 1, createdAt: rows[i][createdAtIndex] || '' });
     }
   }
 
   // 4. 2개 이상이면 가장 오래된 행 삭제
   if (domainRows.length >= 2) {
-    // 생성일시 기준 정렬 (오래된 순)
     domainRows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
     const oldestRowIndex = domainRows[0].index;
 
-    // 행 삭제
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
       {
@@ -2124,16 +2202,18 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, e
     );
   }
 
-  // 5. 최신 포스팅 탭에 append
+  // 5. 최신 포스팅 탭에 append (헤더 순서대로)
+  const latestRowData = latestHeaders.map(header => postDataMap[header] || '');
+
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:F:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ values: [rowData] })
+      body: JSON.stringify({ values: [latestRowData] })
     }
   );
 }
