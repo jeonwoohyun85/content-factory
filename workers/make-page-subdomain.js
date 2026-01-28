@@ -1925,7 +1925,17 @@ async function getGoogleAccessTokenForPosting(env) {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
   });
 
-  const tokenData = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    throw new Error(`OAuth token error (${tokenResponse.status}): ${errorText}`);
+  }
+
+  const responseText = await tokenResponse.text();
+  if (!responseText) {
+    throw new Error('Empty OAuth token response');
+  }
+
+  const tokenData = JSON.parse(responseText);
   return tokenData.access_token;
 }
 
