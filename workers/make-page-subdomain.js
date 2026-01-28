@@ -43,7 +43,7 @@ function normalizeLanguage(lang) {
   const lower = lang.toLowerCase();
   
   // 주요 5개 언어만 체크 (하드코딩된 번역 데이터)
-  if (lower.includes('한글') || lower.includes('korean') || lower === 'ko') return 'ko';
+  if (lower.includes('한국') || lower.includes('한글') || lower.includes('korean') || lower === 'ko') return 'ko';
   if (lower.includes('영어') || lower.includes('english') || lower === 'en') return 'en';
   if (lower.includes('일본') || lower.includes('japanese') || lower === 'ja') return 'ja';
   if (lower.includes('중국') || lower.includes('간체') || lower.includes('simplified') || lower.includes('chinese') || lower === 'zh' || lower === 'zh-cn') return 'zh-CN';
@@ -692,12 +692,19 @@ async function generatePostPage(client, post, env) {
 }
 
 // 거래처 페이지 생성
+// 마크다운 링크에서 URL 추출 [텍스트](URL) -> URL
+function extractUrlFromMarkdown(text) {
+  if (!text) return text;
+  const match = text.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
+  return match ? match[1] : text;
+}
+
 async function generateClientPage(client, debugInfo, env) {
   const langCode = normalizeLanguage(client.language);
   const texts = await getLanguageTexts(langCode, env);
 
-  // Links 파싱 (쉼표 구분) - 언어 텍스트 전달
-  const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(url => getLinkInfo(url, texts)).filter(l => l);
+  // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
+  const links = (client.links || '').split(',').map(l => extractUrlFromMarkdown(l.trim())).filter(l => l).map(url => getLinkInfo(url, texts)).filter(l => l);
 
   // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환
   let infoImages = (client.info || '').split(',')
