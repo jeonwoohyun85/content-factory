@@ -3,6 +3,9 @@
 
 // ==================== 유틸리티 함수 ====================
 
+// 전역 번역 캐시 (Worker 재시작 전까지 유지)
+const TRANSLATION_CACHE = {};
+
 // Timeout이 있는 fetch
 async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -34,18 +37,23 @@ function escapeHtml(text) {
   return text.toString().replace(/[&<>'"']/g, m => map[m]);
 }
 
-// 언어 코드 정규화
+// 언어 코드 정규화 (주요 언어만 매핑, 나머지는 입력값 그대로)
 function normalizeLanguage(lang) {
   if (!lang) return 'ko';
   const lower = lang.toLowerCase();
+  
+  // 주요 5개 언어만 체크 (하드코딩된 번역 데이터)
   if (lower.includes('한글') || lower.includes('korean') || lower === 'ko') return 'ko';
   if (lower.includes('영어') || lower.includes('english') || lower === 'en') return 'en';
   if (lower.includes('일본') || lower.includes('japanese') || lower === 'ja') return 'ja';
-  if (lower.includes('중국') || lower.includes('chinese') || lower === 'zh') return 'zh';
-  return 'ko';
+  if (lower.includes('중국') || lower.includes('간체') || lower.includes('simplified') || lower.includes('chinese') || lower === 'zh' || lower === 'zh-cn') return 'zh-CN';
+  if (lower.includes('번체') || lower.includes('traditional') || lower === 'zh-tw') return 'zh-TW';
+  
+  // 나머지는 입력값 그대로 반환 (API에서 처리)
+  return lang;
 }
 
-// 언어별 텍스트 매핑
+// 주요 언어 하드코딩 번역 데이터
 const LANGUAGE_TEXTS = {
   ko: {
     info: 'Info',
@@ -92,7 +100,7 @@ const LANGUAGE_TEXTS = {
     booking: '予約する',
     link: 'リンク'
   },
-  zh: {
+  'zh-CN': {
     info: '画廊',
     video: '视频',
     posts: '帖子',
@@ -106,8 +114,97 @@ const LANGUAGE_TEXTS = {
     blog: '博客',
     booking: '预订',
     link: '链接'
+  },
+  'zh-TW': {
+    info: '畫廊',
+    video: '影片',
+    posts: '貼文',
+    backToHome: '返回主頁',
+    phone: '打電話',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    kakao: 'KakaoTalk',
+    location: '查看位置',
+    blog: '部落格',
+    booking: '預訂',
+    link: '連結'
   }
 };
+
+// Gemini로 언어 번역 (2.5 Flash)
+async function translateWithGemini(language, env) {
+  const prompt = `Translate the following UI text items to ${language}. Return ONLY a valid JSON object with these exact keys, no markdown formatting, no code blocks:
+
+{
+  "info": "Gallery/Photos section title",
+  "video": "Videos section title",
+  "posts": "Blog posts section title",
+  "backToHome": "Back to home link text",
+  "phone": "Call/Phone button",
+  "instagram": "Instagram link",
+  "youtube": "YouTube link",
+  "facebook": "Facebook link",
+  "kakao": "KakaoTalk link",
+  "location": "Location/Map link",
+  "blog": "Blog link",
+  "booking": "Booking/Reservation button",
+  "link": "Generic link text"
+}
+
+IMPORTANT: Return ONLY the JSON object, no other text.`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{"parts": [{"text": prompt}]}],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 500
+        }
+      })
+    }
+  );
+
+  const data = await response.json();
+  const text = data.candidates[0].content.parts[0].text;
+  
+  // JSON 추출
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
+  
+  // 실패 시 영어 반환
+  return LANGUAGE_TEXTS.en;
+}
+
+// 언어별 텍스트 가져오기 (캐시 → 하드코딩 → API)
+async function getLanguageTexts(langCode, env) {
+  // 1. 캐시 확인
+  if (TRANSLATION_CACHE[langCode]) {
+    return TRANSLATION_CACHE[langCode];
+  }
+  
+  // 2. 하드코딩된 언어
+  if (LANGUAGE_TEXTS[langCode]) {
+    return LANGUAGE_TEXTS[langCode];
+  }
+  
+  // 3. API 호출 (첫 요청만)
+  try {
+    const texts = await translateWithGemini(langCode, env);
+    TRANSLATION_CACHE[langCode] = texts;
+    return texts;
+  } catch (error) {
+    console.error(`Translation error for ${langCode}:`, error);
+    // 실패 시 영어 반환
+    return LANGUAGE_TEXTS.en;
+  }
+}
 
 // CSV 파싱 (큰따옴표로 감싸진 필드 처리)
 function parseCSV(csvText) {
@@ -305,7 +402,7 @@ function pemToArrayBuffer(pem) {
 
 
 // 링크 타입 자동 감지 (언어별 텍스트)
-function getLinkInfo(url, langCode = 'ko') {
+function getLinkInfo(url, texts) {
   if (!url) return null;
 
   url = url.trim();
@@ -314,8 +411,6 @@ function getLinkInfo(url, langCode = 'ko') {
   if (!url.startsWith('http') && !url.startsWith('tel:')) {
     return null;
   }
-
-  const texts = LANGUAGE_TEXTS[langCode] || LANGUAGE_TEXTS.ko;
 
   if (url.startsWith('tel:')) {
     return { icon: '📞', text: texts.phone, url };
@@ -411,9 +506,9 @@ function convertToEmbedUrl(url) {
 // ==================== 페이지 생성 ====================
 
 // 포스트 상세 페이지 생성
-function generatePostPage(client, post) {
+async function generatePostPage(client, post, env) {
   const langCode = normalizeLanguage(client.language);
-  const texts = LANGUAGE_TEXTS[langCode];
+  const texts = await getLanguageTexts(langCode, env);
 
   // 이미지 URL 파싱
   const imageUrls = (post.images || '').split(',').map(url => url.trim()).filter(url => url);
@@ -563,12 +658,12 @@ function generatePostPage(client, post) {
 }
 
 // 거래처 페이지 생성
-function generateClientPage(client, debugInfo = {}) {
+async function generateClientPage(client, debugInfo, env) {
   const langCode = normalizeLanguage(client.language);
-  const texts = LANGUAGE_TEXTS[langCode];
+  const texts = await getLanguageTexts(langCode, env);
 
-  // Links 파싱 (쉼표 구분) - 언어 코드 전달
-  const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(url => getLinkInfo(url, langCode)).filter(l => l);
+  // Links 파싱 (쉼표 구분) - 언어 텍스트 전달
+  const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(url => getLinkInfo(url, texts)).filter(l => l);
 
   // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환
   let infoImages = (client.info || '').split(',')
@@ -1432,7 +1527,7 @@ export default {
           return new Response('Post not found', { status: 404 });
         }
 
-        return new Response(generatePostPage(client, post), {
+        return new Response(await generatePostPage(client, post, env), {
           headers: {
             'Content-Type': 'text/html; charset=utf-8',
             'Cache-Control': 'public, max-age=300'
@@ -1441,7 +1536,7 @@ export default {
       }
 
       // 거래처 페이지 생성
-      return new Response(generateClientPage(client, debugInfo), {
+      return new Response(await generateClientPage(client, debugInfo, env), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'public, max-age=300'
