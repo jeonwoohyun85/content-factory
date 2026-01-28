@@ -1535,12 +1535,14 @@ export default {
         } else {
           console.error(`Queue: Failed to generate posting for ${subdomain}:`, result.error);
           console.error(`Queue: Logs:`, result.logs);
-          message.retry();
+          console.error(`Queue: 재시도 안함 - 무한 루프 방지`);
+          message.ack();
         }
       } catch (error) {
         console.error(`Queue: Error processing message:`, error);
         console.error(`Queue: Error stack:`, error.stack);
-        message.retry();
+        console.error(`Queue: 재시도 안함 - 무한 루프 방지`);
+        message.ack();
       }
     }
   },
@@ -2356,7 +2358,29 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     throw new Error('최신 포스팅 시트에 필수 컬럼(도메인, 생성일시)이 없습니다');
   }
 
-  // 3. 해당 도메인의 행들 찾기
+  // 3. 시트 메타데이터 한 번만 조회 (API 중복 호출 방지)
+  const spreadsheetResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  if (!spreadsheetResponse.ok) {
+    console.error(`시트 메타데이터 조회 실패: ${spreadsheetResponse.status}`);
+    return;
+  }
+
+  const spreadsheetData = await spreadsheetResponse.json();
+  const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
+  const archiveSheet = spreadsheetData.sheets.find(s => s.properties.title === archiveSheetName);
+  const adminSheet = spreadsheetData.sheets.find(s => s.properties.title === '관리자');
+
+  const latestSheetId = latestSheet ? latestSheet.properties.sheetId : 0;
+  const archiveSheetId = archiveSheet ? archiveSheet.properties.sheetId : 0;
+  const adminSheetId = adminSheet ? adminSheet.properties.sheetId : 0;
+
+  console.log(`SheetID - 최신포스팅: ${latestSheetId}, 저장소: ${archiveSheetId}, 관리자: ${adminSheetId}`);
+
+  // 4. 해당 도메인의 행들 찾기
   const domainRows = [];
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][domainIndex] === domain) {
@@ -2364,7 +2388,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     }
   }
 
-  // 4. 2개 이상이면 가장 오래된 행 삭제
+  // 5. 2개 이상이면 가장 오래된 행 삭제
   if (domainRows.length >= 2) {
     domainRows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
     const oldestRowIndex = domainRows[0].index;
@@ -2381,7 +2405,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
           requests: [{
             deleteDimension: {
               range: {
-                sheetId: await getSheetId(env.SHEETS_ID, latestSheetName, accessToken),
+                sheetId: latestSheetId,
                 dimension: 'ROWS',
                 startIndex: oldestRowIndex - 1,
                 endIndex: oldestRowIndex
@@ -2393,7 +2417,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     );
   }
 
-  // 5. 최신 포스팅 탭에 append (헤더 순서대로)
+  // 6. 최신 포스팅 탭에 append (헤더 순서대로)
   const latestRowData = latestHeaders.map(header => postDataMap[header] || '');
 
   const latestAppendResponse = await fetch(
@@ -2413,29 +2437,8 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
   }
 
-  // 6. 관리자 시트의 열 너비를 저장소 시트에 복사
+  // 7. 관리자 시트의 열 너비를 저장소 시트에 복사
   try {
-    const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
-    const adminSheetId = await getSheetId(env.SHEETS_ID, '관리자', accessToken);
-
-    console.log(`저장소 SheetID: ${archiveSheetId}, 관리자 SheetID: ${adminSheetId}`);
-
-    // 관리자 시트의 열 너비 가져오기
-    const spreadsheetResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-
-    if (!spreadsheetResponse.ok) {
-      console.error(`열 너비 조회 실패: ${spreadsheetResponse.status}`);
-      return;
-    }
-
-    const spreadsheetData = await spreadsheetResponse.json();
-
-    // 관리자 시트 찾기
-    const adminSheet = spreadsheetData.sheets.find(s => s.properties.title === '관리자');
-
     if (!adminSheet || !adminSheet.data || !adminSheet.data[0] || !adminSheet.data[0].columnMetadata) {
       console.error('관리자 시트 열 너비 정보를 찾을 수 없음');
       return;
