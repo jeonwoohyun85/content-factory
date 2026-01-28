@@ -268,7 +268,8 @@ function normalizeClient(client) {
     'info': 'info',
     'video': 'video',
     '업종': 'industry',
-    '상태': 'status'
+    '상태': 'status',
+    '폴더명': 'folder_name'
   };
 
   const normalized = {};
@@ -1568,8 +1569,16 @@ async function generatePostingForClient(subdomain, env) {
     logs.push('Google Drive 폴더 조회 중...');
     const accessToken = await getGoogleAccessTokenForPosting(env);
     const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
-    logs.push(`Drive 폴더 검색: subdomain=${normalizedSubdomain}`);
-    const folders = await getClientFoldersForPosting(normalizedSubdomain, accessToken, env, logs);
+
+    // 폴더명 컬럼 사용 (없으면 subdomain 기반 검색으로 폴백)
+    const folderName = client.folder_name || null;
+    if (folderName) {
+      logs.push(`Drive 폴더 검색: 폴더명="${folderName}"`);
+    } else {
+      logs.push(`Drive 폴더 검색: subdomain=${normalizedSubdomain} (폴더명 컬럼 없음)`);
+    }
+
+    const folders = await getClientFoldersForPosting(folderName, normalizedSubdomain, accessToken, env, logs);
 
     if (folders.length === 0) {
       return { success: false, error: 'No folders found (Info/Video excluded)', logs };
@@ -1897,10 +1906,13 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
   return images;
 }
 
-async function getClientFoldersForPosting(subdomain, accessToken, env, logs) {
+async function getClientFoldersForPosting(folderName, subdomain, accessToken, env, logs) {
   const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
 
-  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name contains '${subdomain}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+  // 폴더명이 있으면 정확한 매칭, 없으면 subdomain 포함 검색 (폴백)
+  const businessFolderQuery = folderName
+    ? `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`
+    : `mimeType = 'application/vnd.google-apps.folder' and name contains '${subdomain}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
 
   const businessFolderResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
