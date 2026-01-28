@@ -1388,6 +1388,57 @@ function getColumnLetter(index) {
   return letter;
 }
 
+// ==================== 임시 시트 조회 함수 ====================
+
+async function checkAllSheetsColumns(env) {
+  const accessToken = await getGoogleAccessTokenForPosting(env);
+  const sheets = [
+    { name: '관리자', gid: 0 },
+    { name: '최신 포스팅', gid: null },
+    { name: '저장소', gid: null }
+  ];
+
+  const result = {};
+
+  for (const sheet of sheets) {
+    try {
+      const response = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${sheet.name}'!A1:Z2`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      const data = await response.json();
+      const rows = data.values || [];
+
+      if (rows.length === 0) {
+        result[sheet.name] = { error: '데이터 없음' };
+        continue;
+      }
+
+      const headers = rows[0];
+      const sampleData = rows.length > 1 ? rows[1] : null;
+
+      result[sheet.name] = {
+        columnCount: headers.length,
+        columns: headers.map((header, index) => ({
+          index,
+          letter: String.fromCharCode(65 + index),
+          name: header,
+          sampleValue: sampleData && sampleData[index]
+            ? (sampleData[index].length > 50
+                ? sampleData[index].substring(0, 50) + '...'
+                : sampleData[index])
+            : '(비어있음)'
+        }))
+      };
+    } catch (error) {
+      result[sheet.name] = { error: error.message };
+    }
+  }
+
+  return result;
+}
+
 // ==================== 라우팅 ====================
 
 export default {
@@ -1475,6 +1526,21 @@ export default {
             error: error.message,
             stack: error.stack
           }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+      // 임시 시트 조회 엔드포인트
+      if (pathname === '/check-sheets') {
+        try {
+          const result = await checkAllSheetsColumns(env);
+          return new Response(JSON.stringify(result, null, 2), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json; charset=utf-8' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
           });
