@@ -3,7 +3,7 @@ main = "workers/make-page-subdomain.js"
 compatibility_date = "2024-01-29"
 
 [vars]
-GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=1895987712"
+GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0"
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
 DRIVE_FOLDER_ID = "1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt"
 # Secrets are managed via `wrangler secret put` or dashboard
