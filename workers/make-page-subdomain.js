@@ -1500,8 +1500,8 @@ export default {
     }
 
     try {
-      // 락 설정 (10분 TTL)
-      await env.POSTING_KV.put(lockKey, timestamp, { expirationTtl: 600 });
+      // 락 설정 (23시간 59분 TTL)
+      await env.POSTING_KV.put(lockKey, timestamp, { expirationTtl: 86340 });
 
       // 1. 모든 구독 거래처 조회
       const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
