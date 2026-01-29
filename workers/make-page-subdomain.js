@@ -1632,6 +1632,74 @@ export default {
         }
       }
 
+      // Test cron trigger (Cron 수동 실행 테스트)
+      if (pathname === '/test-cron' && request.method === 'POST') {
+        try {
+          const nowUtc = new Date();
+          const nowKst = new Date(nowUtc.getTime() + (9 * 60 * 60 * 1000));
+          const timestamp = nowKst.toISOString().replace('T', ' ').substring(0, 19);
+          const logs = [`Manual cron test started at (KST) ${timestamp}`];
+
+          // 1. 모든 구독 거래처 조회
+          const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+          const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+          if (!response.ok) {
+            throw new Error(`Sheets fetch failed: ${response.status}`);
+          }
+
+          const csvText = await response.text();
+          const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.subscription === '활성');
+          logs.push(`Found ${clients.length} active clients`);
+
+          // 2. 배치 처리 (10개씩 Queue 전송)
+          const batchSize = 10;
+          let successCount = 0;
+          let failCount = 0;
+
+          for (let i = 0; i < clients.length; i += batchSize) {
+            const batch = clients.slice(i, i + batchSize);
+
+            for (const client of batch) {
+              try {
+                const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+                await env.POSTING_QUEUE.send({ subdomain: normalizedSubdomain });
+                successCount++;
+                logs.push(`Queue sent: ${normalizedSubdomain}`);
+              } catch (err) {
+                failCount++;
+                logs.push(`Queue send failed for ${client.subdomain}: ${err.message}`);
+              }
+            }
+
+            // 배치 간 1초 대기
+            if (i + batchSize < clients.length) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          logs.push(`Test cron completed: ${successCount} queued, ${failCount} failed`);
+
+          return new Response(JSON.stringify({
+            success: true,
+            totalClients: clients.length,
+            successCount,
+            failCount,
+            logs
+          }, null, 2), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       // Test sheet reading (시트 데이터 확인)
       if (pathname === '/test-sheet' && request.method === 'GET') {
         try {
