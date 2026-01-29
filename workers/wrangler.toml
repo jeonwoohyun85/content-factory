@@ -13,7 +13,7 @@ routes = [
 # Cloudflare Cron + Queue 시스템 (2026-01-20)
 # Workers Paid 플랜 - Queue 사용 가능
 [triggers]
-# crons = ["*/10 * * * *"] # 테스트 위해 일시 중지
+crons = ["0 0 * * *"]  # 매일 한국시간 09:00 (UTC 00:00)
 
 # Queue 바인딩 (포스팅 실패 시 재시도)
 [[queues.producers]]
