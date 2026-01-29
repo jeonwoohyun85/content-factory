@@ -1935,7 +1935,7 @@ async function searchWithGeminiForPosting(client, env) {
           }
         })
       },
-      30000
+      120000
     );
 
     if (!response.ok) {
@@ -2062,7 +2062,7 @@ ${trendsData}
           }
         })
       },
-      60000
+      120000
     );
 
     // HTTP 응답 상태 확인
