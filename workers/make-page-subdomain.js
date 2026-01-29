@@ -273,7 +273,9 @@ function normalizeClient(client) {
     'info': 'info',
     'video': 'video',
     '업종': 'industry',
-    '상태': 'status',
+    '크론': 'cron',
+    '구독': 'subscription',
+    '상태': 'posting_status',
     '폴더명': 'folder_name'
   };
 
@@ -1306,7 +1308,7 @@ async function handleSitemap(env) {
     const csvText = await response.text();
     const clients = parseCSV(csvText).map(normalizeClient);
 
-    const activeClients = clients.filter(client => client.status === '구독');
+    const activeClients = clients.filter(client => client.subscription === '활성');
 
     let urls = [];
 
@@ -1510,7 +1512,7 @@ export default {
       }
 
       const csvText = await response.text();
-      const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.status === '구독');
+      const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.subscription === '활성');
 
       console.log(`Found ${clients.length} active clients`);
 
@@ -1897,7 +1899,7 @@ async function getClientFromSheetsForPosting(subdomain, env) {
 
     return clients.find(c => {
       let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
-      return normalized === subdomain && c.status === '구독';
+      return normalized === subdomain && c.subscription === '활성';
     }) || null;
   } catch (error) {
     console.error(`getClientFromSheetsForPosting 에러: ${error.message}`);
@@ -2683,6 +2685,42 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   } catch (error) {
     console.error(`크론 컬럼 업데이트 중 에러: ${error.message}`);
+  }
+
+  // 9. 관리자 시트 "상태" 컬럼 업데이트 (성공)
+  try {
+    const statusIndex = adminHeaders.indexOf('상태');
+
+    if (statusIndex === -1) {
+      console.log('관리자 시트에 "상태" 컬럼 없음 (업데이트 스킵)');
+      return;
+    }
+
+    const statusColumnLetter = getColumnLetter(statusIndex);
+    const statusUpdateRange = `관리자!${statusColumnLetter}${targetRowIndex}`;
+
+    const statusUpdateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(statusUpdateRange)}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          values: [['성공']]
+        })
+      }
+    );
+
+    if (statusUpdateResponse.ok) {
+      console.log(`상태 컬럼 업데이트 성공: 성공`);
+    } else {
+      console.error(`상태 컬럼 업데이트 실패: ${statusUpdateResponse.status}`);
+    }
+
+  } catch (error) {
+    console.error(`상태 컬럼 업데이트 중 에러: ${error.message}`);
   }
 }
 
