@@ -17,16 +17,25 @@ async function syncSystemState() {
     console.log('⚙️  Worker 코드 분석 중...');
     const workerInfo = analyzeWorkerCode();
 
-    // 4. PROJECT.md 생성
+    // 4. features.json 로드
+    console.log('🎯 기능 목록 로드 중...');
+    const features = loadFeatures();
+
+    // 5. PROJECT.md 생성
     console.log('📄 PROJECT.md 생성 중...\n');
     const projectMd = generateProjectMd({
       wranglerConfig,
       sheetsStructure,
-      workerInfo
+      workerInfo,
+      features
     });
 
-    // 5. PROJECT.md 저장
-    const projectPath = path.join(__dirname, 'content-factory', 'PROJECT.md');
+    // 6. PROJECT.md 저장
+    const baseDir = fs.existsSync(path.join(__dirname, 'workers'))
+      ? __dirname
+      : path.join(__dirname, 'content-factory');
+
+    const projectPath = path.join(baseDir, 'PROJECT.md');
     fs.writeFileSync(projectPath, projectMd, 'utf-8');
 
     console.log('✅ PROJECT.md 업데이트 완료\n');
@@ -41,7 +50,12 @@ async function syncSystemState() {
 }
 
 function parseWranglerToml() {
-  const tomlPath = path.join(__dirname, 'content-factory', 'workers', 'wrangler.toml');
+  // content-factory 디렉토리 찾기
+  const baseDir = fs.existsSync(path.join(__dirname, 'workers'))
+    ? __dirname
+    : path.join(__dirname, 'content-factory');
+
+  const tomlPath = path.join(baseDir, 'workers', 'wrangler.toml');
   const content = fs.readFileSync(tomlPath, 'utf-8');
 
   const config = {};
@@ -107,7 +121,11 @@ async function fetchSheetsStructure() {
 }
 
 function analyzeWorkerCode() {
-  const workerPath = path.join(__dirname, 'content-factory', 'workers', 'make-page-subdomain.js');
+  const baseDir = fs.existsSync(path.join(__dirname, 'workers'))
+    ? __dirname
+    : path.join(__dirname, 'content-factory');
+
+  const workerPath = path.join(baseDir, 'workers', 'make-page-subdomain.js');
 
   if (!fs.existsSync(workerPath)) {
     console.warn('⚠️  Worker 파일 없음 (분석 스킵)');
@@ -142,7 +160,28 @@ function analyzeWorkerCode() {
   };
 }
 
-function generateProjectMd({ wranglerConfig, sheetsStructure, workerInfo }) {
+function loadFeatures() {
+  const baseDir = fs.existsSync(path.join(__dirname, 'workers'))
+    ? __dirname
+    : path.join(__dirname, 'content-factory');
+
+  const featuresPath = path.join(baseDir, 'features.json');
+
+  if (!fs.existsSync(featuresPath)) {
+    console.warn('⚠️  features.json 없음 (기능 목록 스킵)');
+    return { features: [], architecture: {} };
+  }
+
+  try {
+    const content = fs.readFileSync(featuresPath, 'utf-8');
+    return JSON.parse(content);
+  } catch (error) {
+    console.error(`⚠️  features.json 파싱 실패: ${error.message}`);
+    return { features: [], architecture: {} };
+  }
+}
+
+function generateProjectMd({ wranglerConfig, sheetsStructure, workerInfo, features }) {
   const now = new Date();
   const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = kstTime.toISOString().replace('T', ' ').substring(0, 19);
@@ -155,7 +194,54 @@ function generateProjectMd({ wranglerConfig, sheetsStructure, workerInfo }) {
     ? (1000 / wranglerConfig.maxBatchSize * 75 / 3600).toFixed(1)
     : '?';
 
+  // Git 최근 커밋 조회 (진행 중인 작업)
+  let recentWork = '확인 중...';
+  try {
+    const { execSync } = require('child_process');
+    const baseDir = fs.existsSync(path.join(__dirname, 'workers'))
+      ? __dirname
+      : path.join(__dirname, 'content-factory');
+    const commits = execSync('git log --oneline -3', { cwd: baseDir, encoding: 'utf-8' })
+      .split('\n')
+      .filter(Boolean);
+    recentWork = commits.length > 0 ? commits[0].substring(8) : '없음';
+  } catch (error) {
+    recentWork = 'Git 정보 없음';
+  }
+
   return `# Content Factory 프로젝트
+
+## 📍 현재 상태 (한눈에)
+
+**거래처**: 2개 활성 | **병렬**: ${wranglerConfig.maxBatchSize}개 | **최대**: ${maxClients}개/일
+
+**최근 작업**: ${recentWork}
+
+**다음 단계**: ${features.features?.[0]?.status === 'active' ? '에러 로깅 추가 (Slack 또는 Sheets)' : '확인 필요'}
+
+---
+
+## 시스템 구조 (한눈에 보기)
+
+${features.architecture?.diagram ? `\`\`\`\n${features.architecture.diagram}\n\`\`\`` : ''}
+
+${features.architecture?.data_flow ? `### 데이터 흐름\n\n${features.architecture.data_flow}` : ''}
+
+---
+
+## 주요 기능
+
+${features.features?.map(f => `### ${f.name} ${f.status === 'active' ? '✅' : '🚧'}
+
+**워크플로우**: ${f.workflow}
+
+${f.description ? `**설명**: ${f.description}\n` : ''}
+**핵심 함수**: ${f.functions?.join(', ') || '없음'}
+
+**사용 컴포넌트**: ${f.components?.join(', ') || '없음'}
+`).join('\n') || '- 기능 정보 없음'}
+
+---
 
 ## 시스템 현황 (자동 생성)
 
