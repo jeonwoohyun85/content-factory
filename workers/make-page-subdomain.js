@@ -67,6 +67,7 @@ const LANGUAGE_TEXTS = {
     kakao: '카카오톡',
     location: '위치보기',
     blog: '블로그',
+    store: '스토어',
     booking: '예약하기',
     link: '링크'
   },
@@ -82,6 +83,7 @@ const LANGUAGE_TEXTS = {
     kakao: 'KakaoTalk',
     location: 'Location',
     blog: 'Blog',
+    store: 'Store',
     booking: 'Book Now',
     link: 'Link'
   },
@@ -97,6 +99,7 @@ const LANGUAGE_TEXTS = {
     kakao: 'カカオトーク',
     location: '位置を見る',
     blog: 'ブログ',
+    store: 'ストア',
     booking: '予約する',
     link: 'リンク'
   },
@@ -112,6 +115,7 @@ const LANGUAGE_TEXTS = {
     kakao: 'KakaoTalk',
     location: '查看位置',
     blog: '博客',
+    store: '商店',
     booking: '预订',
     link: '链接'
   },
@@ -127,6 +131,7 @@ const LANGUAGE_TEXTS = {
     kakao: 'KakaoTalk',
     location: '查看位置',
     blog: '部落格',
+    store: '商店',
     booking: '預訂',
     link: '連結'
   }
@@ -492,6 +497,10 @@ function getLinkInfo(url, texts) {
 
   if (url.includes('map.kakao.com')) {
     return { icon: '📍', text: texts.location, url };
+  }
+
+  if (url.includes('smartstore.naver.com') || url.includes('brand.naver.com')) {
+    return { icon: '🛒', text: texts.store, url };
   }
 
   if (url.includes('blog.naver.com')) {
