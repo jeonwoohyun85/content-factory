@@ -1906,8 +1906,10 @@ async function generatePostingForClient(subdomain, env) {
 
     logs.push(`폴더 ${folders.length}개 발견`);
 
-    const lastUsedFolder = await getLastUsedFolderForPosting(subdomain, accessToken, env);
-    const nextFolder = getNextFolderForPosting(folders, lastUsedFolder);
+    const folderData = await getLastUsedFolderForPosting(subdomain, accessToken, env);
+    const lastFolder = folderData?.lastFolder || null;
+    const archiveHeaders = folderData?.archiveHeaders || [];
+    const nextFolder = getNextFolderForPosting(folders, lastFolder);
     logs.push(`선택된 폴더: ${nextFolder}`);
 
     // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
@@ -1933,7 +1935,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 4: 저장소 + 최신 포스팅 시트 저장
     logs.push('저장소/최신포스팅 시트 저장 시작...');
-    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, accessToken, env);
+    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, accessToken, env, archiveHeaders);
     logs.push('저장소/최신포스팅 시트 저장 완료');
 
     return {
@@ -2384,14 +2386,14 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
     );
 
     if (!response.ok) {
-      return null;
+      return { lastFolder: null, archiveHeaders: [] };
     }
 
     const data = await response.json();
     const rows = data.values || [];
 
     if (rows.length < 2) {
-      return null;
+      return { lastFolder: null, archiveHeaders: [] };
     }
 
     const headers = rows[0];
@@ -2399,7 +2401,7 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
     const folderNameIndex = headers.indexOf('폴더명');
 
     if (domainIndex === -1 || folderNameIndex === -1) {
-      return null;
+      return { lastFolder: null, archiveHeaders: headers };
     }
 
     const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
@@ -2416,9 +2418,9 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
       }
     }
 
-    return lastFolder;
+    return { lastFolder, archiveHeaders: headers };
   } catch (error) {
-    return null;
+    return { lastFolder: null, archiveHeaders: [] };
   }
 }
 
@@ -2451,7 +2453,7 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
-async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env) {
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env, archiveHeaders) {
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
@@ -2647,19 +2649,11 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   }
 
   // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (트랜잭션 완료)
-  const archiveHeaderResponse = await fetchWithTimeout(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!1:1`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-    10000
-  );
-
-  if (!archiveHeaderResponse.ok) {
-    console.error(`저장소 시트 헤더 읽기 실패: ${archiveHeaderResponse.status}`);
+  // archiveHeaders가 없거나 빈 배열이면 에러 처리
+  if (!archiveHeaders || archiveHeaders.length === 0) {
+    console.error('저장소 시트 헤더가 제공되지 않음');
     return; // 최신 포스팅은 이미 저장됨, 저장소만 실패
   }
-
-  const archiveHeaderData = await archiveHeaderResponse.json();
-  const archiveHeaders = (archiveHeaderData.values && archiveHeaderData.values[0]) || [];
 
   // 헤더 순서대로 rowData 생성
   const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
