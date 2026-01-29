@@ -2589,6 +2589,102 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   } catch (error) {
     console.error(`열 너비 복사 중 에러: ${error.message}`);
   }
+
+  // 8. 관리자 시트 "크론" 컬럼 업데이트 (다음 예정 시간)
+  try {
+    // 관리자 시트 데이터 읽기
+    const adminResponse = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
+    );
+
+    if (!adminResponse.ok) {
+      console.error('관리자 시트 읽기 실패 (크론 업데이트 스킵)');
+      return;
+    }
+
+    const adminData = await adminResponse.json();
+    const adminRows = adminData.values || [];
+
+    if (adminRows.length < 2) {
+      console.error('관리자 시트에 데이터 없음 (크론 업데이트 스킵)');
+      return;
+    }
+
+    const adminHeaders = adminRows[0];
+    const adminDomainIndex = adminHeaders.indexOf('도메인');
+    const cronIndex = adminHeaders.indexOf('크론');
+
+    if (adminDomainIndex === -1) {
+      console.error('관리자 시트에 "도메인" 컬럼 없음');
+      return;
+    }
+
+    if (cronIndex === -1) {
+      console.error('관리자 시트에 "크론" 컬럼 없음 (업데이트 스킵)');
+      return;
+    }
+
+    // 해당 거래처 행 찾기
+    let targetRowIndex = -1;
+    for (let i = 1; i < adminRows.length; i++) {
+      const row = adminRows[i];
+      const rowDomain = (row[adminDomainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      if (rowDomain === normalizedSubdomain) {
+        targetRowIndex = i + 1; // 1-indexed
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      console.error(`관리자 시트에서 ${normalizedSubdomain} 행을 찾을 수 없음`);
+      return;
+    }
+
+    // 다음 예정 시간 계산 (내일 09:00 KST)
+    const tomorrow = new Date(koreaTime);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const nextCronTime = tomorrow.toISOString().replace('T', ' ').substring(0, 16); // "YYYY-MM-DD HH:mm"
+
+    // 크론 컬럼 업데이트
+    const cronColumnLetter = getColumnLetter(cronIndex);
+    const updateRange = `관리자!${cronColumnLetter}${targetRowIndex}`;
+
+    const updateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          values: [[nextCronTime]]
+        })
+      }
+    );
+
+    if (updateResponse.ok) {
+      console.log(`크론 컬럼 업데이트 성공: ${nextCronTime}`);
+    } else {
+      console.error(`크론 컬럼 업데이트 실패: ${updateResponse.status}`);
+    }
+
+  } catch (error) {
+    console.error(`크론 컬럼 업데이트 중 에러: ${error.message}`);
+  }
+}
+
+// 컬럼 인덱스를 문자로 변환 (0 -> A, 1 -> B, ...)
+function getColumnLetter(index) {
+  let letter = '';
+  while (index >= 0) {
+    letter = String.fromCharCode((index % 26) + 65) + letter;
+    index = Math.floor(index / 26) - 1;
+  }
+  return letter;
 }
 
 async function getSheetId(sheetsId, sheetName, accessToken) {
