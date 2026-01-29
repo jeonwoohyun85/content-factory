@@ -24,7 +24,7 @@ binding = "POSTING_QUEUE"
 queue = "posting-queue"
 max_batch_size = 5
 max_batch_timeout = 30
-max_retries = 3
+max_retries = 1
 
 [vars]
 API_BASE_URL = "https://caps-chatbot.fly.dev"
