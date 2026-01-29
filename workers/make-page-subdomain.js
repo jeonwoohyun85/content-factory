@@ -2515,6 +2515,69 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
   }
 
+  // 최신 포스팅 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
+  try {
+    const latestAppendResult = await latestAppendResponse.json();
+    const latestUpdatedRange = latestAppendResult.updates?.updatedRange;
+
+    if (latestUpdatedRange) {
+      const latestRowMatch = latestUpdatedRange.match(/:(\d+)$/);
+      const latestNewRowIndex = latestRowMatch ? parseInt(latestRowMatch[1]) - 1 : null;
+
+      if (latestNewRowIndex !== null) {
+        const latestFormatRequests = [{
+          updateDimensionProperties: {
+            range: {
+              sheetId: latestSheetId,
+              dimension: 'ROWS',
+              startIndex: latestNewRowIndex,
+              endIndex: latestNewRowIndex + 1
+            },
+            properties: {
+              pixelSize: 21
+            },
+            fields: 'pixelSize'
+          }
+        }, {
+          repeatCell: {
+            range: {
+              sheetId: latestSheetId,
+              startRowIndex: latestNewRowIndex,
+              endRowIndex: latestNewRowIndex + 1
+            },
+            cell: {
+              userEnteredFormat: {
+                wrapStrategy: 'CLIP'
+              }
+            },
+            fields: 'userEnteredFormat.wrapStrategy'
+          }
+        }];
+
+        const latestFormatResponse = await fetchWithTimeout(
+          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ requests: latestFormatRequests })
+          },
+          10000
+        );
+
+        if (!latestFormatResponse.ok) {
+          console.error(`최신 포스팅 행 서식 설정 실패: ${latestFormatResponse.status}`);
+        } else {
+          console.log(`최신 포스팅 행 ${latestNewRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 CLIP)`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`최신 포스팅 행 서식 설정 중 에러: ${error.message}`);
+  }
+
   // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (트랜잭션 완료)
   const archiveHeaderResponse = await fetchWithTimeout(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!1:1`,
@@ -2551,6 +2614,71 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     const errorText = await archiveAppendResponse.text();
     console.error(`저장소 시트 append 실패: ${archiveAppendResponse.status} - ${errorText}`);
     // 최신 포스팅은 이미 저장됨, 저장소 저장 실패는 치명적이지 않음
+  } else {
+    // 저장소 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
+    try {
+      const appendResult = await archiveAppendResponse.json();
+      const updatedRange = appendResult.updates?.updatedRange;
+
+      if (updatedRange) {
+        // 범위에서 행 번호 추출 (예: "저장소!A20:I20" → 20)
+        const rowMatch = updatedRange.match(/:(\d+)$/);
+        const newRowIndex = rowMatch ? parseInt(rowMatch[1]) - 1 : null;
+
+        if (newRowIndex !== null) {
+          // 행 높이 21px + 텍스트 줄바꿈 CLIP 설정
+          const formatRequests = [{
+            updateDimensionProperties: {
+              range: {
+                sheetId: archiveSheetId,
+                dimension: 'ROWS',
+                startIndex: newRowIndex,
+                endIndex: newRowIndex + 1
+              },
+              properties: {
+                pixelSize: 21
+              },
+              fields: 'pixelSize'
+            }
+          }, {
+            repeatCell: {
+              range: {
+                sheetId: archiveSheetId,
+                startRowIndex: newRowIndex,
+                endRowIndex: newRowIndex + 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  wrapStrategy: 'CLIP'
+                }
+              },
+              fields: 'userEnteredFormat.wrapStrategy'
+            }
+          }];
+
+          const formatResponse = await fetchWithTimeout(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ requests: formatRequests })
+            },
+            10000
+          );
+
+          if (!formatResponse.ok) {
+            console.error(`저장소 행 서식 설정 실패: ${formatResponse.status}`);
+          } else {
+            console.log(`저장소 행 ${newRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 CLIP)`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`저장소 행 서식 설정 중 에러: ${error.message}`);
+    }
   }
 
   // 7. 관리자 시트의 열 너비를 저장소 시트에 복사
