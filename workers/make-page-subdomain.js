@@ -1561,33 +1561,23 @@ export default {
   },
 
   async queue(batch, env) {
-    console.log(`Queue consumer processing ${batch.messages.length} messages`);
-
-    for (const message of batch.messages) {
-      try {
-        const { subdomain } = message.body;
-        console.log(`Processing queue message for subdomain: ${subdomain}`);
-
-        const result = await generatePostingForClient(subdomain, env);
-
-        console.log(`Queue result:`, JSON.stringify(result, null, 2));
-
-        if (result.success) {
-          console.log(`Queue: Successfully generated posting for ${subdomain}`);
-          message.ack();
-        } else {
-          console.error(`Queue: Failed to generate posting for ${subdomain}:`, result.error);
-          console.error(`Queue: Logs:`, result.logs);
-          console.error(`Queue: 재시도 안함 - 무한 루프 방지`);
+    await Promise.all(
+      batch.messages.map(async (message) => {
+        try {
+          const result = await generatePostingForClient(message.body.subdomain, env);
+          if (result.success) {
+            console.log(`✅ ${message.body.subdomain} 포스팅 성공`);
+            message.ack();
+          } else {
+            console.error(`❌ ${message.body.subdomain} 실패: ${result.error}`);
+            message.ack();
+          }
+        } catch (error) {
+          console.error(`❌ ${message.body.subdomain} 에러: ${error.message}`);
           message.ack();
         }
-      } catch (error) {
-        console.error(`Queue: Error processing message:`, error);
-        console.error(`Queue: Error stack:`, error.stack);
-        console.error(`Queue: 재시도 안함 - 무한 루프 방지`);
-        message.ack();
-      }
-    }
+      })
+    );
   },
 
   async fetch(request, env, ctx) {
@@ -2944,3 +2934,4 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
 
 
 // Deploy trigger
+
