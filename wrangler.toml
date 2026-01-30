@@ -17,11 +17,6 @@ LATEST_POSTING_SHEET_NAME = "최신 포스팅"
 binding = "POSTING_KV"
 id = "53f9ec640f8c4d2f889042b127c5c327"
 
-[[d1_databases]]
-binding = "ANALYTICS_DB"
-database_name = "content-factory-analytics"
-database_id = "0bd91c16-2a04-402c-943d-10fbe33f098b"
-
 [[queues.producers]]
 binding = "POSTING_QUEUE"
 queue = "posting-queue"

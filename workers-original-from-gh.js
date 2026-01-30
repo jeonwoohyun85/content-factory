@@ -1,4 +1,6 @@
-// Content Factory - Minimal Version (Google Sheets Only)
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0   0     0   0     0     0     0  --:--:-- --:--:-- --:--:--     0// Content Factory - Minimal Version (Google Sheets Only)
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
 
 // ==================== 유틸리티 함수 ====================
@@ -38,11 +40,281 @@ function escapeHtml(text) {
 }
 
 // SHA-256 해싱 (visitor_hash 생성용)
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
-// Umami Cloud Analytics
-const UMAMI_API_KEY = 'api_u9GeatGUgI6Uw2VU7vKheTPdwK7h5kLH';
-const UMAMI_WEBSITE_ID = 'aea13630-0836-4fd6-91ae-d04b4180b6e7';
+// 방문 기록
+async function recordVisit(env, request, subdomain, pathname) {
+  try {
+    const userAgent = request.headers.get('User-Agent') || '';
 
+    // 봇 필터링
+    if (/bot|crawler|spider|crawling/i.test(userAgent)) {
+      return;
+    }
+
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const today = new Date().toISOString().substring(0, 10).replace(/-/g, '');
+    const visitorHash = await sha256(`${ip}-${subdomain}-${today}`);
+
+    // 오늘 첫 방문인지 확인
+    const existing = await env.ANALYTICS_DB.prepare(
+      'SELECT 1 FROM analytics_visits WHERE subdomain = ? AND visitor_hash = ? AND visited_at >= ? LIMIT 1'
+    ).bind(subdomain, visitorHash, Math.floor(Date.now() / 1000) - 86400).first();
+
+    await env.ANALYTICS_DB.prepare(`
+      INSERT INTO analytics_visits
+      (subdomain, visited_at, country, city, referrer, user_agent, pathname, visitor_hash, is_unique_today)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      subdomain,
+      Math.floor(Date.now() / 1000),
+      request.cf?.country || 'XX',
+      request.cf?.city || 'Unknown',
+      request.headers.get('Referer') || 'Direct',
+      userAgent,
+      pathname,
+      visitorHash,
+      existing ? 0 : 1
+    ).run();
+  } catch (error) {
+    console.error('Analytics recording failed:', error);
+  }
+}
+
+// 통계 조회 핸들러
+async function handleStats(env, subdomain, client) {
+  const now = Math.floor(Date.now() / 1000);
+  const oneDayAgo = now - 86400;
+  const oneWeekAgo = now - 604800;
+  const oneMonthAgo = now - 2592000;
+
+  try {
+    // 1. 방문자 수
+    const total = await env.ANALYTICS_DB.prepare(
+      'SELECT COUNT(*) as count FROM analytics_visits WHERE subdomain = ?'
+    ).bind(subdomain).first();
+
+    const today = await env.ANALYTICS_DB.prepare(
+      'SELECT COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ?'
+    ).bind(subdomain, oneDayAgo).first();
+
+    const weekly = await env.ANALYTICS_DB.prepare(
+      'SELECT COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ?'
+    ).bind(subdomain, oneWeekAgo).first();
+
+    const monthly = await env.ANALYTICS_DB.prepare(
+      'SELECT COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ?'
+    ).bind(subdomain, oneMonthAgo).first();
+
+    // 2. 고유 방문자 (오늘)
+    const uniqueToday = await env.ANALYTICS_DB.prepare(
+      'SELECT COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ? AND is_unique_today = 1'
+    ).bind(subdomain, oneDayAgo).first();
+
+    // 3. 국가별
+    const countries = await env.ANALYTICS_DB.prepare(
+      'SELECT country, COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ? GROUP BY country ORDER BY count DESC LIMIT 10'
+    ).bind(subdomain, oneMonthAgo).all();
+
+    // 4. 도시별
+    const cities = await env.ANALYTICS_DB.prepare(
+      'SELECT city, COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ? GROUP BY city ORDER BY count DESC LIMIT 10'
+    ).bind(subdomain, oneMonthAgo).all();
+
+    // 5. 유입 경로
+    const referrers = await env.ANALYTICS_DB.prepare(
+      'SELECT referrer, COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ? GROUP BY referrer ORDER BY count DESC LIMIT 10'
+    ).bind(subdomain, oneMonthAgo).all();
+
+    // 6. 페이지별
+    const pages = await env.ANALYTICS_DB.prepare(
+      'SELECT pathname, COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ? GROUP BY pathname ORDER BY count DESC LIMIT 10'
+    ).bind(subdomain, oneMonthAgo).all();
+
+    // 7. 시간대별 (최근 7일)
+    const hourly = await env.ANALYTICS_DB.prepare(
+      'SELECT strftime("%H", datetime(visited_at, "unixepoch")) as hour, COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ? GROUP BY hour ORDER BY hour'
+    ).bind(subdomain, oneWeekAgo).all();
+
+    // 8. 실시간 방문자 (최근 5분)
+    const realtimeCount = await env.ANALYTICS_DB.prepare(
+      'SELECT COUNT(*) as count FROM analytics_visits WHERE subdomain = ? AND visited_at >= ?'
+    ).bind(subdomain, now - 300).first();
+
+    // HTML 렌더링
+    return generateStatsHTML(subdomain, client, {
+      total: total?.count || 0,
+      today: today?.count || 0,
+      weekly: weekly?.count || 0,
+      monthly: monthly?.count || 0,
+      uniqueToday: uniqueToday?.count || 0,
+      countries: countries?.results || [],
+      cities: cities?.results || [],
+      referrers: referrers?.results || [],
+      pages: pages?.results || [],
+      hourly: hourly?.results || [],
+      realtime: realtimeCount?.count || 0
+    });
+  } catch (error) {
+    console.error('Stats query failed:', error);
+    return new Response('통계 조회 실패: ' + error.message, { status: 500 });
+  }
+}
+
+// 통계 페이지 HTML
+function generateStatsHTML(subdomain, client, stats) {
+  const businessName = client?.business_name || client?.name || subdomain;
+  return new Response(`
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(businessName)} - 통계</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f7fafc; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .header h1 { margin: 0; font-size: 24px; }
+    .header a { color: #3b82f6; text-decoration: none; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .stat-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .stat-card h3 { margin: 0 0 10px 0; font-size: 14px; color: #64748b; }
+    .stat-card .value { font-size: 32px; font-weight: bold; color: #1e293b; }
+    .chart-section { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .chart-section h2 { margin: 0 0 15px 0; font-size: 18px; }
+    .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+    .bar-item { display: flex; align-items: center; gap: 10px; }
+    .bar-label { min-width: 120px; font-size: 14px; color: #475569; }
+    .bar-value { min-width: 60px; text-align: right; font-weight: 600; }
+    .bar-visual { flex: 1; background: #e2e8f0; height: 24px; border-radius: 4px; position: relative; }
+    .bar-fill { background: #3b82f6; height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .realtime { display: inline-block; background: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${escapeHtml(businessName)} 통계</h1>
+      <a href="/">← 홈으로 돌아가기</a>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>전체 방문</h3>
+        <div class="value">${stats.total.toLocaleString()}</div>
+      </div>
+      <div class="stat-card">
+        <h3>오늘 방문</h3>
+        <div class="value">${stats.today.toLocaleString()} <span class="realtime">${stats.realtime}명 실시간</span></div>
+      </div>
+      <div class="stat-card">
+        <h3>주간 방문</h3>
+        <div class="value">${stats.weekly.toLocaleString()}</div>
+      </div>
+      <div class="stat-card">
+        <h3>월간 방문</h3>
+        <div class="value">${stats.monthly.toLocaleString()}</div>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <h2>국가별 방문자 (최근 30일)</h2>
+      <div class="bar-chart">
+        ${stats.countries.length > 0 ? stats.countries.map(item => {
+          const max = stats.countries[0].count;
+          const percent = (item.count / max) * 100;
+          return `
+            <div class="bar-item">
+              <div class="bar-label">${escapeHtml(item.country)}</div>
+              <div class="bar-value">${item.count.toLocaleString()}</div>
+              <div class="bar-visual"><div class="bar-fill" style="width: ${percent}%"></div></div>
+            </div>
+          `;
+        }).join('') : '<p>데이터 없음</p>'}
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <h2>도시별 방문자 (최근 30일)</h2>
+      <div class="bar-chart">
+        ${stats.cities.length > 0 ? stats.cities.map(item => {
+          const max = stats.cities[0].count;
+          const percent = (item.count / max) * 100;
+          return `
+            <div class="bar-item">
+              <div class="bar-label">${escapeHtml(item.city)}</div>
+              <div class="bar-value">${item.count.toLocaleString()}</div>
+              <div class="bar-visual"><div class="bar-fill" style="width: ${percent}%"></div></div>
+            </div>
+          `;
+        }).join('') : '<p>데이터 없음</p>'}
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <h2>유입 경로 (최근 30일)</h2>
+      <div class="bar-chart">
+        ${stats.referrers.length > 0 ? stats.referrers.map(item => {
+          const max = stats.referrers[0].count;
+          const percent = (item.count / max) * 100;
+          const shortRef = item.referrer.length > 30 ? item.referrer.substring(0, 30) + '...' : item.referrer;
+          return `
+            <div class="bar-item">
+              <div class="bar-label">${escapeHtml(shortRef)}</div>
+              <div class="bar-value">${item.count.toLocaleString()}</div>
+              <div class="bar-visual"><div class="bar-fill" style="width: ${percent}%"></div></div>
+            </div>
+          `;
+        }).join('') : '<p>데이터 없음</p>'}
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <h2>페이지별 조회 (최근 30일)</h2>
+      <div class="bar-chart">
+        ${stats.pages.length > 0 ? stats.pages.map(item => {
+          const max = stats.pages[0].count;
+          const percent = (item.count / max) * 100;
+          return `
+            <div class="bar-item">
+              <div class="bar-label">${escapeHtml(item.pathname)}</div>
+              <div class="bar-value">${item.count.toLocaleString()}</div>
+              <div class="bar-visual"><div class="bar-fill" style="width: ${percent}%"></div></div>
+            </div>
+          `;
+        }).join('') : '<p>데이터 없음</p>'}
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <h2>시간대별 트래픽 (최근 7일)</h2>
+      <div class="bar-chart">
+        ${stats.hourly.length > 0 ? stats.hourly.map(item => {
+          const max = Math.max(...stats.hourly.map(h => h.count));
+          const percent = max > 0 ? (item.count / max) * 100 : 0;
+          return `
+            <div class="bar-item">
+              <div class="bar-label">${item.hour}시</div>
+              <div class="bar-value">${item.count.toLocaleString()}</div>
+              <div class="bar-visual"><div class="bar-fill" style="width: ${percent}%"></div></div>
+            </div>
+          `;
+        }).join('') : '<p>데이터 없음</p>'}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+  });
+}
 
 // 언어 코드 정규화 (주요 언어만 매핑, 나머지는 입력값 그대로)
 function normalizeLanguage(lang) {
@@ -615,8 +887,6 @@ async function generatePostPage(client, post, env) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${escapeHtml(post.title)} - ${escapeHtml(client.business_name)}</title>
     <meta name="description" content="${escapeHtml((post.body || '').substring(0, 160))}">
-    <!-- Umami Cloud Analytics -->
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="${UMAMI_WEBSITE_ID}"></script>
     <style>
         * {
             margin: 0;
@@ -797,8 +1067,6 @@ async function generateClientPage(client, debugInfo, env) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${escapeHtml(client.business_name)}</title>
-    <!-- Umami Cloud Analytics -->
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="${UMAMI_WEBSITE_ID}"></script>
     <style>
         * {
             margin: 0;
@@ -863,7 +1131,7 @@ async function generateClientPage(client, debugInfo, env) {
         }
 
         .profile-content {
-            max-width: 800px;
+          35 109694  35 38850   0     0 69161     0   0:00:01 --:--:--  0:00:01 69251   max-width: 800px;
             margin: 0 auto;
             width: 100%;
         }
@@ -1869,11 +2137,9 @@ export default {
       }
       */
 
-      // 통계 페이지 - Umami Cloud 공유 링크로 리다이렉트
-      if (pathname === '/stats' || pathname.startsWith('/stats/')) {
-        // TODO: Google Sheets에서 umami_share_id 가져와서 사용
-        const shareId = '1cf65ebd4541c5fb'; // 임시: 00001 공유 ID
-        return Response.redirect(`https://cloud.umami.is/share/${shareId}`, 302);
+      // 통계 페이지
+      if (pathname === '/stats') {
+        return handleStats(env, subdomain, client);
       }
 
       // 포스트 상세 페이지
@@ -1898,7 +2164,11 @@ export default {
         });
       }
 
-      // Umami Cloud가 자동으로 추적
+      // 방문 기록 (stats 페이지는 제외)
+      if (pathname !== '/stats') {
+        ctx.waitUntil(recordVisit(env, request, subdomain, pathname));
+      }
+
       // 거래처 페이지 생성
       return new Response(await generateClientPage(client, debugInfo, env), {
         headers: {
@@ -2877,7 +3147,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     for (let i = 1; i < adminRows.length; i++) {
       const row = adminRows[i];
       const rowDomain = (row[adminDomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-      if (rowDomain === normalizedSubdomain) {
+      if (rowDomain === normalizedSubdom100 109694 100 109694   0     0 135302     0  --:--:-- --:--:-- --:--:-- 135424ain) {
         targetRowIndex = i + 1; // 1-indexed
         break;
       }
