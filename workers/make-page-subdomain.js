@@ -37,6 +37,15 @@ function escapeHtml(text) {
   return text.toString().replace(/[&<>'"']/g, m => map[m]);
 }
 
+
+// CORS 헤더 추가 함수
+function addCORSHeaders(headers) {
+  headers['Access-Control-Allow-Origin'] = '*';
+  headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+  headers['Access-Control-Allow-Headers'] = 'Content-Type';
+  return headers;
+}
+
 // SHA-256 해싱 (visitor_hash 생성용)
 
 // Umami Cloud Analytics
@@ -345,7 +354,36 @@ async function getClientFromSheets(clientId, env) {
     return { client, debugInfo };
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
-    return { client: null, debugInfo: { error: error.message } };
+    
+    // KV 백업에서 조회 시도
+    try {
+      const backup = await env.POSTING_KV.get('clients:backup', 'json');
+      if (backup && Array.isArray(backup)) {
+        const client = backup.find(c => {
+          let normalizedSubdomain = c.subdomain || '';
+          if (normalizedSubdomain.includes('.make-page.com')) {
+            normalizedSubdomain = normalizedSubdomain.replace('.make-page.com', '').replace('/', '');
+          }
+          return normalizedSubdomain === clientId;
+        });
+        
+        if (client) {
+          // Posts 조회 시도
+          try {
+            const postsResult = await getPostsFromArchive(clientId, env);
+            client.posts = postsResult.posts;
+          } catch (postsError) {
+            client.posts = [];
+          }
+          
+          return { client, debugInfo: { source: 'kv_backup', originalError: error.message } };
+        }
+      }
+    } catch (kvError) {
+      console.error('KV backup fetch error:', kvError);
+    }
+    
+    return { client: null, debugInfo: { error: error.message, kvError: 'backup_unavailable' } };
   }
 }
 
@@ -1139,82 +1177,6 @@ async function generateClientPage(client, debugInfo, env) {
         }
 
         /* Password Modal */
-        .password-modal {
-            display: none;
-            position: fixed;
-            z-index: 10000;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            align-items: center;
-            justify-content: center;
-        }
-
-        .password-modal.active {
-            display: flex;
-        }
-
-        .password-modal-content {
-            background: #fff;
-            padding: 32px;
-            border-radius: 12px;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-        }
-
-        .password-modal-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-
-        .password-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 16px;
-            margin-bottom: 16px;
-        }
-
-        .password-buttons {
-            display: flex;
-            gap: 12px;
-        }
-
-        .password-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .password-btn-confirm {
-            background: #ef4444;
-            color: #fff;
-        }
-
-        .password-btn-confirm:hover {
-            background: #dc2626;
-        }
-
-        .password-btn-cancel {
-            background: #e2e8f0;
-            color: #333;
-        }
-
-        .password-btn-cancel:hover {
-            background: #cbd5e1;
-        }
-    </style>
-</head>
 <body>
     <!-- Header -->
     <header>
@@ -1363,131 +1325,6 @@ ${urls.map(url => `  <url>
 
 // ==================== 포스트 삭제 ====================
 
-async function deletePost(subdomain, createdAt, password, env) {
-  // 비밀번호 확인
-  if (password !== env.DELETE_PASSWORD) {
-    return { success: false, error: '비밀번호가 올바르지 않습니다' };
-  }
-
-  try {
-    const accessToken = await getGoogleAccessTokenForPosting(env);
-    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
-    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
-
-    // 도메인 정규화
-    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
-    const domain = `${normalizedSubdomain}.make-page.com`;
-
-    // 1. 저장소 탭에서 삭제
-    const archiveResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const archiveData = await archiveResponse.json();
-    const archiveRows = archiveData.values || [];
-
-    if (archiveRows.length < 2) {
-      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
-    }
-
-    const archiveHeaders = archiveRows[0];
-    const archiveDomainIndex = archiveHeaders.indexOf('도메인');
-    const archiveCreatedAtIndex = archiveHeaders.indexOf('생성일시');
-
-    if (archiveDomainIndex === -1 || archiveCreatedAtIndex === -1) {
-      return { success: false, error: '저장소 시트 구조 오류' };
-    }
-
-    let foundInArchive = false;
-    for (let i = 1; i < archiveRows.length; i++) {
-      const row = archiveRows[i];
-      if (row[archiveDomainIndex] === domain && row[archiveCreatedAtIndex] === createdAt) {
-        // 행 삭제
-        const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
-        await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              requests: [{
-                deleteDimension: {
-                  range: {
-                    sheetId: archiveSheetId,
-                    dimension: 'ROWS',
-                    startIndex: i,
-                    endIndex: i + 1
-                  }
-                }
-              }]
-            })
-          }
-        );
-        foundInArchive = true;
-        break;
-      }
-    }
-
-    // 2. 최신 포스팅 탭에서도 삭제
-    const latestResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const latestData = await latestResponse.json();
-    const latestRows = latestData.values || [];
-
-    if (latestRows.length >= 2) {
-      const latestHeaders = latestRows[0];
-      const latestDomainIndex = latestHeaders.indexOf('도메인');
-      const latestCreatedAtIndex = latestHeaders.indexOf('생성일시');
-
-      if (latestDomainIndex !== -1 && latestCreatedAtIndex !== -1) {
-        for (let i = 1; i < latestRows.length; i++) {
-          const row = latestRows[i];
-          if (row[latestDomainIndex] === domain && row[latestCreatedAtIndex] === createdAt) {
-            const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
-        await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              requests: [{
-                deleteDimension: {
-                  range: {
-                    sheetId: latestSheetId,
-                    dimension: 'ROWS',
-                    startIndex: i,
-                    endIndex: i + 1
-                  }
-                }
-              }]
-            })
-          }
-        );
-        break;
-      }
-    }
-      }
-    }
-
-    if (!foundInArchive) {
-      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
-    }
-
-    return { success: true };
-
-  } catch (error) {
-    console.error('Delete post error:', error);
-    return { success: false, error: error.message };
-  }
-}
 
 // ==================== 라우팅 ====================
 
@@ -1523,6 +1360,14 @@ export default {
       const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.subscription === '활성');
 
       console.log(`Found ${clients.length} active clients`);
+
+      // 거래처 데이터 KV 백업 (24시간 TTL)
+      try {
+        await env.POSTING_KV.put('clients:backup', JSON.stringify(clients), { expirationTtl: 86400 });
+        console.log('Client data backed up to KV');
+      } catch (kvError) {
+        console.error('KV backup failed:', kvError);
+      }
 
       // 2. 배치 처리 (10개씩 Queue 전송)
       const batchSize = 10;
@@ -1627,7 +1472,7 @@ export default {
           const result = await generatePostingForClient(subdomain, env);
 
           return new Response(JSON.stringify(result, null, 2), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: addCORSHeaders({ 'Content-Type': 'application/json' })
           });
         } catch (error) {
           return new Response(JSON.stringify({
@@ -1796,7 +1641,7 @@ export default {
             subdomain: subdomain
           }), {
             status: 202,
-            headers: { 'Content-Type': 'application/json' }
+            headers: addCORSHeaders({ 'Content-Type': 'application/json' })
           });
         } catch (error) {
           return new Response(JSON.stringify({
@@ -1819,13 +1664,6 @@ export default {
 
     try {
       // Delete post 엔드포인트
-      if (pathname === '/delete-post' && request.method === 'POST') {
-        const { subdomain: reqSubdomain, created_at, password } = await request.json();
-        const result = await deletePost(reqSubdomain, created_at, password, env);
-        return new Response(JSON.stringify(result), {
-          status: result.success ? 200 : 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
       }
 
       // Google Sheets에서 거래처 정보 조회
