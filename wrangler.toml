@@ -15,7 +15,7 @@ LATEST_POSTING_SHEET_NAME = "최신 포스팅"
 
 [[kv_namespaces]]
 binding = "POSTING_KV"
-id = "posting_kv_namespace"
+id = "53f9ec640f8c4d2f889042b127c5c327"
 
 [[d1_databases]]
 binding = "ANALYTICS_DB"
