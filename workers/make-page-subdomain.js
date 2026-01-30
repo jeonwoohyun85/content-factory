@@ -40,10 +40,7 @@ function escapeHtml(text) {
 // SHA-256 해싱 (visitor_hash 생성용)
 
 // Umami Cloud Analytics
-const UMAMI_API_KEY = 'api_u9GeatGUgI6Uw2VU7vKheTPdwK7h5kLH';
 const UMAMI_WEBSITE_ID = 'aea13630-0836-4fd6-91ae-d04b4180b6e7';
-
-
 
 // 언어 코드 정규화 (주요 언어만 매핑, 나머지는 입력값 그대로)
 function normalizeLanguage(lang) {
@@ -469,8 +466,6 @@ function pemToArrayBuffer(pem) {
   return bytes.buffer;
 }
 
-
-
 // 링크 타입 자동 감지 (언어별 텍스트)
 function getLinkInfo(url, texts) {
   if (!url) return null;
@@ -715,7 +710,6 @@ async function generatePostPage(client, post, env) {
             }
         }
     </style>
-    ${env.UMAMI_WEBSITE_ID ? `<script async src="https://analytics.make-page.com/script.js" data-website-id="${env.UMAMI_WEBSITE_ID}"></script>` : ''}
 </head>
 <body>
     <div class="container">
@@ -753,7 +747,6 @@ async function generateClientPage(client, debugInfo, env) {
   // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
   const links = (client.links || '').split(',').map(l => extractUrlFromMarkdown(l.trim())).filter(l => l).map(url => getLinkInfo(url, texts)).filter(l => l);
 
-
   // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환
   let infoImages = (client.info || '').split(',')
     .map(i => i.trim())
@@ -782,8 +775,6 @@ async function generateClientPage(client, debugInfo, env) {
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
     links.unshift({ icon: '📞', text: texts.phone, url: `tel:${client.phone}` });
   }
-
-
 
   return `<!DOCTYPE html>
 <html lang="${langCode}">
@@ -1266,8 +1257,6 @@ async function generateClientPage(client, debugInfo, env) {
         <span class="lightbox-nav lightbox-next" onclick="event.stopPropagation(); nextImage()">&#10095;</span>
     </div>
 
-
-
     <script>
         const infoImages = ${JSON.stringify(infoImages)};
         let currentImageIndex = 0;
@@ -1562,7 +1551,6 @@ export default {
       }
 
       console.log(`Cron completed: ${successCount} queued, ${failCount} failed`);
-
 
     } catch (error) {
       console.error('Scheduled handler error:', error);
@@ -1997,7 +1985,6 @@ async function getClientFromSheetsForPosting(subdomain, env) {
     throw error;
   }
 }
-
 
 async function searchWithGeminiForPosting(client, env) {
   const prompt = `
@@ -2950,8 +2937,5 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
   const sheet = data.sheets.find(s => s.properties.title === sheetName);
   return sheet ? sheet.properties.sheetId : 0;
 }
-
-
-
 
 

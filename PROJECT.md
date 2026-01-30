@@ -70,6 +70,22 @@
 
 **사용 컴포넌트**: API Endpoint, Google Sheets
 
+### 통계 (Umami) ✅
+
+**워크플로우**: 페이지 방문 → Umami 추적 스크립트 → Umami Cloud → 공유 URL
+
+**설명**: 거래처별 방문 통계 제공 (로그인 없이 공개)
+
+**구현 방식**:
+- **추적**: 각 페이지에 Umami 스크립트 자동 설치
+- **수집**: 방문 데이터 자동 수집 (URL, 시간, 국가 등)
+- **조회**: Google Sheets 바로가기에 공유 URL 수동 등록
+- **표시**: URL에 'umami' 포함 시 📊 통계 버튼으로 표시
+
+**핵심 함수**: generateClientPage(), getLinkInfo()
+
+**사용 컴포넌트**: Umami Cloud Analytics, Google Sheets
+
 
 ---
 
@@ -161,3 +177,4 @@
 - [ ] 에러 로깅 강화 (Slack 알림 또는 에러 시트)
 - [ ] 거래처 1000개 이상 확장 대비 (분산 포스팅)
 - [ ] Umami 통계 연동
+
