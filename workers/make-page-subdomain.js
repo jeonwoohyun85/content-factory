@@ -2477,6 +2477,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     '도메인': domain,
     '상호명': client.business_name,
     '제목': postData.title,
+    'URL': `${domain}/post?id=${encodeURIComponent(timestamp)}`,
     '생성일시': timestamp,
     '언어': client.language || 'ko',
     '업종': client.industry || '',
