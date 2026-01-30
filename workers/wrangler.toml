@@ -1,50 +1,49 @@
+# 공통 설정
 name = "make-page-subdomain"
 main = "make-page-subdomain.js"
 compatibility_date = "2024-01-01"
 account_id = "73506724e3c7dd97bc939983761a90cf"
-usage_model = "unbound"  # CPU time 30초 제한 (장시간 API 호출 가능)
 
-# Production (default)
+# Production 환경 (기본)
+[env.production]
+usage_model = "unbound"
+
 routes = [
   { pattern = "make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" },
   { pattern = "*.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" }
 ]
 
-# Cloudflare Cron + Queue 시스템 (2026-01-20)
-# Workers Paid 플랜 - Queue 사용 가능
-[triggers]
+[env.production.triggers]
 crons = ["0 0 * * *"]  # 매일 한국시간 09:00 (UTC 00:00)
 
-# Queue 바인딩 (포스팅 실패 시 재시도)
-[[queues.producers]]
+[[env.production.queues.producers]]
 queue = "posting-queue"
 binding = "POSTING_QUEUE"
 
-[[queues.consumers]]
+[[env.production.queues.consumers]]
 queue = "posting-queue"
 max_batch_size = 5
 max_batch_timeout = 30
 max_retries = 1
 
-[vars]
+[env.production.vars]
 API_BASE_URL = "https://caps-chatbot.fly.dev"
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
 DRIVE_FOLDER_ID = "1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt"
 
 # Staging 환경
 [env.staging]
+usage_model = "unbound"
+
 routes = [
   { pattern = "staging.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" },
   { pattern = "*.staging.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" }
 ]
 
 [env.staging.triggers]
-crons = []  # Staging Cron 비활성화 (프로덕션 영향 방지)
+crons = []
 
 [env.staging.vars]
 API_BASE_URL = "https://caps-staging.fly.dev"
-
-# 환경 변수 (Cloudflare Dashboard에서 설정 필요)
-# ANTHROPIC_API_KEY: Claude API 키 (번역 자동 생성용)
-# SUPABASE_SERVICE_KEY: Supabase service_role 키
-# SUPABASE_URL: Supabase 프로젝트 URL
+SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
+DRIVE_FOLDER_ID = "1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt"
