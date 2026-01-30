@@ -1572,11 +1572,13 @@ export default {
       // Umami Cloud Website 자동 생성 (통계ID 없는 거래처)
       try {
         let umamiCreateCount = 0;
-        for (const client of clients) {
+        for (let i = 0; i < clients.length; i++) {
+          const client = clients[i];
           if (!client['통계ID']) {
             const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
             const websiteName = `${client.business_name || subdomain}`;
             const domain = `${subdomain}.make-page.com`;
+            const rowNumber = i + 2; // 헤더 포함, 1-based index
 
             try {
               // Umami Website 생성
@@ -1607,11 +1609,41 @@ export default {
                 });
 
                 if (updateResp.ok) {
-                  // KV에 저장 (Sheets 업데이트 전까지 임시 저장)
+                  // KV에 저장 (백업용)
                   await env.POSTING_KV.put(`umami_share_${subdomain}`, shareId);
+
+                  // Google Sheets '통계ID' 컬럼 자동 입력
+                  try {
+                    const token = await getGoogleAccessTokenForPosting(env);
+
+                    // Q열 (17번째 컬럼, 통계ID)
+                    const updateSheetResp = await fetch(
+                      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Q${rowNumber}?valueInputOption=RAW`,
+                      {
+                        method: 'PUT',
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                          values: [[shareId]]
+                        })
+                      }
+                    );
+
+                    if (updateSheetResp.ok) {
+                      console.log(`✅ Umami created & auto-saved: ${subdomain} -> ${shareId} (row ${rowNumber})`);
+                    } else {
+                      const errorText = await updateSheetResp.text();
+                      console.error(`Sheets update failed for ${subdomain}: ${updateSheetResp.status} - ${errorText}`);
+                      console.log(`📊 수동 작업 필요: Google Sheets row ${rowNumber}, '통계ID' 컬럼에 '${shareId}' 입력`);
+                    }
+                  } catch (sheetError) {
+                    console.error(`Sheets auto-update error for ${subdomain}:`, sheetError);
+                    console.log(`📊 수동 작업 필요: Google Sheets row ${rowNumber}, '통계ID' 컬럼에 '${shareId}' 입력`);
+                  }
+
                   umamiCreateCount++;
-                  console.log(`Umami created: ${subdomain} -> ${shareId}`);
-                  console.log(`📊 수동 작업 필요: Google Sheets '${subdomain}' 행의 '통계ID' 컬럼에 '${shareId}' 입력`);
                 }
               }
             } catch (err) {
