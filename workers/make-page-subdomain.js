@@ -1871,8 +1871,7 @@ export default {
 
       // 통계 페이지 - Umami Cloud 공유 링크로 리다이렉트
       if (pathname === '/stats' || pathname.startsWith('/stats/')) {
-        // TODO: Google Sheets에서 umami_share_id 가져와서 사용
-        const shareId = '1cf65ebd4541c5fb'; // 임시: 00001 공유 ID
+        const shareId = client['통계ID'] || '1cf65ebd4541c5fb'; // 기본값: 00001
         return Response.redirect(`https://cloud.umami.is/share/${shareId}`, 302);
       }
 
