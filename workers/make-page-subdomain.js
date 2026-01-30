@@ -2033,8 +2033,8 @@ export default {
       if (pathname === '/stats' || pathname.startsWith('/stats/')) {
         let shareId = client['통계ID'];
 
-        // 통계ID 컬럼 없으면 무조건 재생성 (KV 무시)
-        if (!shareId) {
+        // 통계ID 없거나 기본값이면 재생성
+        if (!shareId || shareId === '1cf65ebd4541c5fb') {
           const created = await createUmamiWebsite(client, subdomain, env);
           if (created.success) {
             shareId = created.shareId;
@@ -3143,5 +3143,6 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
   const sheet = data.sheets.find(s => s.properties.title === sheetName);
   return sheet ? sheet.properties.sheetId : 0;
 }
+
 
 
