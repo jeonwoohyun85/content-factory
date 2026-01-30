@@ -1,4 +1,4 @@
-name = "content-factory-worker"
+name = "make-page-subdomain"
 main = "workers/make-page-subdomain.js"
 compatibility_date = "2024-01-29"
 
