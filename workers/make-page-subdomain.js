@@ -2662,12 +2662,14 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (트랜잭션 완료)
   // archiveHeaders가 없거나 빈 배열이면 에러 처리
   if (!archiveHeaders || archiveHeaders.length === 0) {
+    console.error('[ERROR] 저장소 헤더 없음. archiveHeaders:', archiveHeaders);
     console.error('저장소 시트 헤더가 제공되지 않음');
     return; // 최신 포스팅은 이미 저장됨, 저장소만 실패
   }
 
   // 헤더 순서대로 rowData 생성
   const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
+  console.log('[INFO] 저장소 저장:', { sheet: archiveSheetName, headersCount: archiveHeaders.length, dataLength: archiveRowData.length });
 
   // 저장소 탭에 append
   const archiveAppendResponse = await fetchWithTimeout(
@@ -2688,6 +2690,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     console.error(`저장소 시트 append 실패: ${archiveAppendResponse.status} - ${errorText}`);
     // 최신 포스팅은 이미 저장됨, 저장소 저장 실패는 치명적이지 않음
   } else {
+    console.log('[SUCCESS] 저장소 저장 완료');
     // 저장소 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
     try {
       const appendResult = await archiveAppendResponse.json();
