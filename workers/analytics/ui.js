@@ -2,7 +2,7 @@
 export function generateAnalyticsSPA(subdomain, siteTitle) {
   return `<!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="UTF-8"><title>\${siteTitle} - 통계</title>
+<head><meta charset="UTF-8"><title>${siteTitle} - 통계</title>
 <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
@@ -49,7 +49,7 @@ body{font-family:-apple-system,sans-serif;background:#f8fafc}
 <div :class="['nav-item',{active:currentView==='devices'}]" @click="currentView='devices'"><span>📱</span> 기기별</div>
 </div>
 <div class="main">
-<div class="header"><h1>\${siteTitle}</h1><a href="/" class="back-btn">← 홈으로</a></div>
+<div class="header"><h1>${siteTitle}</h1><a href="/" class="back-btn">← 홈으로</a></div>
 <div class="filters">
 <span>기간:</span>
 <button :class="['filter-btn',{active:dateRange==='1day'}]" @click="changeDateRange('1day')">오늘</button>
