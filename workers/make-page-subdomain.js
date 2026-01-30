@@ -616,6 +616,12 @@ async function generatePostPage(client, post, env) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${escapeHtml(post.title)} - ${escapeHtml(client.business_name)}</title>
     <meta name="description" content="${escapeHtml((post.body || '').substring(0, 160))}">
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-mRCiiAlWFeXcY8vy0BJio.js"></script>
+    <script>
+      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+      plausible.init()
+    </script>
     <style>
         * {
             margin: 0;
@@ -796,6 +802,12 @@ async function generateClientPage(client, debugInfo, env) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${escapeHtml(client.business_name)}</title>
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script async src="https://plausible.io/js/pa-mRCiiAlWFeXcY8vy0BJio.js"></script>
+    <script>
+      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+      plausible.init()
+    </script>
     <style>
         * {
             margin: 0;
