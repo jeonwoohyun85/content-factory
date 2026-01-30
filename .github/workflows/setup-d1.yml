@@ -1,0 +1,25 @@
+name: D1 데이터베이스 설정
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-d1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: D1 생성 및 스키마 설정
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          # wrangler 설치
+          npm install -g wrangler
+          
+          echo "=== D1 데이터베이스 생성 ==="
+          wrangler d1 create content-factory-analytics || echo "이미 존재하거나 생성 실패"
+          
+          echo ""
+          echo "=== 생성된 D1 목록 ==="
+          wrangler d1 list
+          
+          echo ""
+          echo "=== database_id를 wrangler.toml에 추가하세요 ==="
