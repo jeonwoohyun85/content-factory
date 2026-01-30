@@ -1,6 +1,4 @@
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0   0     0   0     0     0     0  --:--:-- --:--:-- --:--:--     0// Content Factory - Minimal Version (Google Sheets Only)
+// Content Factory - Minimal Version (Google Sheets Only)
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
 
 // ==================== 유틸리티 함수 ====================
@@ -39,13 +37,13 @@ function escapeHtml(text) {
   return text.toString().replace(/[&<>'"']/g, m => map[m]);
 }
 
+// SHA-256 해싱 (visitor_hash 생성용)
+
 // Analytics modules
 import { recordVisit } from './analytics/queries.js';
 import { handleStatsAPI } from './analytics/api.js';
 import { generateAnalyticsSPA } from './analytics/ui.js';
 
-  });
-}
 
 // 언어 코드 정규화 (주요 언어만 매핑, 나머지는 입력값 그대로)
 function normalizeLanguage(lang) {
@@ -862,7 +860,7 @@ async function generateClientPage(client, debugInfo, env) {
         }
 
         .profile-content {
-          35 109694  35 38850   0     0 69161     0   0:00:01 --:--:--  0:00:01 69251   max-width: 800px;
+            max-width: 800px;
             margin: 0 auto;
             width: 100%;
         }
@@ -1867,6 +1865,8 @@ export default {
         return new Response('This page is inactive', { status: 403 });
       }
       */
+
+      // 통계 페이지
       // 통계 API
       if (pathname.startsWith('/stats/api/')) {
         return handleStatsAPI(env, request, subdomain);
@@ -1880,8 +1880,6 @@ export default {
             'Cache-Control': 'public, max-age=60'
           }
         });
-      }
-        return handleStats(env, subdomain, client);
       }
 
       // 포스트 상세 페이지
@@ -2889,7 +2887,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     for (let i = 1; i < adminRows.length; i++) {
       const row = adminRows[i];
       const rowDomain = (row[adminDomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-      if (rowDomain === normalizedSubdom100 109694 100 109694   0     0 135302     0  --:--:-- --:--:-- --:--:-- 135424ain) {
+      if (rowDomain === normalizedSubdomain) {
         targetRowIndex = i + 1; // 1-indexed
         break;
       }
