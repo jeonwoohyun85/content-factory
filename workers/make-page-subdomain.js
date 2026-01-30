@@ -754,8 +754,8 @@ async function generateClientPage(client, debugInfo, env) {
   // Video 파싱 (쉼표 구분)
   const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v);
 
-  // Posts 파싱 (최근 2개)
-  const posts = (client.posts || []).slice(0, 2);
+  // Posts 파싱 (최근 1개)
+  const posts = (client.posts || []).slice(0, 1);
 
   // 전화번호 링크 추가
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
@@ -970,14 +970,8 @@ async function generateClientPage(client, debugInfo, env) {
         /* Posts Section */
         .posts-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* PC: 2열 */
+            grid-template-columns: repeat(1, 1fr);
             gap: 24px;
-        }
-
-        @media (max-width: 768px) {
-            .posts-grid {
-                grid-template-columns: repeat(1, 1fr); /* 모바일: 1열 */
-            }
         }
 
         .post-card {
@@ -2532,8 +2526,8 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     }
   }
 
-  // 4. 2개 이상이면 가장 오래된 행 삭제
-  if (domainRows.length >= 2) {
+  // 4. 1개 이상이면 가장 오래된 행 삭제 (최신 1개만 유지)
+  if (domainRows.length >= 1) {
     domainRows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
     const oldestRowIndex = domainRows[0].index;
 
