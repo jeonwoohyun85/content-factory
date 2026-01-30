@@ -696,6 +696,7 @@ async function generatePostPage(client, post, env) {
             }
         }
     </style>
+    ${env.UMAMI_WEBSITE_ID ? `<script async src="https://analytics.make-page.com/script.js" data-website-id="${env.UMAMI_WEBSITE_ID}"></script>` : ''}
 </head>
 <body>
     <div class="container">
@@ -760,6 +761,15 @@ async function generateClientPage(client, debugInfo, env) {
   // 전화번호 링크 추가
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
     links.unshift({ icon: '📞', text: texts.phone, url: `tel:${client.phone}` });
+  }
+
+  // 통계 링크 자동 추가 (Umami)
+  if (env.UMAMI_WEBSITE_ID) {
+    links.push({
+      icon: '📊',
+      text: langCode === 'ko' ? '통계' : 'Analytics',
+      url: `https://analytics.make-page.com/share/${env.UMAMI_WEBSITE_ID}?url=${encodeURIComponent(`https://${subdomain}.make-page.com`)}`
+    });
   }
 
   return `<!DOCTYPE html>
