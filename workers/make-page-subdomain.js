@@ -2402,7 +2402,7 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
     const data = await response.json();
     const rows = data.values || [];
 
-    if (rows.length < 2) {
+    if (rows.length < 1) {
       return { lastFolder: null, archiveHeaders: [] };
     }
 
