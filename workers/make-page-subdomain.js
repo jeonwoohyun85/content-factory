@@ -2033,19 +2033,14 @@ export default {
       if (pathname === '/stats' || pathname.startsWith('/stats/')) {
         let shareId = client['통계ID'];
 
-        // Sheets에 없으면 KV 확인
-        if (!shareId) {
-          shareId = await env.POSTING_KV.get(`umami_share_${subdomain}`);
-        }
-
-        // 둘 다 없으면 즉시 생성 (첫 방문 시)
+        // 통계ID 컬럼 없으면 무조건 재생성 (KV 무시)
         if (!shareId) {
           const created = await createUmamiWebsite(client, subdomain, env);
           if (created.success) {
             shareId = created.shareId;
           } else {
-            // 생성 실패 시 기본값 사용
-            shareId = '1cf65ebd4541c5fb';
+            // 생성 실패 시 KV 폴백
+            shareId = await env.POSTING_KV.get(`umami_share_${subdomain}`) || '1cf65ebd4541c5fb';
           }
         }
 
@@ -3148,4 +3143,5 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
   const sheet = data.sheets.find(s => s.properties.title === sheetName);
   return sheet ? sheet.properties.sheetId : 0;
 }
+
 
