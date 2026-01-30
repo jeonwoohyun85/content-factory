@@ -21,5 +21,12 @@ id = "53f9ec640f8c4d2f889042b127c5c327"
 binding = "POSTING_QUEUE"
 queue = "posting-queue"
 
+[[queues.consumers]]
+queue = "posting-queue"
+max_batch_size = 5
+max_batch_timeout = 30
+max_retries = 1
+dead_letter_queue = ""
+
 [triggers]
 crons = ["0 0 * * *"] # 매일 자정 (UTC) -> 한국 시간 오전 9시
