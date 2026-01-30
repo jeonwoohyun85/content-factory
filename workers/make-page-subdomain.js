@@ -1904,8 +1904,9 @@ export default {
         });
       }
 
-      // 방문 기록 (stats 페이지는 제외)
-      if (pathname !== '/stats') {
+      // 방문 기록 (stats 페이지/API, 정적 리소스 제외)
+      if (!pathname.startsWith('/stats') &&
+          !pathname.match(/\.(ico|css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$/)) {
         ctx.waitUntil(recordVisit(env, request, subdomain, pathname));
       }
 
