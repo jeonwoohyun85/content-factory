@@ -51,7 +51,7 @@ async function createUmamiWebsite(client, subdomain, env) {
     const websiteName = `${client.business_name || subdomain}`;
     const domain = `${subdomain}.make-page.com`;
 
-    // Umami Website 생성
+    // Umami Website 생성 시도
     const createResp = await fetch('https://api.umami.is/v1/websites', {
       method: 'POST',
       headers: {
@@ -61,17 +61,38 @@ async function createUmamiWebsite(client, subdomain, env) {
       body: JSON.stringify({ name: websiteName, domain })
     });
 
-    if (!createResp.ok) {
-      return { success: false };
+    let websiteId, shareId;
+
+    if (createResp.ok) {
+      // 생성 성공
+      const website = await createResp.json();
+      websiteId = website.id;
+    } else {
+      // 생성 실패 (이미 존재) - 기존 웹사이트 찾기
+      const listResp = await fetch('https://api.umami.is/v1/websites', {
+        headers: { 'x-umami-api-key': UMAMI_API_KEY }
+      });
+
+      if (!listResp.ok) {
+        return { success: false };
+      }
+
+      const websites = await listResp.json();
+      const existing = websites.data?.find(w => w.domain === domain);
+
+      if (!existing) {
+        return { success: false };
+      }
+
+      websiteId = existing.id;
+      console.log(`Found existing website: ${websiteId}`);
     }
 
-    const website = await createResp.json();
-    const websiteId = website.id;
-
     // 공유 링크 생성
-    const shareId = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+    shareId = Array.from(crypto.getRandomValues(new Uint8Array(8)))
       .map(b => b.toString(16).padStart(2, '0')).join('');
 
+    // 이름 및 shareId 업데이트
     const updateResp = await fetch(`https://api.umami.is/v1/websites/${websiteId}`, {
       method: 'POST',
       headers: {
@@ -119,7 +140,7 @@ async function createUmamiWebsite(client, subdomain, env) {
       console.error('Sheets update failed (non-critical):', sheetError);
     }
 
-    console.log(`✅ Umami auto-created on first /stats visit: ${subdomain} -> ${shareId}`);
+    console.log(`✅ Umami created/updated: ${subdomain} -> ${shareId}`);
     return { success: true, shareId };
   } catch (error) {
     console.error('Umami auto-creation error:', error);
@@ -3143,6 +3164,7 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
   const sheet = data.sheets.find(s => s.properties.title === sheetName);
   return sheet ? sheet.properties.sheetId : 0;
 }
+
 
 
 
