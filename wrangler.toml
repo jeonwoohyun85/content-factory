@@ -26,10 +26,5 @@ database_id = "0bd91c16-2a04-402c-943d-10fbe33f098b"
 binding = "POSTING_QUEUE"
 queue = "posting-queue"
 
-[[queues.consumers]]
-queue = "posting-queue"
-max_batch_size = 10
-max_batch_timeout = 30
-
 [triggers]
 crons = ["0 0 * * *"] # 매일 자정 (UTC) -> 한국 시간 오전 9시
