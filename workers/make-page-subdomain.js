@@ -1569,14 +1569,59 @@ export default {
 
       console.log(`Cron completed: ${successCount} queued, ${failCount} failed`);
 
-      // 90일 이상 오래된 통계 데이터 삭제
+      // Umami Cloud Website 자동 생성 (통계ID 없는 거래처)
       try {
-        await env.ANALYTICS_DB.prepare(
-          'DELETE FROM analytics_visits WHERE visited_at < ?'
-        ).bind(Math.floor(Date.now() / 1000) - 7776000).run();
-        console.log('Analytics cleanup completed');
+        let umamiCreateCount = 0;
+        for (const client of clients) {
+          if (!client['통계ID']) {
+            const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+            const websiteName = `${client.business_name || subdomain}`;
+            const domain = `${subdomain}.make-page.com`;
+
+            try {
+              // Umami Website 생성
+              const createResp = await fetch('https://api.umami.is/v1/websites', {
+                method: 'POST',
+                headers: {
+                  'x-umami-api-key': UMAMI_API_KEY,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: websiteName, domain })
+              });
+
+              if (createResp.ok) {
+                const website = await createResp.json();
+                const websiteId = website.id;
+
+                // 공유 링크 생성
+                const shareId = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+                  .map(b => b.toString(16).padStart(2, '0')).join('');
+
+                const updateResp = await fetch(`https://api.umami.is/v1/websites/${websiteId}`, {
+                  method: 'POST',
+                  headers: {
+                    'x-umami-api-key': UMAMI_API_KEY,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ name: websiteName, domain, shareId })
+                });
+
+                if (updateResp.ok) {
+                  // KV에 저장 (Sheets 업데이트 전까지 임시 저장)
+                  await env.POSTING_KV.put(`umami_share_${subdomain}`, shareId);
+                  umamiCreateCount++;
+                  console.log(`Umami created: ${subdomain} -> ${shareId}`);
+                  console.log(`📊 수동 작업 필요: Google Sheets '${subdomain}' 행의 '통계ID' 컬럼에 '${shareId}' 입력`);
+                }
+              }
+            } catch (err) {
+              console.error(`Umami creation failed for ${subdomain}:`, err);
+            }
+          }
+        }
+        console.log(`Umami websites created: ${umamiCreateCount}`);
       } catch (error) {
-        console.error('Analytics cleanup failed:', error);
+        console.error('Umami auto-creation error:', error);
       }
 
     } catch (error) {
@@ -1871,7 +1916,13 @@ export default {
 
       // 통계 페이지 - Umami Cloud 공유 링크로 리다이렉트
       if (pathname === '/stats' || pathname.startsWith('/stats/')) {
-        const shareId = client['통계ID'] || '1cf65ebd4541c5fb'; // 기본값: 00001
+        let shareId = client['통계ID'];
+
+        // Sheets에 없으면 KV 확인 (크론이 생성한 임시 데이터)
+        if (!shareId) {
+          shareId = await env.POSTING_KV.get(`umami_share_${subdomain}`) || '1cf65ebd4541c5fb';
+        }
+
         return Response.redirect(`https://cloud.umami.is/share/${shareId}`, 302);
       }
 
