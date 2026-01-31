@@ -726,6 +726,7 @@ async function getClientFromSheets(clientId, env) {
     // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
     if (client && client.language) {
       const langCode = normalizeLanguage(client.language);
+      console.log("[DEBUG getClientFromSheets] subdomain:", clientId, "language:", client.language, "langCode:", langCode);
       if (langCode !== 'ko') {
         // 번역할 필드 수집
         const fieldsToTranslate = [];
@@ -735,6 +736,7 @@ async function getClientFromSheets(clientId, env) {
 
         if (fieldsToTranslate.length > 0) {
           try {
+            console.log("[DEBUG] Translating", fieldsToTranslate.length, "fields to", langCode);
             const fieldsJson = fieldsToTranslate.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',\n');
             const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
 
@@ -762,6 +764,7 @@ IMPORTANT: Return ONLY the JSON object.`;
               const jsonMatch = text.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const translations = JSON.parse(jsonMatch[0]);
+                console.log("[DEBUG] Translation result:", translations);
                 if (translations.business_name) client.business_name = translations.business_name;
                 if (translations.address) client.address = translations.address;
                 if (translations.business_hours) client.business_hours = translations.business_hours;
