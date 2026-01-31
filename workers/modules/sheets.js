@@ -1,0 +1,440 @@
+// Google Sheets CRUD
+
+import { fetchWithTimeout, parseCSV, normalizeClient, getColumnLetter } from './utils.js';
+import { getGoogleAccessTokenForPosting } from './auth.js';
+
+export async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
+  try {
+    const accessToken = await getGoogleAccessToken(env);
+    
+    // 관리자 시트 읽기
+    const sheetResponse = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
+    );
+
+    if (!sheetResponse.ok) {
+      console.error('시트 읽기 실패');
+      return false;
+    }
+
+    const sheetData = await sheetResponse.json();
+    const rows = sheetData.values || [];
+    
+    if (rows.length < 2) return false;
+
+    const headers = rows[0];
+    const domainIndex = headers.indexOf('도메인');
+    const umamiIndex = headers.indexOf('우마미');
+    const umamiShareIndex = headers.indexOf('우마미_공유');
+
+    if (domainIndex === -1 || umamiIndex === -1 || umamiShareIndex === -1) {
+      console.error('필수 컬럼 없음');
+      return false;
+    }
+
+    // 해당 거래처 행 찾기
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const rowDomain = (row[domainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      if (rowDomain === subdomain) {
+        targetRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      console.error('거래처 행을 찾을 수 없음');
+      return false;
+    }
+
+    // 일괄 업데이트
+    const umamiCol = getColumnLetter(umamiIndex);
+    const shareCol = getColumnLetter(umamiShareIndex);
+
+    const updateData = [
+      {
+        range: `관리자!${umamiCol}${targetRowIndex}`,
+        values: [[websiteId]]
+      },
+      {
+        range: `관리자!${shareCol}${targetRowIndex}`,
+        values: [[shareId]]
+      }
+    ];
+
+    const batchUpdateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          valueInputOption: 'RAW',
+          data: updateData
+        })
+      }
+    );
+
+    if (batchUpdateResponse.ok) {
+      console.log('Umami 정보 시트 업데이트 성공');
+      return true;
+    } else {
+      console.error('시트 업데이트 실패:', batchUpdateResponse.status);
+      return false;
+    }
+  } catch (error) {
+    console.error('시트 업데이트 중 에러:', error);
+    return false;
+  }
+}
+
+export async function getClientFromSheets(clientId, env) {
+
+  try {
+
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+    const csvText = await response.text();
+
+    
+
+    // 수동 파싱 및 디버그 정보 수집
+
+    const lines = csvText.trim().split('\n');
+
+    const headers = parseCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim());
+
+    const debugInfo = { headers, rawLine: lines[0] };
+
+
+
+    const clients = [];
+
+    for (let i = 1; i < lines.length; i++) {
+
+      const values = parseCSVLine(lines[i]);
+
+      const client = {};
+
+      headers.forEach((header, index) => {
+
+        client[header] = values[index] || '';
+
+      });
+
+      clients.push(client);
+
+    }
+
+
+
+    const normalizedClients = clients.map(normalizeClient);
+
+
+
+    const client = normalizedClients.find(c => {
+
+      // subdomain 정규화: "00001.make-page.com" → "00001"
+
+      let normalizedSubdomain = c.subdomain || '';
+
+      if (normalizedSubdomain.includes('.make-page.com')) {
+
+        normalizedSubdomain = normalizedSubdomain.replace('.make-page.com', '').replace('/', '');
+
+      }
+
+      return normalizedSubdomain === clientId;
+
+    });
+
+
+
+    // Posts 조회 추가 (최신 포스팅 시트에서 읽기)
+
+    if (client) {
+
+      const postsResult = await getPostsFromArchive(clientId, env);
+
+      client.posts = postsResult.posts;
+
+      if (postsResult.error) {
+
+        debugInfo.postsError = postsResult.error;
+
+      }
+
+    }
+
+    // 상호명에서 언어 표시 자동 제거
+    if (client && client.business_name) {
+      const suffixes = [' Japan', ' 日本', ' japan', ' Korea', ' 한국', ' China', ' 中国', ' English', ' Japanese', ' 일본어'];
+      for (const s of suffixes) {
+        if (client.business_name.endsWith(s)) {
+          client.business_name = client.business_name.slice(0, -s.length).trim();
+          break;
+        }
+      }
+    }
+
+    // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
+    if (client && client.language) {
+      const langCode = normalizeLanguage(client.language);
+      if (langCode !== 'ko') {
+        // 번역할 필드 수집
+        const fieldsToTranslate = [];
+        if (client.business_name) fieldsToTranslate.push({ key: 'business_name', value: client.business_name });
+        if (client.address) fieldsToTranslate.push({ key: 'address', value: client.address });
+        if (client.business_hours) fieldsToTranslate.push({ key: 'business_hours', value: client.business_hours });
+
+        if (fieldsToTranslate.length > 0) {
+          try {
+            const fieldsJson = fieldsToTranslate.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',\n');
+            const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
+
+{
+${fieldsJson}
+}
+
+IMPORTANT: Return ONLY the JSON object.`;
+
+            const translateResponse = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{"parts": [{"text": prompt}]}],
+                  generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
+                })
+              }
+            );
+
+            if (translateResponse.ok) {
+              const data = await translateResponse.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const jsonMatch = text.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const translations = JSON.parse(jsonMatch[0]);
+                if (translations.business_name) client.business_name = translations.business_name;
+                if (translations.address) client.address = translations.address;
+                if (translations.business_hours) client.business_hours = translations.business_hours;
+              } else {
+                console.error("[ERROR] No JSON match in Gemini response");
+              }
+            } else {
+              const errorText = await translateResponse.text();
+              console.error("[ERROR] Gemini API failed:", translateResponse.status, errorText.substring(0, 500));
+            }
+          } catch (error) {
+            console.error('Translation error:', error);
+            // 번역 실패 시 원본 유지
+          }
+        }
+      }
+    }
+
+
+
+
+    return { client, debugInfo };
+
+  } catch (error) {
+
+    console.error('Google Sheets fetch error:', error);
+
+    return { client: null, debugInfo: { error: error.message } };
+
+  }
+
+}
+
+export async function getPostsFromArchive(subdomain, env) {
+
+  try {
+
+    // Step 1: 토큰 발급
+
+    let accessToken;
+
+    try {
+
+      accessToken = await getGoogleAccessTokenForPosting(env);
+
+    } catch (tokenError) {
+
+      return { posts: [], error: `Token error: ${tokenError.message}` };
+
+    }
+
+
+
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+
+
+
+    // Step 2: 시트 읽기
+
+    const response = await fetch(
+
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+
+    );
+
+
+
+    if (!response.ok) {
+
+      return { posts: [], error: `Sheets API error: ${response.status}` };
+
+    }
+
+
+
+    const data = await response.json();
+
+    const rows = data.values || [];
+
+
+
+    if (rows.length < 2) {
+
+      return { posts: [], error: 'No data rows in sheet' };
+
+    }
+
+
+
+    const headers = rows[0];
+
+    const domainIndex = headers.indexOf('도메인');
+
+    const businessNameIndex = headers.indexOf('상호명');
+
+    const titleIndex = headers.indexOf('제목');
+
+    const createdAtIndex = headers.indexOf('생성일시');
+
+    const languageIndex = headers.indexOf('언어');
+
+    const industryIndex = headers.indexOf('업종');
+
+    const bodyIndex = headers.indexOf('본문');
+
+    const imagesIndex = headers.indexOf('이미지');
+
+
+
+    if (domainIndex === -1) {
+
+      console.error('최신 포스팅 시트에 "도메인" 컬럼이 없습니다');
+
+      return { posts: [], error: 'No domain column' };
+
+    }
+
+
+
+    const posts = [];
+
+
+
+    // 첫 번째 행은 헤더이므로 1부터 시작
+
+    for (let i = 1; i < rows.length; i++) {
+
+      const row = rows[i];
+
+      const domain = row[domainIndex] || '';
+
+
+
+      // 도메인 매칭 (00001.make-page.com 또는 00001)
+
+      const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+
+      const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+
+
+
+      if (normalizedDomain === normalizedSubdomain) {
+
+        posts.push({
+
+          subdomain: domain,
+
+          business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
+
+          title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
+
+          created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
+
+          language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
+
+          industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
+
+          body: bodyIndex !== -1 ? (row[bodyIndex] || '') : '',
+
+          images: imagesIndex !== -1 ? (row[imagesIndex] || '') : ''
+
+        });
+
+      }
+
+    }
+
+
+
+    // created_at 기준 내림차순 정렬 (최신순)
+
+    posts.sort((a, b) => {
+
+      const dateA = new Date(a.created_at);
+
+      const dateB = new Date(b.created_at);
+
+      return dateB - dateA;
+
+    });
+
+
+
+    return { posts, error: null };
+
+  } catch (error) {
+
+    console.error('Error fetching posts from latest sheet:', error);
+
+    return { posts: [], error: `${error.message} (${error.stack?.substring(0, 100) || 'no stack'})` };
+
+  }
+
+}
+
+export async function getSheetId(sheetsId, sheetName, accessToken) {
+
+  const response = await fetch(
+
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}?fields=sheets(properties(sheetId,title))`,
+
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+
+  );
+
+  const data = await response.json();
+
+  const sheet = data.sheets.find(s => s.properties.title === sheetName);
+
+  return sheet ? sheet.properties.sheetId : 0;
+
+}
+
