@@ -574,7 +574,7 @@ function normalizeClient(client) {
 
     '상태': 'posting_status',
 
-    '폴더명': 'folder_name'
+    '폴더명': 'folder_name',
     '우마미': 'umami_id',
     '우마미공유': 'umami_share'
 
