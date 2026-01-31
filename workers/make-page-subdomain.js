@@ -26,7 +26,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
 
   try {
 
-    const response = await fetch(url, {
+    const translateResponse = await fetch(url, {
 
       ...options,
 
@@ -366,7 +366,7 @@ IMPORTANT: Return ONLY the JSON object, no other text.`;
 
 
 
-  const response = await fetch(
+  const translateResponse = await fetch(
 
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
 
@@ -396,7 +396,7 @@ IMPORTANT: Return ONLY the JSON object, no other text.`;
 
 
 
-  const data = await response.json();
+  const data = await translateResponse.json();
 
   const text = data.candidates[0].content.parts[0].text;
 
@@ -744,7 +744,7 @@ ${fieldsJson}
 
 IMPORTANT: Return ONLY the JSON object.`;
 
-            const response = await fetch(
+            const translateResponse = await fetch(
               `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
               {
                 method: 'POST',
@@ -756,8 +756,8 @@ IMPORTANT: Return ONLY the JSON object.`;
               }
             );
 
-            if (response.ok) {
-              const data = await response.json();
+            if (translateResponse.ok) {
+              const data = await translateResponse.json();
               const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
               const jsonMatch = text.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
@@ -857,7 +857,7 @@ async function getPostsFromArchive(subdomain, env) {
 
     // Step 2: 시트 읽기
 
-    const response = await fetch(
+    const translateResponse = await fetch(
 
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
 
@@ -875,7 +875,7 @@ async function getPostsFromArchive(subdomain, env) {
 
 
 
-    const data = await response.json();
+    const data = await translateResponse.json();
 
     const rows = data.values || [];
 
@@ -4133,7 +4133,7 @@ async function searchWithGeminiForPosting(client, env) {
 
 
 
-    const data = await response.json();
+    const data = await translateResponse.json();
 
 
 
@@ -4395,7 +4395,7 @@ ${trendsData}
 
 
 
-    const data = await response.json();
+    const data = await translateResponse.json();
 
 
 
@@ -4891,7 +4891,7 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
 
 
-    const data = await response.json();
+    const data = await translateResponse.json();
 
     const rows = data.values || [];
 
@@ -6079,7 +6079,7 @@ function getColumnLetter(index) {
 
 async function getSheetId(sheetsId, sheetName, accessToken) {
 
-  const response = await fetch(
+  const translateResponse = await fetch(
 
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}?fields=sheets(properties(sheetId,title))`,
 
@@ -6087,7 +6087,7 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
 
   );
 
-  const data = await response.json();
+  const data = await translateResponse.json();
 
   const sheet = data.sheets.find(s => s.properties.title === sheetName);
 
