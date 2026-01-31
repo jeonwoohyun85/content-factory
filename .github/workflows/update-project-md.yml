@@ -16,28 +16,33 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: 커밋 정보 추출
+      - name: 커밋 정보 추출 (KST)
         id: commit
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          COMMIT_DATE=$(date -u +"%Y-%m-%d %H:%M")
+          COMMIT_DATE=$(TZ='Asia/Seoul' date +"%Y-%m-%d")
+          COMMIT_TIME=$(TZ='Asia/Seoul' date +"%H:%M")
           CATEGORY=$(echo "$COMMIT_MSG" | grep -oP '^[a-z]+(?=:)' || echo "other")
           TITLE=$(echo "$COMMIT_MSG" | sed 's/^[a-z]*: //' | head -1)
 
           echo "category=$CATEGORY" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           echo "date=$COMMIT_DATE" >> $GITHUB_OUTPUT
+          echo "time=$COMMIT_TIME" >> $GITHUB_OUTPUT
 
-      - name: PROJECT.md 파일 업데이트
+      - name: PROJECT.md 파일 업데이트 (일별 헤더)
         if: steps.commit.outputs.category != 'other'
         run: |
           CATEGORY="${{ steps.commit.outputs.category }}"
           TITLE="${{ steps.commit.outputs.title }}"
           DATE="${{ steps.commit.outputs.date }}"
+          TIME="${{ steps.commit.outputs.time }}"
 
           case "$CATEGORY" in
             feature) ICON="✨" ;;
+            feat) ICON="✨" ;;
             fix) ICON="🐛" ;;
+            bugfix) ICON="🐛" ;;
             refactor) ICON="♻️" ;;
             deprecate) ICON="🗑️" ;;
             improvement) ICON="⚡" ;;
@@ -49,16 +54,60 @@ jobs:
             *) ICON="🔹" ;;
           esac
 
-          if [ ! -f PROJECT.md ]; then
-            echo "# CAPS Project History" > PROJECT.md
-            echo "" >> PROJECT.md
-            echo "## 배포 이력" >> PROJECT.md
-            echo "" >> PROJECT.md
-          fi
+          export ICON DATE TIME CATEGORY TITLE
+          python3 << 'PYSCRIPT_EOF'
+import re
+import os
 
-          ENTRY="- **$DATE** $ICON [$CATEGORY] $TITLE"
-          sed -i "/## 배포 이력/a\
-          $ENTRY" PROJECT.md
+date = os.environ['DATE']
+time = os.environ['TIME']
+icon = os.environ['ICON']
+category = os.environ['CATEGORY']
+title = os.environ['TITLE']
+
+with open('PROJECT.md', 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+
+# 상세 타임라인 찾기
+timeline_idx = None
+for i, line in enumerate(lines):
+    if '### 📋 상세 타임라인' in line:
+        timeline_idx = i
+        break
+
+if timeline_idx is None:
+    print("상세 타임라인 섹션을 찾을 수 없습니다.")
+    exit(1)
+
+# 오늘 날짜 헤더 찾기
+date_header_idx = None
+for i in range(timeline_idx + 1, len(lines)):
+    if lines[i].strip() == f'#### {date}':
+        date_header_idx = i
+        break
+    # 다른 날짜 헤더가 나오면 중단
+    if lines[i].startswith('#### 20'):
+        break
+
+# 새 엔트리
+new_entry = f'- **{time}** {icon} [{category}] {title}\n'
+
+# 삽입
+if date_header_idx is not None:
+    # 날짜 헤더 아래 빈 줄 다음에 추가
+    lines.insert(date_header_idx + 2, new_entry)
+else:
+    # 새 날짜 헤더 생성
+    lines.insert(timeline_idx + 2, f'#### {date}\n')
+    lines.insert(timeline_idx + 3, '\n')
+    lines.insert(timeline_idx + 4, new_entry)
+    lines.insert(timeline_idx + 5, '\n')
+
+with open('PROJECT.md', 'w', encoding='utf-8') as f:
+    f.writelines(lines)
+
+print(f'추가됨: {date} {time} [{category}] {title}')
+PYSCRIPT_EOF
 
       - name: 변경사항 커밋
         if: steps.commit.outputs.category != 'other'

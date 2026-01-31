@@ -1,0 +1,175 @@
+name: 일별 요약 자동 업데이트
+
+on:
+  schedule:
+    # 매일 00:00 KST (전날 15:00 UTC)
+    - cron: '0 15 * * *'
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  update-daily:
+    runs-on: ubuntu-latest
+    name: 일별 요약 자동 업데이트
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 전일 배포 이력 조회
+        run: |
+          # 어제 날짜 계산 (KST)
+          YESTERDAY=$(TZ='Asia/Seoul' date -d 'yesterday' +"%Y-%m-%d")
+          echo "YESTERDAY=$YESTERDAY" >> $GITHUB_ENV
+
+          gh run list \
+            --repo jeonwoohyun85/content-factory \
+            --status success \
+            --limit 10000 \
+            --json displayTitle,createdAt,conclusion \
+            > all-runs.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 전일 요약 생성
+        run: |
+          cat > generate_summary.py << 'SCRIPT_EOF'
+import json
+import os
+from datetime import datetime, timedelta
+from collections import defaultdict
+
+yesterday = os.environ['YESTERDAY']
+
+# 배포 데이터 로드
+with open('all-runs.json', 'r', encoding='utf-8') as f:
+    runs = json.load(f)
+
+# workflow_dispatch 제외
+runs = [r for r in runs if r['displayTitle'] != '클라우드플레어 워커 자동 배포']
+
+# 어제 배포만 필터링
+yesterday_runs = []
+for run in runs:
+    timestamp = run['createdAt']
+    utc_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+    kst_dt = utc_dt + timedelta(hours=9)
+
+    if kst_dt.strftime('%Y-%m-%d') == yesterday:
+        title = run['displayTitle'].strip()
+        if ':' in title:
+            category = title.split(':')[0].strip()
+            text = title.split(':', 1)[1].strip()
+        else:
+            category = 'other'
+            text = title
+
+        yesterday_runs.append({
+            'time': kst_dt.strftime('%H:%M'),
+            'category': category,
+            'title': text
+        })
+
+if not yesterday_runs:
+    print(f"{yesterday} 배포 없음")
+    with open('summary.txt', 'w', encoding='utf-8') as f:
+        f.write('')
+    exit(0)
+
+# 카테고리별 집계
+categories = defaultdict(list)
+for run in yesterday_runs:
+    categories[run['category']].append(run['title'])
+
+# 요약 생성
+summary_lines = []
+summary_lines.append(f"## {yesterday} 작업 요약")
+summary_lines.append(f"")
+summary_lines.append(f"**총 {len(yesterday_runs)}건 배포**")
+summary_lines.append(f"")
+
+# 카테고리별 요약
+if 'feature' in categories or 'feat' in categories:
+    all_features = categories.get('feature', []) + categories.get('feat', [])
+    summary_lines.append(f"### ✨ 신규 기능 ({len(all_features)}건)")
+    for title in all_features[:5]:
+        summary_lines.append(f"- {title}")
+    summary_lines.append(f"")
+
+if 'fix' in categories or 'bugfix' in categories:
+    all_fixes = categories.get('fix', []) + categories.get('bugfix', [])
+    summary_lines.append(f"### 🐛 버그 수정 ({len(all_fixes)}건)")
+    for title in all_fixes[:5]:
+        summary_lines.append(f"- {title}")
+    summary_lines.append(f"")
+
+if 'improvement' in categories or 'performance' in categories:
+    all_improvements = categories.get('improvement', []) + categories.get('performance', [])
+    summary_lines.append(f"### ⚡ 개선 사항 ({len(all_improvements)}건)")
+    for title in all_improvements[:5]:
+        summary_lines.append(f"- {title}")
+    summary_lines.append(f"")
+
+if 'deprecate' in categories:
+    summary_lines.append(f"### 🗑️ 폐기 ({len(categories['deprecate'])}건)")
+    for title in categories['deprecate']:
+        summary_lines.append(f"- {title}")
+    summary_lines.append(f"")
+
+# 파일 저장
+with open('summary.txt', 'w', encoding='utf-8') as f:
+    f.write('\n'.join(summary_lines))
+
+print(f"{yesterday} 요약 생성 완료")
+SCRIPT_EOF
+
+          python3 generate_summary.py
+
+      - name: PROJECT.md에 요약 추가
+        run: |
+          if [ ! -s summary.txt ]; then
+            echo "요약 없음, 건너뜀"
+            exit 0
+          fi
+
+          python3 << 'UPDATE_EOF'
+with open('PROJECT.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+with open('summary.txt', 'r', encoding='utf-8') as f:
+    summary = f.read().strip()
+
+if not summary:
+    print("요약 없음")
+    exit(0)
+
+# "## 배포 이력" 바로 아래에 추가
+parts = content.split('## 배포 이력')
+if len(parts) != 2:
+    print("배포 이력 섹션 없음")
+    exit(1)
+
+new_content = parts[0] + '## 배포 이력\n\n' + summary + '\n\n---\n\n' + parts[1].lstrip()
+
+with open('PROJECT.md', 'w', encoding='utf-8') as f:
+    f.write(new_content)
+
+print("요약 추가 완료")
+UPDATE_EOF
+
+      - name: 변경사항 커밋
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add PROJECT.md
+          git diff --staged --quiet || git commit -m "docs: 일별 요약 자동 업데이트 [skip ci]"
+
+      - name: 변경사항 푸시
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
