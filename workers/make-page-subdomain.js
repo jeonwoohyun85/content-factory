@@ -1,5 +1,4 @@
 // Content Factory - Minimal Version (Google Sheets Only)
-      ctx.waitUntil(setCachedHTML(subdomain, html, env));
 
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
 
@@ -3947,7 +3946,11 @@ export default {
 
       // 거래처 페이지 생성
 
-      return new Response(await generateClientPage(client, debugInfo, env), {
+      const html = await generateClientPage(client, debugInfo, env);
+
+      ctx.waitUntil(setCachedHTML(subdomain, html, env));
+
+      return new Response(html, {
 
         headers: {
 
