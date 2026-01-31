@@ -152,7 +152,11 @@ const LANGUAGE_TEXTS = {
 
     link: '링크',
 
-    stats: '통계'
+    stats: '통계',
+
+    postImage: '포스트 이미지',
+
+    galleryImage: '갤러리 이미지'
 
   },
 
@@ -186,7 +190,11 @@ const LANGUAGE_TEXTS = {
 
     link: 'Link',
 
-    stats: 'Stats'
+    stats: 'Stats',
+
+    postImage: 'Post Image',
+
+    galleryImage: 'Gallery Image'
 
   },
 
@@ -220,7 +228,11 @@ const LANGUAGE_TEXTS = {
 
     link: 'リンク',
 
-    stats: '統計'
+    stats: '統計',
+
+    postImage: '投稿画像',
+
+    galleryImage: 'ギャラリー画像'
 
   },
 
@@ -254,7 +266,11 @@ const LANGUAGE_TEXTS = {
 
     link: '链接',
 
-    stats: '统计'
+    stats: '统计',
+
+    postImage: '帖子图片',
+
+    galleryImage: '画廊图片'
 
   },
 
@@ -288,7 +304,11 @@ const LANGUAGE_TEXTS = {
 
     link: '連結',
 
-    stats: '統計'
+    stats: '統計',
+
+    postImage: '貼文圖片',
+
+    galleryImage: '畫廊圖片'
 
   }
 
@@ -330,7 +350,13 @@ async function translateWithGemini(language, env) {
 
   "booking": "Booking/Reservation button",
 
-  "link": "Generic link text"
+  "link": "Generic link text",
+
+  "stats": "Statistics/Analytics link",
+
+  "postImage": "Post/Blog image alt text",
+
+  "galleryImage": "Gallery/Info image alt text"
 
 }
 
@@ -1056,7 +1082,7 @@ function getLinkInfo(url, texts) {
 
   if (url === '/stats' || url.includes('umami')) {
 
-    return { icon: '📊', text: texts.stats || '통계', url };
+    return { icon: '📊', text: texts.stats, url };
 
   }
 
@@ -1196,7 +1222,7 @@ async function generatePostPage(client, post, env) {
 
     if (i < imageUrls.length) {
 
-      contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="Post Image" class="post-image">`;
+      contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="${texts.postImage}" class="post-image">`;
 
     }
 
@@ -1500,7 +1526,7 @@ async function generateClientPage(client, debugInfo, env) {
   if (client.umami_share) {
     links.push({
       icon: '📊',
-      text: texts.stats || '통계',
+      text: texts.stats,
       url: `https://cloud.umami.is/share/${client.umami_share}`
     });
   }
@@ -1509,7 +1535,7 @@ async function generateClientPage(client, debugInfo, env) {
   if (client.umami_share) {
     links.push({
       icon: '📊',
-      text: texts.stats || '통계',
+      text: texts.stats,
       url: `https://cloud.umami.is/share/${client.umami_share}`
     });
   }
@@ -2498,7 +2524,7 @@ async function generateClientPage(client, debugInfo, env) {
 
     <!-- Info Section -->
 
-    ${infoImages.length > 0 ? '<section><h2 class="section-title">' + texts.info + '</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="Info" class="gallery-image"></div>').join('') + '</div></section>' : ''}
+    ${infoImages.length > 0 ? '<section><h2 class="section-title">' + texts.info + '</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="' + texts.galleryImage + '" class="gallery-image"></div>').join('') + '</div></section>' : ''}
 
 
 
@@ -2524,7 +2550,7 @@ async function generateClientPage(client, debugInfo, env) {
 
         <div class="lightbox-content" onclick="event.stopPropagation()">
 
-            <img id="lightbox-image" class="lightbox-image" src="" alt="Info">
+            <img id="lightbox-image" class="lightbox-image" src="" alt="' + texts.info + '">
 
         </div>
 
