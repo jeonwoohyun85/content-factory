@@ -2,14 +2,14 @@ name: 주간 요약 자동 업데이트
 
 on:
   schedule:
-    # 매주 일요일 23:00 KST (14:00 UTC)
-    - cron: '0 14 * * 0'
+    # 매주 월요일 00:00 KST (일요일 15:00 UTC)
+    - cron: '0 15 * * 0'
   workflow_dispatch:  # 수동 실행 가능
 
 jobs:
   update-weekly:
     runs-on: ubuntu-latest
-    name: 주간 요약 재생성
+    name: 주간 요약 및 아키텍처 자동 업데이트
     permissions:
       contents: write
     steps:
@@ -32,9 +32,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 주간 요약 생성
+      - name: 주간 요약 및 아키텍처 섹션 생성
         run: |
-          cat > generate_weekly.py << 'SCRIPT_EOF'
+          cat > update_all.py << 'SCRIPT_EOF'
           import json
           import sys
           from datetime import datetime, timedelta
@@ -47,20 +47,17 @@ jobs:
           # workflow_dispatch 제외
           runs = [r for r in runs if r['displayTitle'] != '클라우드플레어 워커 자동 배포']
 
-          # 날짜별 배포 그룹화
+          # ========== 1. 주간 요약 생성 ==========
           deployments_by_date = defaultdict(list)
 
           for run in runs:
               timestamp = run['createdAt']
               title = run['displayTitle'].strip()
 
-              # UTC to KST
               utc_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
               kst_dt = utc_dt + timedelta(hours=9)
-
               date_str = kst_dt.strftime('%Y-%m-%d')
 
-              # 카테고리 추출
               if ':' in title:
                   category = title.split(':')[0].strip()
                   text = title.split(':', 1)[1].strip()
@@ -73,24 +70,19 @@ jobs:
                   'title': text
               })
 
-          # 주차별 그룹화 (월요일 시작)
+          # 주차별 그룹화
           weekly_summary = defaultdict(lambda: defaultdict(list))
 
           for date_str, items in deployments_by_date.items():
               date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-
-              # 해당 주의 월요일 찾기
               weekday = date_obj.weekday()
               monday = date_obj - timedelta(days=weekday)
               week_key = monday.strftime('%Y-%m-%d')
 
-              # 요일 이름
               weekday_names = ['월', '화', '수', '목', '금', '토', '일']
               weekday_name = weekday_names[weekday]
 
-              # 해당 날짜의 주요 작업 요약
               summary_items = []
-
               features = [item for item in items if item['category'] in ['feature', 'feat']]
               fixes = [item for item in items if item['category'] in ['fix', 'bugfix']]
               improvements = [item for item in items if item['category'] in ['improvement', 'performance']]
@@ -117,7 +109,6 @@ jobs:
           week_flows = {}
           for week_key in sorted(weekly_summary.keys()):
               dates = weekly_summary[week_key]
-
               all_titles = []
               for date_str, info in dates.items():
                   for item in deployments_by_date[date_str]:
@@ -139,36 +130,83 @@ jobs:
 
               week_flows[week_key] = flow
 
-          # 출력 생성
-          output = []
-          output.append("### 📅 주간 요약\n")
+          # 주간 요약 출력
+          weekly_output = []
+          weekly_output.append("### 📅 주간 요약\n")
 
           week_num = 1
           for week_key in sorted(weekly_summary.keys()):
               dates = weekly_summary[week_key]
-
               monday = datetime.strptime(week_key, '%Y-%m-%d')
               sunday = monday + timedelta(days=6)
 
-              output.append(f"#### {week_num}주차 ({monday.strftime('%m/%d')}-{sunday.strftime('%m/%d')})")
-              output.append(f"**주요 흐름**: {week_flows[week_key]}\n")
+              weekly_output.append(f"#### {week_num}주차 ({monday.strftime('%m/%d')}-{sunday.strftime('%m/%d')})")
+              weekly_output.append(f"**주요 흐름**: {week_flows[week_key]}\n")
 
               for date_str in sorted(dates.keys()):
                   info = dates[date_str]
                   date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                  output.append(f"- **{info['weekday']} {date_obj.strftime('%m/%d')}**: {info['summary']} ({info['count']}건)")
+                  weekly_output.append(f"- **{info['weekday']} {date_obj.strftime('%m/%d')}**: {info['summary']} ({info['count']}건)")
 
-              output.append("")
+              weekly_output.append("")
               week_num += 1
 
           # 파일 저장
-          with open('weekly-summary-new.txt', 'w', encoding='utf-8') as f:
-              f.write('\n'.join(output))
+          with open('weekly-summary.txt', 'w', encoding='utf-8') as f:
+              f.write('\n'.join(weekly_output))
 
           print(f"주간 요약 생성 완료: {week_num - 1}주차")
+
+          # ========== 2. 이전 주 신규 항목 감지 ==========
+          # 가장 최근 월요일 찾기
+          now_kst = datetime.now() + timedelta(hours=9)
+          days_since_monday = now_kst.weekday()
+          last_monday = now_kst - timedelta(days=days_since_monday)
+
+          # 이전 주 범위 (지난주 월~일)
+          prev_monday = last_monday - timedelta(days=7)
+          prev_sunday = prev_monday + timedelta(days=6)
+
+          # 이전 주 배포만 필터링
+          prev_week_deployments = []
+          for date_str, items in deployments_by_date.items():
+              date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+              if prev_monday.date() <= date_obj.date() <= prev_sunday.date():
+                  prev_week_deployments.extend(items)
+
+          # 신규 항목 감지
+          new_arch = []
+          new_deprecated = []
+          new_stack = []
+
+          all_titles = [d['title'] for d in prev_week_deployments]
+
+          # 아키텍처 결정 감지
+          if any('Queue' in t or '병렬' in t for t in all_titles):
+              new_arch.append("- Queue 확장 또는 최적화")
+          if any('Sheets' in t or 'DB' in t for t in all_titles):
+              new_arch.append("- 데이터베이스 구조 개선")
+
+          # 폐기 감지
+          if any('폐기' in t or '제거' in t or 'Revert' in t for t in all_titles):
+              for item in prev_week_deployments:
+                  if any(kw in item['title'] for kw in ['폐기', '제거', 'Revert', '삭제']):
+                      new_deprecated.append(f"- {item['title'][:60]} ({prev_monday.strftime('%m/%d')})")
+                      break
+
+          # 신규 항목 출력
+          with open('new-items.txt', 'w', encoding='utf-8') as f:
+              if new_arch:
+                  f.write("ARCH_NEW:\n")
+                  f.write('\n'.join(new_arch) + '\n')
+              if new_deprecated:
+                  f.write("DEPRECATED_NEW:\n")
+                  f.write('\n'.join(new_deprecated) + '\n')
+
+          print("신규 항목 감지 완료")
           SCRIPT_EOF
 
-          python3 generate_weekly.py
+          python3 update_all.py
 
       - name: PROJECT.md 업데이트
         run: |
@@ -176,7 +214,25 @@ jobs:
           with open('PROJECT.md', 'r', encoding='utf-8') as f:
               content = f.read()
 
-          # '## 배포 이력' 위치 찾기
+          # 신규 항목 읽기
+          new_items = {}
+          try:
+              with open('new-items.txt', 'r', encoding='utf-8') as f:
+                  lines = f.read().strip().split('\n')
+                  current_section = None
+                  for line in lines:
+                      if line.startswith('ARCH_NEW:'):
+                          current_section = 'arch'
+                          new_items['arch'] = []
+                      elif line.startswith('DEPRECATED_NEW:'):
+                          current_section = 'deprecated'
+                          new_items['deprecated'] = []
+                      elif line.strip() and current_section:
+                          new_items[current_section].append(line)
+          except:
+              new_items = {}
+
+          # PROJECT.md 파싱
           parts = content.split('## 배포 이력')
           before = parts[0]
           deploy_section = parts[1]
@@ -185,39 +241,99 @@ jobs:
           if '### 🎯 주요 마일스톤' in deploy_section:
               milestone_parts = deploy_section.split('### 🎯 주요 마일스톤')
               milestones = '### 🎯 주요 마일스톤' + milestone_parts[1].split('---')[0] + '---'
+              after_milestone = '---' + milestone_parts[1].split('---', 1)[1] if '---' in milestone_parts[1] else ''
+          else:
+              milestones = ''
+              after_milestone = deploy_section
 
-              if '### 📋 상세 타임라인' in milestone_parts[1]:
-                  timeline_start = milestone_parts[1].find('### 📋 상세 타임라인')
-                  timeline = milestone_parts[1][timeline_start:]
+          # 아키텍처 섹션 추출 및 업데이트
+          if '### 💡 주요 아키텍처 결정' in after_milestone:
+              arch_parts = after_milestone.split('### 💡 주요 아키텍처 결정')
+              arch_header = '### 💡 주요 아키텍처 결정\n'
+
+              # 기존 내용
+              arch_content_parts = arch_parts[1].split('---', 1)
+              arch_content = arch_content_parts[0]
+
+              # 신규 항목 추가
+              if 'arch' in new_items and new_items['arch']:
+                  arch_content += '\n' + '\n'.join(new_items['arch']) + '\n'
+
+              after_arch = '---' + arch_content_parts[1] if len(arch_content_parts) > 1 else ''
+          else:
+              arch_header = ''
+              arch_content = ''
+              after_arch = after_milestone
+
+          # 폐기 섹션 추출 및 업데이트
+          if '### 🗑️ 폐기된 시도들' in after_arch:
+              dep_parts = after_arch.split('### 🗑️ 폐기된 시도들')
+              dep_header = '### 🗑️ 폐기된 시도들\n'
+
+              dep_content_parts = dep_parts[1].split('---', 1)
+              dep_content = dep_content_parts[0]
+
+              # 신규 항목 추가
+              if 'deprecated' in new_items and new_items['deprecated']:
+                  dep_content += '\n' + '\n'.join(new_items['deprecated']) + '\n'
+
+              after_dep = '---' + dep_content_parts[1] if len(dep_content_parts) > 1 else ''
+          else:
+              dep_header = ''
+              dep_content = ''
+              after_dep = after_arch
+
+          # 주간 요약
+          if '### 📅 주간 요약' in after_dep:
+              weekly_parts = after_dep.split('### 📅 주간 요약')
+              weekly_header = '### 📅 주간 요약'
+
+              # 새 주간 요약으로 교체
+              with open('weekly-summary.txt', 'r', encoding='utf-8') as f:
+                  new_weekly = f.read().strip()
+
+              # 주간 요약 이후 부분 (상세 타임라인)
+              if '---' in weekly_parts[1]:
+                  timeline = '---' + weekly_parts[1].split('---', 1)[1]
               else:
                   timeline = ''
           else:
-              milestones = ''
-              timeline = deploy_section
+              weekly_header = ''
+              new_weekly = ''
+              timeline = after_dep
 
-          # '## 다음 작업' 찾기
-          if '## 다음 작업' in timeline:
-              timeline_parts = timeline.split('## 다음 작업')
-              timeline = timeline_parts[0].rstrip()
-              after = '## 다음 작업' + timeline_parts[1]
-          else:
-              after = ''
-
-          # 새 주간 요약 읽기
-          with open('weekly-summary-new.txt', 'r', encoding='utf-8') as f:
-              weekly = f.read().strip()
-
-          # 합치기
+          # 재조립
           with open('PROJECT.md', 'w', encoding='utf-8') as f:
               f.write(before.rstrip())
               f.write('\n\n## 배포 이력\n\n')
-              f.write(milestones)
-              f.write('\n\n')
-              f.write(weekly)
-              f.write('\n\n---\n\n')
+
+              if milestones:
+                  f.write(milestones)
+                  f.write('\n\n')
+
+              if arch_header:
+                  f.write(arch_header)
+                  f.write(arch_content)
+                  f.write('\n---\n\n')
+
+              if dep_header:
+                  f.write(dep_header)
+                  f.write(dep_content)
+                  f.write('\n---\n\n')
+
+              # 기술 스택 (기존 유지)
+              if '### 🔧 기술 스택 진화' in content:
+                  stack_start = content.find('### 🔧 기술 스택 진화')
+                  stack_end = content.find('---', stack_start + 1)
+                  if stack_end > stack_start:
+                      f.write(content[stack_start:stack_end])
+                      f.write('---\n\n')
+
+              if new_weekly:
+                  f.write(new_weekly)
+                  f.write('\n\n---\n\n')
+
               f.write(timeline.strip())
-              f.write('\n\n---\n\n')
-              f.write(after)
 
           print('PROJECT.md 업데이트 완료')
           UPDATE_EOF
@@ -227,7 +343,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add PROJECT.md
-          git diff --staged --quiet || git commit -m "docs: 주간 요약 자동 업데이트 [skip ci]"
+          git diff --staged --quiet || git commit -m "docs: 주간 요약 및 아키텍처 자동 업데이트 [skip ci]"
 
       - name: 변경사항 푸시
         uses: ad-m/github-push-action@master
