@@ -5891,7 +5891,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
 
-  // 8. 관리자 시트 "크론" 컬럼 업데이트 (다음 예정 시간)
+  // 8. 관리자 시트 "크론" 컬럼 업데이트 (실제 실행 시간)
 
   try {
 
@@ -5995,15 +5995,15 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
 
-    // 다음 예정 시간 계산 (내일 09:00 KST)
+    // 현재 실행 시간 (KST) - "09시 05분" 형식
 
-    const tomorrow = new Date(koreaTime);
+    const hour = String(koreaTime.getHours()).padStart(2, '0');
 
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const minute = String(koreaTime.getMinutes()).padStart(2, '0');
 
-    tomorrow.setHours(9, 0, 0, 0);
+    const currentCronTime = `${hour}시 ${minute}분`;
 
-    const nextCronTime = tomorrow.toISOString().replace('T', ' ').substring(0, 16); // "YYYY-MM-DD HH:mm"
+
 
 
 
@@ -6033,7 +6033,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
         body: JSON.stringify({
 
-          values: [[nextCronTime]]
+          values: [[currentCronTime]]
 
         })
 
@@ -6045,7 +6045,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
     if (updateResponse.ok) {
 
-      console.log(`크론 컬럼 업데이트 성공: ${nextCronTime}`);
+      console.log(`크론 컬럼 업데이트 성공: ${currentCronTime}`);
 
     } else {
 
