@@ -425,47 +425,28 @@ IMPORTANT: Return ONLY the JSON object, no other text.`;
 // 언어별 텍스트 가져오기 (캐시 → 하드코딩 → API)
 
 async function getLanguageTexts(langCode, env) {
-
   // 1. 캐시 확인
-
   if (TRANSLATION_CACHE[langCode]) {
-
     return TRANSLATION_CACHE[langCode];
-
   }
-
   
-
   // 2. 하드코딩된 언어
-
   if (LANGUAGE_TEXTS[langCode]) {
-
     return LANGUAGE_TEXTS[langCode];
-
   }
-
   
-
   // 3. API 호출 (첫 요청만)
-
   try {
-
     const texts = await translateWithGemini(langCode, env);
-
-    TRANSLATION_CACHE[langCode] = texts;
-
-    return texts;
-
+    // 영어 기본값과 병합 (누락된 키 자동 채움)
+    const mergedTexts = { ...LANGUAGE_TEXTS.en, ...texts };
+    TRANSLATION_CACHE[langCode] = mergedTexts;
+    return mergedTexts;
   } catch (error) {
-
     console.error(`Translation error for ${langCode}:`, error);
-
     // 실패 시 영어 반환
-
     return LANGUAGE_TEXTS.en;
-
   }
-
 }
 
 
