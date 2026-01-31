@@ -1,0 +1,134 @@
+name: 배포일지 일괄 업로드
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+      - name: 전체 배포 이력 조회
+        run: |
+          gh run list \
+            --repo jeonwoohyun85/content-factory \
+            --status success \
+            --limit 10000 \
+            --json displayTitle,createdAt,workflowName,headSha \
+            > all-runs.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: CSV 생성 및 Sheets 업로드
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SHEETS_ID: 1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU
+        run: |
+          python3 << 'PYTHON_EOF'
+          import json
+          import subprocess
+          from datetime import datetime, timedelta
+          import os
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+
+          # Google Sheets 인증
+          credentials_json = os.environ['GOOGLE_SERVICE_ACCOUNT_JSON']
+          credentials_dict = json.loads(credentials_json)
+
+          credentials = service_account.Credentials.from_service_account_info(
+              credentials_dict,
+              scopes=['https://www.googleapis.com/auth/spreadsheets']
+          )
+
+          service = build('sheets', 'v4', credentials=credentials)
+          spreadsheet_id = os.environ['SHEETS_ID']
+
+          # 배포 이력 읽기
+          with open('all-runs.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+
+          print(f"Total deployments: {len(data)}")
+
+          # 데이터 생성
+          rows = [['date', 'time', 'category', 'title', 'workflow', 'description']]
+
+          for i, run in enumerate(data):
+              if i % 50 == 0:
+                  print(f"Progress: {i}/{len(data)}")
+
+              # UTC -> KST
+              utc_time = datetime.fromisoformat(run['createdAt'].replace('Z', '+00:00'))
+              kst_time = utc_time + timedelta(hours=9)
+
+              date = kst_time.strftime('%Y-%m-%d')
+              time = kst_time.strftime('%H:%M')
+
+              title = run['displayTitle']
+              workflow = run['workflowName']
+              sha = run['headSha']
+
+              # 카테고리 추출
+              if ': ' in title:
+                  category = title.split(':')[0].strip()
+                  title_text = title.split(':', 1)[1].strip()
+              else:
+                  category = 'other'
+                  title_text = title
+
+              # 커밋 메시지 조회
+              try:
+                  result = subprocess.run(
+                      ['gh', 'api', f'repos/jeonwoohyun85/content-factory/commits/{sha}', '--jq', '.commit.message'],
+                      capture_output=True, text=True, timeout=10
+                  )
+                  full_message = result.stdout.strip()
+
+                  lines = full_message.split('\n')
+                  body_lines = []
+                  for line in lines[1:]:
+                      if 'Co-Authored-By' in line:
+                          break
+                      if line.strip():
+                          body_lines.append(line.strip())
+
+                  description = ' '.join(body_lines[:5])
+              except:
+                  description = ''
+
+              rows.append([date, time, category, title_text, workflow, description])
+
+          print(f"Generated {len(rows)-1} data rows")
+
+          # Sheets 기존 데이터 삭제
+          print("Clearing existing data...")
+          service.spreadsheets().values().clear(
+              spreadsheetId=spreadsheet_id,
+              range='배포일지!A2:F100000'
+          ).execute()
+
+          # 새 데이터 업로드
+          print("Uploading new data...")
+          body = {'values': rows}
+          result = service.spreadsheets().values().update(
+              spreadsheetId=spreadsheet_id,
+              range='배포일지!A1',
+              valueInputOption='RAW',
+              body=body
+          ).execute()
+
+          print(f"Updated {result.get('updatedCells')} cells")
+          print(f"Uploaded {len(rows)} rows (including header)")
+          PYTHON_EOF
