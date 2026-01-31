@@ -3607,7 +3607,18 @@ export default {
 
       }
 
-
+      // 캐시 새로고침
+      if (pathname === '/refresh') {
+        const sub = url.searchParams.get('subdomain');
+        if (!sub) return new Response('subdomain required', { status: 400 });
+        const { client } = await getClientFromSheets(sub, env);
+        if (!client) return new Response('Not found', { status: 404 });
+        const html = await generateClientPage(client, {}, env);
+        await setCachedHTML(sub, html, env);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
 
       // Test sheet reading (시트 데이터 확인)
 
@@ -6270,26 +6281,3 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
 }
 
 
-
-
-
-// Deploy trigger
-
-
-
-
-
-      // 캐시 새로고침
-      if (pathname === '/refresh') {
-        const sub = url.searchParams.get('subdomain');
-        if (!sub) return new Response('subdomain required', { status: 400 });
-        const { client } = await getClientFromSheets(sub, env);
-        if (!client) return new Response('Not found', { status: 404 });
-        const html = await generateClientPage(client, {}, env);
-        await setCachedHTML(sub, html, env);
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      
