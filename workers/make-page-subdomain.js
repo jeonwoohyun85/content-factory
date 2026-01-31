@@ -88,23 +88,56 @@ const UMAMI_WEBSITE_ID = 'aea13630-0836-4fd6-91ae-d04b4180b6e7';
 
 // 언어 코드 정규화 (주요 언어만 매핑, 나머지는 입력값 그대로)
 
-function normalizeLanguage(lang) {
-
+async function detectLanguageCode(lang, env) {
   if (!lang) return 'ko';
 
+  // 한국어는 번역 불필요
   const lower = lang.toLowerCase();
+  if (lower.includes('한국') || lower.includes('한글') || lower.includes('korean') || lower === 'ko') {
+    return 'ko';
+  }
 
-  
+  // 언어 코드 캐싱 확인 (30일)
+  const cacheKey = `langcode:${lang}`;
+  let langCode = await env.POSTING_KV.get(cacheKey);
 
-  // 주요 5개 언어만 체크 (하드코딩된 번역 데이터)
+  if (langCode) {
+    console.log(`[CACHE HIT] Language code for "${lang}": ${langCode}`);
+    return langCode;
+  }
 
-  if (lower.includes('한국') || lower.includes('한글') || lower.includes('korean') || lower === 'ko') return 'ko';
+  // 캐시 미스: Gemini로 언어 감지
+  try {
+    const detectPrompt = `Language name: "${lang}". Return only ISO 639-1 language code (e.g., en, ja, fr, it, th, es, de). Return ONLY the code, nothing else.`;
 
-  if (lower.includes('영어') || lower.includes('english') || lower === 'en') return 'en';
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{"parts": [{"text": detectPrompt}]}],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 10 }
+        })
+      }
+    );
 
-  if (lower.includes('일본') || lower.includes('japanese') || lower === 'ja') return 'ja';
+    if (response.ok) {
+      const data = await response.json();
+      langCode = (data.candidates?.[0]?.content?.parts?.[0]?.text || 'ko').trim().toLowerCase();
 
-  if (lower.includes('중국') || lower.includes('간체') || lower.includes('simplified') || lower.includes('chinese') || lower === 'zh' || lower === 'zh-cn') return 'zh-CN';
+      // 30일 캐싱
+      await env.POSTING_KV.put(cacheKey, langCode, { expirationTtl: 2592000 });
+      console.log(`[DETECT] Language "${lang}" → code "${langCode}" (cached 30 days)`);
+
+      return langCode;
+    }
+  } catch (error) {
+    console.error('[ERROR] Language detection failed:', error);
+  }
+
+  return 'ko'; // 기본값
+}
 
   if (lower.includes('번체') || lower.includes('traditional') || lower === 'zh-tw') return 'zh-TW';
 
@@ -725,7 +758,7 @@ async function getClientFromSheets(clientId, env) {
 
     // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
     if (client && client.language) {
-      const langCode = normalizeLanguage(client.language);
+      const langCode = await detectLanguageCode(client.language, env);
       console.log("[DEBUG getClientFromSheets] subdomain:", clientId, "language:", client.language, "langCode:", langCode);
       if (langCode !== 'ko') {
         // 번역할 필드 수집
@@ -766,6 +799,10 @@ IMPORTANT: Return ONLY the JSON object.`;
               if (jsonMatch) {
                 const translations = JSON.parse(jsonMatch[0]);
                 console.log("[DEBUG] Translation result:", translations);
+
+                // 1일 캐싱
+                await env.POSTING_KV.put(translationKey, JSON.stringify(translations), { expirationTtl: 86400 });
+
                 if (translations.business_name) client.business_name = translations.business_name;
                 if (translations.address) client.address = translations.address;
                 if (translations.business_hours) client.business_hours = translations.business_hours;
@@ -1262,7 +1299,7 @@ function convertToEmbedUrl(url) {
 
 async function generatePostPage(client, post, env) {
 
-  const langCode = normalizeLanguage(client.language);
+  const langCode = await detectLanguageCode(client.language, env);
 
   const texts = await getLanguageTexts(langCode, env);
 
@@ -1584,7 +1621,7 @@ function extractUrlFromMarkdown(text) {
 
 async function generateClientPage(client, debugInfo, env) {
 
-  const langCode = normalizeLanguage(client.language);
+  const langCode = await detectLanguageCode(client.language, env);
 
   const texts = await getLanguageTexts(langCode, env);
 
@@ -4075,8 +4112,20 @@ async function getClientFromSheetsForPosting(subdomain, env) {
 
     // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
     if (client && client.language) {
-      const langCode = normalizeLanguage(client.language);
+      const normalizedSubdomain = (client.subdomain || '').replace('.make-page.com', '').replace('/', '');
+      const langCode = await detectLanguageCode(client.language, env);
+
       if (langCode !== 'ko') {
+        // 번역 캐시 확인 (1일)
+        const translationKey = `translated:${normalizedSubdomain}:${langCode}`;
+        let cachedTranslation = await env.POSTING_KV.get(translationKey, 'json');
+
+        if (cachedTranslation) {
+          console.log(`[CACHE HIT] Translation for ${normalizedSubdomain} (${langCode})`);
+          if (cachedTranslation.business_name) client.business_name = cachedTranslation.business_name;
+          if (cachedTranslation.address) client.address = cachedTranslation.address;
+          if (cachedTranslation.business_hours) client.business_hours = cachedTranslation.business_hours;
+        } else {
         const fieldsToTranslate = [];
         if (client.business_name) fieldsToTranslate.push({ key: 'business_name', value: client.business_name });
         if (client.address) fieldsToTranslate.push({ key: 'address', value: client.address });
