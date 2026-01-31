@@ -1,11 +1,10 @@
 // Content Factory - Minimal Version (Google Sheets Only)
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
 
-const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
-const GEMINI_API_KEY = 'AIzaSyCGaxsMXJ5UvUrU9wQCOH2ou7m9TP2pB88';
-const DELETE_PASSWORD = '55000';
-
 // ==================== 유틸리티 함수 ====================
+
+// 전역 번역 캐시 (Worker 재시작 전까지 유지)
+const TRANSLATION_CACHE = {};
 
 // Timeout이 있는 fetch
 async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
@@ -35,15 +34,199 @@ function escapeHtml(text) {
     '"': '&quot;',
     "'": '&#039;'
   };
-  return text.toString().replace(/[&<>"']/g, m => map[m]);
+  return text.toString().replace(/[&<>'"']/g, m => map[m]);
+}
+
+// SHA-256 해싱 (visitor_hash 생성용)
+
+// Umami Cloud Analytics
+const UMAMI_WEBSITE_ID = 'aea13630-0836-4fd6-91ae-d04b4180b6e7';
+
+// 언어 코드 정규화 (주요 언어만 매핑, 나머지는 입력값 그대로)
+function normalizeLanguage(lang) {
+  if (!lang) return 'ko';
+  const lower = lang.toLowerCase();
+  
+  // 주요 5개 언어만 체크 (하드코딩된 번역 데이터)
+  if (lower.includes('한국') || lower.includes('한글') || lower.includes('korean') || lower === 'ko') return 'ko';
+  if (lower.includes('영어') || lower.includes('english') || lower === 'en') return 'en';
+  if (lower.includes('일본') || lower.includes('japanese') || lower === 'ja') return 'ja';
+  if (lower.includes('중국') || lower.includes('간체') || lower.includes('simplified') || lower.includes('chinese') || lower === 'zh' || lower === 'zh-cn') return 'zh-CN';
+  if (lower.includes('번체') || lower.includes('traditional') || lower === 'zh-tw') return 'zh-TW';
+  
+  // 나머지는 입력값 그대로 반환 (API에서 처리)
+  return lang;
+}
+
+// 주요 언어 하드코딩 번역 데이터
+const LANGUAGE_TEXTS = {
+  ko: {
+    info: 'Info',
+    video: 'Video',
+    posts: 'Posts',
+    backToHome: '홈으로',
+    phone: '전화하기',
+    instagram: '인스타그램',
+    youtube: '유튜브',
+    facebook: '페이스북',
+    kakao: '카카오톡',
+    location: '위치보기',
+    blog: '블로그',
+    store: '스토어',
+    booking: '예약하기',
+    link: '링크',
+    stats: '통계'
+  },
+  en: {
+    info: 'Gallery',
+    video: 'Videos',
+    posts: 'Posts',
+    backToHome: 'Back to Home',
+    phone: 'Call',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    kakao: 'KakaoTalk',
+    location: 'Location',
+    blog: 'Blog',
+    store: 'Store',
+    booking: 'Book Now',
+    link: 'Link',
+    stats: 'Stats'
+  },
+  ja: {
+    info: 'ギャラリー',
+    video: '動画',
+    posts: '投稿',
+    backToHome: 'ホームに戻る',
+    phone: '電話する',
+    instagram: 'インスタグラム',
+    youtube: 'ユーチューブ',
+    facebook: 'フェイスブック',
+    kakao: 'カカオトーク',
+    location: '位置を見る',
+    blog: 'ブログ',
+    store: 'ストア',
+    booking: '予約する',
+    link: 'リンク',
+    stats: '統計'
+  },
+  'zh-CN': {
+    info: '画廊',
+    video: '视频',
+    posts: '帖子',
+    backToHome: '返回主页',
+    phone: '打电话',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    kakao: 'KakaoTalk',
+    location: '查看位置',
+    blog: '博客',
+    store: '商店',
+    booking: '预订',
+    link: '链接',
+    stats: '统计'
+  },
+  'zh-TW': {
+    info: '畫廊',
+    video: '影片',
+    posts: '貼文',
+    backToHome: '返回主頁',
+    phone: '打電話',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    kakao: 'KakaoTalk',
+    location: '查看位置',
+    blog: '部落格',
+    store: '商店',
+    booking: '預訂',
+    link: '連結',
+    stats: '統計'
+  }
+};
+
+// Gemini로 언어 번역 (2.5 Flash)
+async function translateWithGemini(language, env) {
+  const prompt = `Translate the following UI text items to ${language}. Return ONLY a valid JSON object with these exact keys, no markdown formatting, no code blocks:
+
+{
+  "info": "Gallery/Photos section title",
+  "video": "Videos section title",
+  "posts": "Blog posts section title",
+  "backToHome": "Back to home link text",
+  "phone": "Call/Phone button",
+  "instagram": "Instagram link",
+  "youtube": "YouTube link",
+  "facebook": "Facebook link",
+  "kakao": "KakaoTalk link",
+  "location": "Location/Map link",
+  "blog": "Blog link",
+  "booking": "Booking/Reservation button",
+  "link": "Generic link text"
+}
+
+IMPORTANT: Return ONLY the JSON object, no other text.`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{"parts": [{"text": prompt}]}],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 500
+        }
+      })
+    }
+  );
+
+  const data = await response.json();
+  const text = data.candidates[0].content.parts[0].text;
+  
+  // JSON 추출
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
+  
+  // 실패 시 영어 반환
+  return LANGUAGE_TEXTS.en;
+}
+
+// 언어별 텍스트 가져오기 (캐시 → 하드코딩 → API)
+async function getLanguageTexts(langCode, env) {
+  // 1. 캐시 확인
+  if (TRANSLATION_CACHE[langCode]) {
+    return TRANSLATION_CACHE[langCode];
+  }
+  
+  // 2. 하드코딩된 언어
+  if (LANGUAGE_TEXTS[langCode]) {
+    return LANGUAGE_TEXTS[langCode];
+  }
+  
+  // 3. API 호출 (첫 요청만)
+  try {
+    const texts = await translateWithGemini(langCode, env);
+    TRANSLATION_CACHE[langCode] = texts;
+    return texts;
+  } catch (error) {
+    console.error(`Translation error for ${langCode}:`, error);
+    // 실패 시 영어 반환
+    return LANGUAGE_TEXTS.en;
+  }
 }
 
 // CSV 파싱 (큰따옴표로 감싸진 필드 처리)
 function parseCSV(csvText) {
   const lines = csvText.trim().split('\n');
 
-  // 헤더 파싱
-  const headers = parseCSVLine(lines[0]);
+  // 헤더 파싱 (BOM 제거 및 공백 제거)
+  const headers = parseCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim());
 
   const clients = [];
   for (let i = 1; i < lines.length; i++) {
@@ -80,31 +263,89 @@ function parseCSVLine(line) {
   return result;
 }
 
+// 한글 컬럼명을 영어 키로 정규화
+function normalizeClient(client) {
+  const mapping = {
+    '도메인': 'subdomain',
+    '서브도메인': 'subdomain',
+    '상호명': 'business_name',
+    '업체': 'partner_name',
+    '주소': 'address',
+    '언어': 'language',
+    '연락처': 'phone',
+    '전화번호': 'phone',
+    '영업시간': 'business_hours',
+    '키워드_업체': 'description',
+    '거래처_정보': 'description',
+    '소개': 'description',
+    '비고기타': 'links',
+    '바로가기': 'links',
+    'info': 'info',
+    'video': 'video',
+    '업종': 'industry',
+    '크론': 'cron',
+    '구독': 'subscription',
+    '상태': 'posting_status',
+    '폴더명': 'folder_name'
+  };
+
+  const normalized = {};
+
+  // 기존 키 복사
+  Object.keys(client).forEach(key => {
+    const mappedKey = mapping[key] || key;
+    normalized[mappedKey] = client[key];
+  });
+
+  return normalized;
+}
+
 // Google Sheets에서 거래처 정보 조회
 async function getClientFromSheets(clientId, env) {
   try {
-    const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
     const csvText = await response.text();
-    const clients = parseCSV(csvText);
+    
+    // 수동 파싱 및 디버그 정보 수집
+    const lines = csvText.trim().split('\n');
+    const headers = parseCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim());
+    const debugInfo = { headers, rawLine: lines[0] };
 
-    const client = clients.find(c => {
+    const clients = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      const client = {};
+      headers.forEach((header, index) => {
+        client[header] = values[index] || '';
+      });
+      clients.push(client);
+    }
+
+    const normalizedClients = clients.map(normalizeClient);
+
+    const client = normalizedClients.find(c => {
       // subdomain 정규화: "00001.make-page.com" → "00001"
-      let normalizedSubdomain = c.subdomain;
+      let normalizedSubdomain = c.subdomain || '';
       if (normalizedSubdomain.includes('.make-page.com')) {
         normalizedSubdomain = normalizedSubdomain.replace('.make-page.com', '').replace('/', '');
       }
       return normalizedSubdomain === clientId;
     });
 
-    // Posts 조회 추가
+    // Posts 조회 추가 (최신 포스팅 시트에서 읽기)
     if (client) {
-      client.posts = await getRecentPosts(clientId, env);
+      const postsResult = await getPostsFromArchive(clientId, env);
+      client.posts = postsResult.posts;
+      if (postsResult.error) {
+        debugInfo.postsError = postsResult.error;
+      }
     }
 
-    return client;
+    return { client, debugInfo };
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
-    return null;
+    return { client: null, debugInfo: { error: error.message } };
   }
 }
 
@@ -113,125 +354,101 @@ function formatKoreanTime(isoString) {
   if (!isoString) return '';
 
   try {
-    const date = new Date(isoString);
-    // UTC+9 (한국 시간)
-    const koreaTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+    // 시트에 이미 KST 시간이 저장되어 있으므로 그대로 파싱
+    const match = isoString.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+    if (match) {
+      const [_, year, month, day, hours, minutes] = match;
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
 
-    const year = koreaTime.getUTCFullYear();
-    const month = String(koreaTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(koreaTime.getUTCDate()).padStart(2, '0');
-    const hours = String(koreaTime.getUTCHours()).padStart(2, '0');
-    const minutes = String(koreaTime.getUTCMinutes()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    // 폴백: ISO 형식이 아닌 경우
+    return isoString;
   } catch (error) {
     return isoString;
   }
 }
 
-// Posts 시트에서 최근 포스팅 3개 조회
-async function getRecentPosts(subdomain, env) {
+// 최신 포스팅 시트에서 포스트 데이터 읽기 (홈페이지 표시용)
+async function getPostsFromArchive(subdomain, env) {
   try {
-    // Service Account로 Posts 시트 조회
-    const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    // Step 1: 토큰 발급
+    let accessToken;
+    try {
+      accessToken = await getGoogleAccessTokenForPosting(env);
+    } catch (tokenError) {
+      return { posts: [], error: `Token error: ${tokenError.message}` };
+    }
 
-    // JWT 생성
-    const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-    const now = Math.floor(Date.now() / 1000);
-    const jwtClaimSet = {
-      iss: serviceAccount.client_email,
-      scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
-      aud: 'https://oauth2.googleapis.com/token',
-      exp: now + 3600,
-      iat: now
-    };
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
-    const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
-    const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
-
-    // Sign JWT
-    const privateKey = await crypto.subtle.importKey(
-      'pkcs8',
-      pemToArrayBuffer(serviceAccount.private_key),
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-
-    const signature = await crypto.subtle.sign(
-      'RSASSA-PKCS1-v1_5',
-      privateKey,
-      new TextEncoder().encode(signatureInput)
-    );
-
-    const jwtSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-
-    const jwt = `${signatureInput}.${jwtSignature}`;
-
-    // Get access token
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
-    });
-
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-
-    // Posts 시트 데이터 조회
+    // Step 2: 시트 읽기
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
     if (!response.ok) {
-      return [];
+      return { posts: [], error: `Sheets API error: ${response.status}` };
     }
 
     const data = await response.json();
     const rows = data.values || [];
 
     if (rows.length < 2) {
-      return [];
+      return { posts: [], error: 'No data rows in sheet' };
     }
 
     const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const businessNameIndex = headers.indexOf('business_name');
-    const languageIndex = headers.indexOf('language');
-    const titleIndex = headers.indexOf('title');
-    const bodyIndex = headers.indexOf('body');
-    const createdAtIndex = headers.indexOf('created_at');
-    const imagesIndex = headers.indexOf('images');
+    const domainIndex = headers.indexOf('도메인');
+    const businessNameIndex = headers.indexOf('상호명');
+    const titleIndex = headers.indexOf('제목');
+    const createdAtIndex = headers.indexOf('생성일시');
+    const languageIndex = headers.indexOf('언어');
+    const industryIndex = headers.indexOf('업종');
+    const bodyIndex = headers.indexOf('본문');
+    const imagesIndex = headers.indexOf('이미지');
 
-    // subdomain으로 필터링
+    if (domainIndex === -1) {
+      console.error('최신 포스팅 시트에 "도메인" 컬럼이 없습니다');
+      return { posts: [], error: 'No domain column' };
+    }
+
     const posts = [];
+
+    // 첫 번째 행은 헤더이므로 1부터 시작
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      if (row[subdomainIndex] === subdomain) {
+      const domain = row[domainIndex] || '';
+
+      // 도메인 매칭 (00001.make-page.com 또는 00001)
+      const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+      const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+
+      if (normalizedDomain === normalizedSubdomain) {
         posts.push({
-          subdomain: row[subdomainIndex],
-          business_name: row[businessNameIndex],
-          language: row[languageIndex],
-          title: row[titleIndex],
-          body: row[bodyIndex],
-          created_at: row[createdAtIndex],
-          images: row[imagesIndex] || ''
+          subdomain: domain,
+          business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
+          title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
+          created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
+          language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
+          industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
+          body: bodyIndex !== -1 ? (row[bodyIndex] || '') : '',
+          images: imagesIndex !== -1 ? (row[imagesIndex] || '') : ''
         });
       }
     }
 
     // created_at 기준 내림차순 정렬 (최신순)
-    posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    posts.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return dateB - dateA;
+    });
 
-    // 최근 3개 반환
-    return posts.slice(0, 3);
+    return { posts, error: null };
   } catch (error) {
-    console.error('Posts fetch error:', error);
-    return [];
+    console.error('Error fetching posts from latest sheet:', error);
+    return { posts: [], error: `${error.message} (${error.stack?.substring(0, 100) || 'no stack'})` };
   }
 }
 
@@ -249,64 +466,70 @@ function pemToArrayBuffer(pem) {
   return bytes.buffer;
 }
 
-
-async function generatePosting(subdomain, env) {
-  return await generatePostingForClient(subdomain, env);
-}
-
-
-
-// 링크 타입 자동 감지
-function getLinkInfo(url) {
+// 링크 타입 자동 감지 (언어별 텍스트)
+function getLinkInfo(url, texts) {
   if (!url) return null;
 
   url = url.trim();
+  
+  // 유효한 URL인지 확인 (http/https/tel:로 시작하는 것만 처리)
+  if (!url.startsWith('http') && !url.startsWith('tel:')) {
+    return null;
+  }
 
   if (url.startsWith('tel:')) {
-    return { icon: '📞', text: '전화하기', url };
+    return { icon: '📞', text: texts.phone, url };
   }
 
   if (url.includes('instagram.com')) {
-    return { icon: '📷', text: '인스타그램', url };
+    return { icon: '📷', text: texts.instagram, url };
   }
 
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return { icon: '▶️', text: '유튜브', url };
+    return { icon: '▶️', text: texts.youtube, url };
   }
 
   if (url.includes('facebook.com')) {
-    return { icon: '👥', text: '페이스북', url };
+    return { icon: '👥', text: texts.facebook, url };
   }
 
   if (url.includes('pf.kakao.com') || url.includes('talk.kakao')) {
-    return { icon: '💬', text: '카카오톡', url };
+    return { icon: '💬', text: texts.kakao, url };
   }
 
   if (url.includes('map.naver.com') || url.includes('naver.me')) {
-    return { icon: '📍', text: '위치보기', url };
+    return { icon: '📍', text: texts.location, url };
   }
 
   if (url.includes('maps.google.com') || url.includes('goo.gl/maps')) {
-    return { icon: '📍', text: '위치보기', url };
+    return { icon: '📍', text: texts.location, url };
   }
 
   if (url.includes('map.kakao.com')) {
-    return { icon: '📍', text: '위치보기', url };
+    return { icon: '📍', text: texts.location, url };
+  }
+
+  if (url.includes('smartstore.naver.com') || url.includes('brand.naver.com')) {
+    return { icon: '🛒', text: texts.store, url };
   }
 
   if (url.includes('blog.naver.com')) {
-    return { icon: '📝', text: '블로그', url };
+    return { icon: '📝', text: texts.blog, url };
   }
 
   if (url.includes('tistory.com')) {
-    return { icon: '📝', text: '블로그', url };
+    return { icon: '📝', text: texts.blog, url };
   }
 
   if (url.includes('booking') || url.includes('reserve')) {
-    return { icon: '📅', text: '예약하기', url };
+    return { icon: '📅', text: texts.booking, url };
   }
 
-  return { icon: '🔗', text: '링크', url };
+  if (url === '/stats' || url.includes('umami')) {
+    return { icon: '📊', text: texts.stats || '통계', url };
+  }
+
+  return { icon: '🔗', text: texts.link, url };
 }
 
 // 영상 URL을 임베드 형식으로 변환
@@ -356,7 +579,10 @@ function convertToEmbedUrl(url) {
 // ==================== 페이지 생성 ====================
 
 // 포스트 상세 페이지 생성
-function generatePostPage(client, post) {
+async function generatePostPage(client, post, env) {
+  const langCode = normalizeLanguage(client.language);
+  const texts = await getLanguageTexts(langCode, env);
+
   // 이미지 URL 파싱
   const imageUrls = (post.images || '').split(',').map(url => url.trim()).filter(url => url);
 
@@ -379,12 +605,14 @@ function generatePostPage(client, post) {
   }
 
   return `<!DOCTYPE html>
-<html lang="ko">
+<html lang="${langCode}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${escapeHtml(post.title)} - ${escapeHtml(client.business_name)}</title>
     <meta name="description" content="${escapeHtml((post.body || '').substring(0, 160))}">
+    <!-- Umami Cloud Analytics -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="${UMAMI_WEBSITE_ID}"></script>
     <style>
         * {
             margin: 0;
@@ -485,7 +713,7 @@ function generatePostPage(client, post) {
 </head>
 <body>
     <div class="container">
-        <a href="/" class="back-button">← ${escapeHtml(client.business_name)} 홈으로</a>
+        <a href="/" class="back-button">← ${escapeHtml(client.business_name)} ${texts.backToHome}</a>
 
         <div class="post-header">
             <h1 class="post-title">${escapeHtml(post.title)}</h1>
@@ -505,12 +733,32 @@ function generatePostPage(client, post) {
 }
 
 // 거래처 페이지 생성
-function generateClientPage(client) {
-  // Links 파싱 (쉼표 구분)
-  const links = (client.links || '').split(',').map(l => l.trim()).filter(l => l).map(getLinkInfo).filter(l => l);
+// 마크다운 링크에서 URL 추출 [텍스트](URL) -> URL
+function extractUrlFromMarkdown(text) {
+  if (!text) return text;
+  const match = text.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
+  return match ? match[1] : text;
+}
 
-  // Info 이미지 파싱 (쉼표 구분)
-  let infoImages = (client.info || '').split(',').map(i => i.trim()).filter(i => i);
+async function generateClientPage(client, debugInfo, env) {
+  const langCode = normalizeLanguage(client.language);
+  const texts = await getLanguageTexts(langCode, env);
+
+  // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
+  const links = (client.links || '').split(',').map(l => extractUrlFromMarkdown(l.trim())).filter(l => l).map(url => getLinkInfo(url, texts)).filter(l => l);
+
+  // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환
+  let infoImages = (client.info || '').split(',')
+    .map(i => i.trim())
+    .filter(i => i)
+    .map(url => {
+      // Google Drive /view URL을 /thumbnail로 변환
+      if (url.includes('drive.google.com/file/d/')) {
+        const fileId = url.split('/d/')[1].split('/')[0];
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+      }
+      return url;
+    });
 
   // 랜덤으로 섞고 최대 6개만 선택
   if (infoImages.length > 6) {
@@ -520,20 +768,22 @@ function generateClientPage(client) {
   // Video 파싱 (쉼표 구분)
   const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v);
 
-  // Posts 파싱 (최근 2개)
-  const posts = (client.posts || []).slice(0, 2);
+  // Posts 파싱 (최근 1개)
+  const posts = (client.posts || []).slice(0, 1);
 
   // 전화번호 링크 추가
   if (client.phone && !links.some(l => l.url.includes(client.phone))) {
-    links.unshift({ icon: '📞', text: '전화하기', url: `tel:${client.phone}` });
+    links.unshift({ icon: '📞', text: texts.phone, url: `tel:${client.phone}` });
   }
 
   return `<!DOCTYPE html>
-<html lang="ko">
+<html lang="${langCode}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${escapeHtml(client.business_name)}</title>
+    <!-- Umami Cloud Analytics -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="${UMAMI_WEBSITE_ID}"></script>
     <style>
         * {
             margin: 0;
@@ -736,14 +986,8 @@ function generateClientPage(client) {
         /* Posts Section */
         .posts-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* PC: 2열 */
+            grid-template-columns: repeat(1, 1fr);
             gap: 24px;
-        }
-
-        @media (max-width: 768px) {
-            .posts-grid {
-                grid-template-columns: repeat(1, 1fr); /* 모바일: 1열 */
-            }
         }
 
         .post-card {
@@ -820,7 +1064,8 @@ function generateClientPage(client) {
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
+            height: 100%
+;
             background: rgba(0, 0, 0, 0.9);
             align-items: center;
             justify-content: center;
@@ -994,25 +1239,23 @@ function generateClientPage(client) {
     </section>
 
     <!-- Info Section -->
-    ${infoImages.length > 0 ? '<section><h2 class="section-title">Info</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="Info" class="gallery-image"></div>').join('') + '</div></section>' : ''}
+    ${infoImages.length > 0 ? '<section><h2 class="section-title">' + texts.info + '</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="Info" class="gallery-image"></div>').join('') + '</div></section>' : ''}
 
     <!-- Video Section -->
-    ${videoUrls.length > 0 ? '<section><h2 class="section-title">Video</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
+    ${videoUrls.length > 0 ? '<section><h2 class="section-title">' + texts.video + '</h2><div class="video-grid">' + videoUrls.map(url => '<div class="video-item"><iframe src="' + escapeHtml(url) + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>').join('') + '</div></section>' : ''}
 
     <!-- Posts Section -->
-    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
+    ${posts.length > 0 ? '<section><h2 class="section-title">' + texts.posts + '</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
-        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <span class="lightbox-close" onclick="closeLightbox()">×</span>
         <span class="lightbox-nav lightbox-prev" onclick="event.stopPropagation(); prevImage()">&#10094;</span>
         <div class="lightbox-content" onclick="event.stopPropagation()">
             <img id="lightbox-image" class="lightbox-image" src="" alt="Info">
         </div>
         <span class="lightbox-nav lightbox-next" onclick="event.stopPropagation(); nextImage()">&#10095;</span>
     </div>
-
-
 
     <script>
         const infoImages = ${JSON.stringify(infoImages)};
@@ -1049,6 +1292,8 @@ function generateClientPage(client) {
             if (e.key === 'ArrowLeft') prevImage();
         });
     </script>
+    <!-- DEBUG CLIENT: ${JSON.stringify(client)} -->
+    <!-- DEBUG HEADERS: ${JSON.stringify(debugInfo)} -->
 </body>
 </html>`;
 }
@@ -1063,14 +1308,15 @@ Sitemap: https://make-page.com/sitemap.xml`;
 
 // ==================== Sitemap ====================
 
-async function handleSitemap() {
+async function handleSitemap(env) {
   try {
     // Google Sheets에서 활성 거래처 조회
-    const response = await fetchWithTimeout(GOOGLE_SHEETS_CSV_URL, {}, 10000);
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
     const csvText = await response.text();
-    const clients = parseCSV(csvText);
+    const clients = parseCSV(csvText).map(normalizeClient);
 
-    const activeClients = clients.filter(client => client.status === 'active');
+    const activeClients = clients.filter(client => client.subscription === '활성');
 
     let urls = [];
 
@@ -1119,101 +1365,120 @@ ${urls.map(url => `  <url>
 
 async function deletePost(subdomain, createdAt, password, env) {
   // 비밀번호 확인
-  if (password !== DELETE_PASSWORD) {
+  if (password !== env.DELETE_PASSWORD) {
     return { success: false, error: '비밀번호가 올바르지 않습니다' };
   }
 
   try {
-    const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
-
-    // Access Token 가져오기
     const accessToken = await getGoogleAccessTokenForPosting(env);
+    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
-    // Posts 시트에서 모든 데이터 조회
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
+    // 도메인 정규화
+    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+    const domain = `${normalizedSubdomain}.make-page.com`;
+
+    // 1. 저장소 탭에서 삭제
+    const archiveResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+    const archiveData = await archiveResponse.json();
+    const archiveRows = archiveData.values || [];
 
-    const data = await response.json();
-    const rows = data.values || [];
-
-    if (rows.length < 2) {
-      return { success: false, error: '삭제할 포스트 데이터가 없습니다' };
+    if (archiveRows.length < 2) {
+      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
     }
 
-    const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const createdAtIndex = headers.indexOf('created_at');
+    const archiveHeaders = archiveRows[0];
+    const archiveDomainIndex = archiveHeaders.indexOf('도메인');
+    const archiveCreatedAtIndex = archiveHeaders.indexOf('생성일시');
 
-    // 삭제할 행 찾기 (강제 삭제 모드: 날짜 무시, 최신 글 삭제)
-    let deleteRowIndex = -1;
-    let latestDate = 0;
+    if (archiveDomainIndex === -1 || archiveCreatedAtIndex === -1) {
+      return { success: false, error: '저장소 시트 구조 오류' };
+    }
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const rowSubdomain = String(row[subdomainIndex] || '').trim();
-      const targetSubdomain = String(subdomain || '').trim();
-      
-      // 서브도메인 일치하는 것 중
-      if (rowSubdomain === targetSubdomain) {
-        // 날짜 파싱하여 가장 최신(미래)인 것 찾기
-        const rowDate = new Date(row[createdAtIndex]).getTime();
-        if (!isNaN(rowDate) && rowDate >= latestDate) {
-          latestDate = rowDate;
-          deleteRowIndex = i + 1; // Sheets는 1-indexed
-        }
+    let foundInArchive = false;
+    for (let i = 1; i < archiveRows.length; i++) {
+      const row = archiveRows[i];
+      if (row[archiveDomainIndex] === domain && row[archiveCreatedAtIndex] === createdAt) {
+        // 행 삭제
+        const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              requests: [{
+                deleteDimension: {
+                  range: {
+                    sheetId: archiveSheetId,
+                    dimension: 'ROWS',
+                    startIndex: i,
+                    endIndex: i + 1
+                  }
+                }
+              }]
+            })
+          }
+        );
+        foundInArchive = true;
+        break;
       }
     }
 
-    if (deleteRowIndex === -1) {
-      // 날짜 파싱 실패 시, 그냥 해당 서브도메인의 마지막 발견된 행 삭제 (시트는 보통 시간순 정렬되므로)
-      for (let i = rows.length - 1; i >= 1; i--) {
-        const row = rows[i];
-        if (String(row[subdomainIndex] || '').trim() === String(subdomain || '').trim()) {
-          deleteRowIndex = i + 1;
-          break;
-        }
-      }
-    }
-
-    if (deleteRowIndex === -1) {
-      return { success: false, error: '삭제할 포스트가 없습니다' };
-    }
-
-    if (deleteRowIndex === -1) {
-      return { success: false, error: '해당 조건의 포스트를 찾을 수 없습니다' };
-    }
-
-    // 행 삭제 (batchUpdate 사용)
-    const deleteResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          requests: [{
-            deleteDimension: {
-              range: {
-                sheetId: 1895987712, // Posts 시트 GID
-                dimension: 'ROWS',
-                startIndex: deleteRowIndex - 1, // 0-indexed
-                endIndex: deleteRowIndex
-              }
-            }
-          }]
-        })
-      }
+    // 2. 최신 포스팅 탭에서도 삭제
+    const latestResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+    const latestData = await latestResponse.json();
+    const latestRows = latestData.values || [];
 
-    if (!deleteResponse.ok) {
-      const errorText = await deleteResponse.text();
-      return { success: false, error: `Google Sheets 삭제 실패: ${errorText}` };
+    if (latestRows.length >= 2) {
+      const latestHeaders = latestRows[0];
+      const latestDomainIndex = latestHeaders.indexOf('도메인');
+      const latestCreatedAtIndex = latestHeaders.indexOf('생성일시');
+
+      if (latestDomainIndex !== -1 && latestCreatedAtIndex !== -1) {
+        for (let i = 1; i < latestRows.length; i++) {
+          const row = latestRows[i];
+          if (row[latestDomainIndex] === domain && row[latestCreatedAtIndex] === createdAt) {
+            const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
+        await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              requests: [{
+                deleteDimension: {
+                  range: {
+                    sheetId: latestSheetId,
+                    dimension: 'ROWS',
+                    startIndex: i,
+                    endIndex: i + 1
+                  }
+                }
+              }]
+            })
+          }
+        );
+        break;
+      }
+    }
+      }
+    }
+
+    if (!foundInArchive) {
+      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
     }
 
     return { success: true };
@@ -1228,44 +1493,96 @@ async function deletePost(subdomain, createdAt, password, env) {
 
 export default {
   async scheduled(event, env, ctx) {
-    console.log('Scheduled trigger started at', new Date().toISOString());
+    const nowUtc = new Date();
+    const nowKst = new Date(nowUtc.getTime() + (9 * 60 * 60 * 1000));
+    const timestamp = nowKst.toISOString().replace('T', ' ').substring(0, 19);
+    console.log('Scheduled trigger started at (KST)', timestamp);
+
+    // 동시 실행 방지 (날짜별 KV 락)
+    // KST 날짜 계산
+    const kstDate = nowKst.toISOString().split('T')[0]; // YYYY-MM-DD
+    const lockKey = `cron_posting_lock_${kstDate}`;
+    const lockValue = await env.POSTING_KV.get(lockKey);
+
+    if (lockValue) {
+      console.log(`Cron already executed for ${kstDate}, skipping...`);
+      return;
+    }
+
     try {
-      // 1. 모든 활성 거래처 조회
-      const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+      // 락 설정 (48시간 TTL - 다음 날 실행 보장)
+      await env.POSTING_KV.put(lockKey, timestamp, { expirationTtl: 172800 });
+
+      // 1. 모든 구독 거래처 조회
+      const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+      const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+      if (!response.ok) {
+        throw new Error(`Sheets fetch failed: ${response.status}`);
+      }
+
       const csvText = await response.text();
-      const clients = parseCSV(csvText).filter(c => c.status === 'active');
-      
+      const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.subscription === '활성');
+
       console.log(`Found ${clients.length} active clients`);
 
-      // 2. 포스팅 생성
-      for (const client of clients) {
-        try {
-          // 오늘 이미 포스팅했는지 확인 (최근 1개 조회)
-          const recentPosts = await getRecentPosts(client.subdomain, env);
-          const lastPostDate = recentPosts.length > 0 ? new Date(recentPosts[0].created_at) : null;
-          const today = new Date();
-          
-          const isToday = lastPostDate && 
-                          lastPostDate.getFullYear() === today.getFullYear() &&
-                          lastPostDate.getMonth() === today.getMonth() &&
-                          lastPostDate.getDate() === today.getDate();
+      // 2. 배치 처리 (10개씩 Queue 전송)
+      const batchSize = 10;
+      let successCount = 0;
+      let failCount = 0;
 
-          if (!isToday) {
-            console.log(`Generating post for ${client.subdomain}...`);
-            await generatePostingForClient(client.subdomain, env);
-          } else {
-            console.log(`Skipping ${client.subdomain}: already posted today`);
+      for (let i = 0; i < clients.length; i += batchSize) {
+        const batch = clients.slice(i, i + batchSize);
+
+        for (const client of batch) {
+          try {
+            const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+            await env.POSTING_QUEUE.send({ subdomain: normalizedSubdomain });
+            successCount++;
+            console.log(`Queue sent: ${normalizedSubdomain}`);
+          } catch (err) {
+            failCount++;
+            console.error(`Queue send failed for ${client.subdomain}:`, err);
           }
-        } catch (err) {
-          console.error(`Error processing ${client.subdomain}:`, err);
+        }
+
+        // 배치 간 1초 대기
+        if (i + batchSize < clients.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
+
+      console.log(`Cron completed: ${successCount} queued, ${failCount} failed`);
+
     } catch (error) {
       console.error('Scheduled handler error:', error);
+    } finally {
+      // 락 해제
+      await env.POSTING_KV.delete(lockKey);
     }
   },
 
-  async fetch(request, env) {
+  async queue(batch, env) {
+    await Promise.all(
+      batch.messages.map(async (message) => {
+        try {
+          const result = await generatePostingForClient(message.body.subdomain, env);
+          if (result.success) {
+            console.log(`✅ ${message.body.subdomain} 포스팅 성공`);
+            message.ack();
+          } else {
+            console.error(`❌ ${message.body.subdomain} 실패: ${result.error}`);
+            message.ack();
+          }
+        } catch (error) {
+          console.error(`❌ ${message.body.subdomain} 에러: ${error.message}`);
+          message.ack();
+        }
+      })
+    );
+  },
+
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const hostname = url.hostname;
     const pathname = url.pathname;
@@ -1282,7 +1599,7 @@ export default {
     // make-page.com (메인 도메인) 처리
     if (hostname === 'make-page.com' || hostname === 'staging.make-page.com') {
       if (pathname === '/sitemap.xml') {
-        return handleSitemap();
+        return handleSitemap(env);
       }
       if (pathname === '/robots.txt') {
         return new Response(generateRobotsTxt(), {
@@ -1295,13 +1612,182 @@ export default {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
       }
-      // Generate posting
+      // Test posting generation (직접 실행, Queue 우회)
+      if (pathname === '/test-posting' && request.method === 'POST') {
+        try {
+          const { subdomain } = await request.json();
+          const result = await generatePostingForClient(subdomain, env);
+
+          return new Response(JSON.stringify(result, null, 2), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Test cron trigger (Cron 수동 실행 테스트)
+      if (pathname === '/test-cron' && request.method === 'POST') {
+        try {
+          const nowUtc = new Date();
+          const nowKst = new Date(nowUtc.getTime() + (9 * 60 * 60 * 1000));
+          const timestamp = nowKst.toISOString().replace('T', ' ').substring(0, 19);
+          const logs = [`Manual cron test started at (KST) ${timestamp}`];
+
+          // 1. 모든 구독 거래처 조회
+          const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+          const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+          if (!response.ok) {
+            throw new Error(`Sheets fetch failed: ${response.status}`);
+          }
+
+          const csvText = await response.text();
+          const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.subscription === '활성');
+          logs.push(`Found ${clients.length} active clients`);
+
+          // 2. 배치 처리 (10개씩 Queue 전송)
+          const batchSize = 10;
+          let successCount = 0;
+          let failCount = 0;
+
+          for (let i = 0; i < clients.length; i += batchSize) {
+            const batch = clients.slice(i, i + batchSize);
+
+            for (const client of batch) {
+              try {
+                const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+                await env.POSTING_QUEUE.send({ subdomain: normalizedSubdomain });
+                successCount++;
+                logs.push(`Queue sent: ${normalizedSubdomain}`);
+              } catch (err) {
+                failCount++;
+                logs.push(`Queue send failed for ${client.subdomain}: ${err.message}`);
+              }
+            }
+
+            // 배치 간 1초 대기
+            if (i + batchSize < clients.length) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          logs.push(`Test cron completed: ${successCount} queued, ${failCount} failed`);
+
+          return new Response(JSON.stringify({
+            success: true,
+            totalClients: clients.length,
+            successCount,
+            failCount,
+            logs
+          }, null, 2), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Test sheet reading (시트 데이터 확인)
+      if (pathname === '/test-sheet' && request.method === 'GET') {
+        try {
+          const accessToken = await getGoogleAccessTokenForPosting(env);
+          const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+          const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+
+          const latestResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const latestData = await latestResponse.json();
+
+          const archiveResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const archiveData = await archiveResponse.json();
+
+          // 열 너비 정보 가져오기
+          const spreadsheetResponse = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const spreadsheetData = await spreadsheetResponse.json();
+
+          // 각 시트의 열 너비 찾기
+          const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
+          const archiveSheet = spreadsheetData.sheets.find(s => s.properties.title === archiveSheetName);
+          const mainSheet = spreadsheetData.sheets[0]; // 관리자 시트
+
+          const getColumnWidths = (sheet) => {
+            if (!sheet || !sheet.data || !sheet.data[0] || !sheet.data[0].columnMetadata) {
+              return [];
+            }
+            return sheet.data[0].columnMetadata.slice(0, 9).map(col => col.pixelSize || 100);
+          };
+
+          return new Response(JSON.stringify({
+            latest: {
+              sheetName: latestSheetName,
+              rowCount: (latestData.values || []).length,
+              headers: (latestData.values || [])[0] || [],
+              firstDataRow: (latestData.values || [])[1] || [],
+              allRows: latestData.values || [],
+              columnWidths: getColumnWidths(latestSheet)
+            },
+            archive: {
+              sheetName: archiveSheetName,
+              rowCount: (archiveData.values || []).length,
+              headers: (archiveData.values || [])[0] || [],
+              firstDataRow: (archiveData.values || [])[1] || [],
+              allRows: archiveData.values || [],
+              columnWidths: getColumnWidths(archiveSheet)
+            },
+            main: {
+              sheetName: mainSheet?.properties?.title || '관리자',
+              columnWidths: getColumnWidths(mainSheet)
+            }
+          }, null, 2), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
+      // Generate posting (Queue 전송)
       if (pathname === '/generate-posting' && request.method === 'POST') {
         try {
           const { subdomain } = await request.json();
-          const result = await generatePosting(subdomain, env);
-          return new Response(JSON.stringify(result), {
-            status: 200,
+
+          // Queue에 메시지 전송
+          await env.POSTING_QUEUE.send({ subdomain });
+
+          // 즉시 202 응답
+          return new Response(JSON.stringify({
+            success: true,
+            message: "포스팅 생성이 Queue에 추가되었습니다. 완료까지 2-3분 소요됩니다.",
+            subdomain: subdomain
+          }), {
+            status: 202,
             headers: { 'Content-Type': 'application/json' }
           });
         } catch (error) {
@@ -1315,74 +1801,6 @@ export default {
         }
       }
       // 메인 도메인은 404 (랜딩페이지 없음)
-      if (pathname === '/cleanup-now-please') {
-        try {
-          const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
-          const accessToken = await getGoogleAccessTokenForPosting(env);
-
-          // 1. Read all posts
-          const readRes = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:F`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-          );
-          const data = await readRes.json();
-          const rows = data.values || [];
-
-          if (rows.length < 2) return new Response('No data', { status: 200 });
-
-          // 2. Group by subdomain
-          const postsMap = new Map();
-          const pHeaders = rows[0];
-          const subIdx = pHeaders.indexOf('subdomain');
-          const dateIdx = pHeaders.indexOf('created_at');
-
-          for (let i = 1; i < rows.length; i++) {
-            const sub = rows[i][subIdx];
-            const date = rows[i][dateIdx];
-            if (!postsMap.has(sub)) postsMap.set(sub, []);
-            postsMap.get(sub).push({ index: i, date: new Date(date) });
-          }
-
-          // 3. Identify rows to delete
-          const deleteRanges = [];
-          for (const [sub, subPosts] of postsMap.entries()) {
-            if (subPosts.length <= 1) continue;
-            subPosts.sort((a, b) => b.date - a.date);
-            for (let i = 1; i < subPosts.length; i++) {
-              const rowIdx = subPosts[i].index;
-              deleteRanges.push({
-                sheetId: 1895987712,
-                dimension: "ROWS",
-                startIndex: rowIdx,
-                endIndex: rowIdx + 1
-              });
-            }
-          }
-
-          deleteRanges.sort((a, b) => b.startIndex - a.startIndex);
-
-          if (deleteRanges.length > 0) {
-            await fetch(
-              `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-              {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  requests: deleteRanges.map(range => ({ deleteDimension: { range } }))
-                })
-              }
-            );
-            return new Response(`Cleaned up ${deleteRanges.length} old posts.`, { status: 200 });
-          } else {
-            return new Response('Nothing to clean up.', { status: 200 });
-          }
-        } catch (e) {
-          return new Response(e.message, { status: 500 });
-        }
-      }
       return new Response('Not Found', { status: 404 });
     }
 
@@ -1403,16 +1821,18 @@ export default {
       }
 
       // Google Sheets에서 거래처 정보 조회
-      const client = await getClientFromSheets(subdomain, env);
+      const { client, debugInfo } = await getClientFromSheets(subdomain, env);
 
       if (!client) {
         return new Response('Not Found', { status: 404 });
       }
 
-      // 비활성 거래처는 표시 안함
-      if (client.status !== 'active') {
+      // 비활성 거래처는 표시 안함 (일시적으로 해제)
+      /*
+      if (client.status !== '구독') {
         return new Response('This page is inactive', { status: 403 });
       }
+      */
 
       // 포스트 상세 페이지
       if (pathname === '/post' && client.posts && client.posts.length > 0) {
@@ -1428,7 +1848,7 @@ export default {
           return new Response('Post not found', { status: 404 });
         }
 
-        return new Response(generatePostPage(client, post), {
+        return new Response(await generatePostPage(client, post, env), {
           headers: {
             'Content-Type': 'text/html; charset=utf-8',
             'Cache-Control': 'public, max-age=300'
@@ -1436,8 +1856,9 @@ export default {
         });
       }
 
+      // Umami Cloud가 자동으로 추적
       // 거래처 페이지 생성
-      return new Response(generateClientPage(client), {
+      return new Response(await generateClientPage(client, debugInfo, env), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Cache-Control': 'public, max-age=300'
@@ -1459,7 +1880,7 @@ async function generatePostingForClient(subdomain, env) {
   try {
     // Step 1: 거래처 정보 조회
     logs.push('거래처 정보 조회 중...');
-    const client = await getClientFromSheetsForPosting(subdomain);
+    const client = await getClientFromSheetsForPosting(subdomain, env);
     if (!client) {
       return { success: false, error: 'Client not found', logs };
     }
@@ -1468,9 +1889,17 @@ async function generatePostingForClient(subdomain, env) {
     // Step 1.5: Google Drive 폴더 순환 선택
     logs.push('Google Drive 폴더 조회 중...');
     const accessToken = await getGoogleAccessTokenForPosting(env);
-    const driveBusinessName = `${client.subdomain} ${client.business_name}`;
-    logs.push(`Drive 폴더명: ${driveBusinessName}`);
-    const folders = await getClientFoldersForPosting(driveBusinessName, accessToken, env, logs);
+    const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+
+    // 폴더명 컬럼 사용 (없으면 subdomain 기반 검색으로 폴백)
+    const folderName = client.folder_name || null;
+    if (folderName) {
+      logs.push(`Drive 폴더 검색: 폴더명="${folderName}"`);
+    } else {
+      logs.push(`Drive 폴더 검색: subdomain=${normalizedSubdomain} (폴더명 컬럼 없음)`);
+    }
+
+    const folders = await getClientFoldersForPosting(folderName, normalizedSubdomain, accessToken, env, logs);
 
     if (folders.length === 0) {
       return { success: false, error: 'No folders found (Info/Video excluded)', logs };
@@ -1478,33 +1907,37 @@ async function generatePostingForClient(subdomain, env) {
 
     logs.push(`폴더 ${folders.length}개 발견`);
 
-    const lastUsedFolder = await getLastUsedFolderForPosting(subdomain, env);
-    const nextFolder = getNextFolderForPosting(folders, lastUsedFolder);
+    const folderData = await getLastUsedFolderForPosting(subdomain, accessToken, env);
+    const lastFolder = folderData?.lastFolder || null;
+    const archiveHeaders = folderData?.archiveHeaders || [];
+    const nextFolder = getNextFolderForPosting(folders, lastFolder);
     logs.push(`선택된 폴더: ${nextFolder}`);
 
     // Step 1.7: 선택된 폴더에서 모든 이미지 가져오기
     logs.push('폴더 내 이미지 조회 중...');
-    const images = await getFolderImagesForPosting(driveBusinessName, nextFolder, accessToken, env, logs);
+    const images = await getFolderImagesForPosting(normalizedSubdomain, nextFolder, accessToken, env, logs);
     logs.push(`이미지 ${images.length}개 발견`);
 
-    if (images.length === 0) {
-      return { success: false, error: 'No images found in folder', logs };
-    }
+    // 이미지 없어도 텍스트 포스팅 생성 진행
 
     // Step 2: 웹 검색 (Gemini 2.5 Flash)
     logs.push('웹 검색 시작...');
-    const trendsData = await searchWithGeminiForPosting(client);
+    const trendsData = await searchWithGeminiForPosting(client, env);
     logs.push(`웹 검색 완료: ${trendsData.substring(0, 100)}...`);
 
     // Step 3: 포스팅 생성 (Gemini 3.0 Pro)
     logs.push('포스팅 생성 시작...');
-    const postData = await generatePostWithGeminiForPosting(client, trendsData, images);
+    const postData = await generatePostWithGeminiForPosting(client, trendsData, images, env);
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
-    // Step 4: Posts 시트에 저장
-    logs.push('Posts 시트 저장 시작...');
-    await saveToPostsSheetForPosting(client, postData, nextFolder, images, env);
-    logs.push('Posts 시트 저장 완료');
+    // Step 3.5: 이미지 URL 추가
+    const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
+    postData.images = imageUrls;
+
+    // Step 4: 저장소 + 최신 포스팅 시트 저장
+    logs.push('저장소/최신포스팅 시트 저장 시작...');
+    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, accessToken, env, archiveHeaders);
+    logs.push('저장소/최신포스팅 시트 저장 완료');
 
     return {
       success: true,
@@ -1522,62 +1955,35 @@ async function generatePostingForClient(subdomain, env) {
   }
 }
 
-async function getClientFromSheetsForPosting(subdomain) {
-  const response = await fetch(GOOGLE_SHEETS_CSV_URL);
-  const csvText = await response.text();
-  const rows = csvText.split('\n').map(row => {
-    const cols = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < row.length; i++) {
-      const char = row[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        cols.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    cols.push(current.trim());
-    return cols;
-  });
+async function getClientFromSheetsForPosting(subdomain, env) {
+  const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
 
-  const headers = rows[0];
-  const subdomainIndex = headers.indexOf('subdomain');
-  const businessNameIndex = headers.indexOf('business_name');
-  const languageIndex = headers.indexOf('language');
-  const descriptionIndex = headers.indexOf('description');
-  const statusIndex = headers.indexOf('status');
+  try {
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
 
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    let rowSubdomain = row[subdomainIndex] || '';
-
-    if (rowSubdomain.includes('.make-page.com')) {
-      rowSubdomain = rowSubdomain.replace('.make-page.com', '').replace('/', '');
+    if (!response.ok) {
+      throw new Error(`Sheets CSV fetch failed: ${response.status}`);
     }
 
-    if (rowSubdomain === subdomain && row[statusIndex] === 'active') {
-      return {
-        subdomain: rowSubdomain,
-        business_name: row[businessNameIndex],
-        language: row[languageIndex] || '한국어',
-        description: row[descriptionIndex] || ''
-      };
-    }
+    const csvText = await response.text();
+    const clients = parseCSV(csvText).map(normalizeClient);
+
+    return clients.find(c => {
+      let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
+      return normalized === subdomain && c.subscription === '활성';
+    }) || null;
+  } catch (error) {
+    console.error(`getClientFromSheetsForPosting 에러: ${error.message}`);
+    throw error;
   }
-
-  return null;
 }
 
-async function searchWithGeminiForPosting(client) {
+async function searchWithGeminiForPosting(client, env) {
   const prompt = `
-[업종] ${client.business_name}
+[업종] ${client.industry || client.business_name}
 [언어] ${client.language}
 
-다음 정보를 1000자 이내로 작성:
+다음 정보를 500자 이내로 작성:
 1. ${client.language} 시장의 최신 트렌드
 2. 검색 키워드 상위 5개
 3. 소비자 관심사
@@ -1585,29 +1991,50 @@ async function searchWithGeminiForPosting(client) {
 출력 형식: 텍스트만 (JSON 불필요)
 `;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1000
-        }
-      })
-    }
-  );
+  try {
+    const response = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{"parts": [{"text": prompt}]}],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 600
+          }
+        })
+      },
+      120000
+    );
 
-  const data = await response.json();
-  return data.candidates[0].content.parts[0].text;
+    if (!response.ok) {
+      throw new Error(`Gemini API HTTP error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // 에러 처리
+    if (data.error) {
+      throw new Error(`Gemini API error: ${data.error.message}`);
+    }
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
+    }
+
+    return data.candidates[0].content.parts[0].text;
+  } catch (error) {
+    console.error(`searchWithGeminiForPosting 에러: ${error.message}`);
+    throw error;
+  }
 }
 
-async function generatePostWithGeminiForPosting(client, trendsData, images) {
-  const prompt = `
+async function generatePostWithGeminiForPosting(client, trendsData, images, env) {
+  const hasImages = images.length > 0;
+  const imageCount = images.length;
+
+  const prompt = hasImages ? `
 [거래처 정보]
 - 업체명: ${client.business_name}
 - 언어: ${client.language}
@@ -1617,23 +2044,26 @@ async function generatePostWithGeminiForPosting(client, trendsData, images) {
 ${trendsData}
 
 [제공된 이미지]
-총 ${images.length}장의 이미지가 제공됩니다.
+총 ${imageCount}장의 이미지가 제공됩니다.
 
 [작성 규칙]
+0. **포스팅 전체(제목과 본문)를 반드시 ${client.language}로 작성** (최우선 필수)
 1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
-2. 본문 전체 글자수: **3000~3500자** (필수)
-3. 본문 구조: **반드시 ${images.length}개의 문단으로 작성**
+2. 본문 전체 글자수: **공백 포함 2800~3200자** (필수)
+3. 본문 구조: **반드시 ${imageCount}개의 문단으로 작성**
    - 1번째 이미지 → 1번째 문단
    - 2번째 이미지 → 2번째 문단
    - ...
-   - ${images.length}번째 이미지 → ${images.length}번째 문단
-4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 구체적으로 설명
-   - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 자세히 묘사
-   - 전체 3000~3500자를 ${images.length}개 문단에 균등 배분
+   - ${imageCount}번째 이미지 → ${imageCount}번째 문단
+4. 각 문단: 해당 순서의 이미지에서 보이는 내용을 간결하게 설명
+   - 이미지 속 색상, 분위기, 사물, 사람, 액션 등을 묘사
+   - **각 문단은 공백 포함 약 280~320자 내외로 작성**
+   - **[트렌드 정보]는 문단당 1~2문장 정도만 간결하게 배경 설명으로 활용**
 5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
 6. 금지어: 최고, 1등, 유일, 검증된
 7. 금지 창작: 경력, 학력, 자격증, 수상
 8. **본문의 모든 내용은 '${client.description}'의 주제와 자연스럽게 연결되어야 함 (최우선 순위)**
+9. **간결하고 핵심적인 표현 사용 - 장황한 설명 금지**
 
 출력 형식 (JSON):
 {
@@ -1641,7 +2071,42 @@ ${trendsData}
   "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
 }
 
-중요: body는 정확히 ${images.length}개의 문단으로 구성되어야 하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
+중요: body는 정확히 ${imageCount}개의 문단으로 구성되어야 하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
+` : `
+[거래처 정보]
+- 업체명: ${client.business_name}
+- 언어: ${client.language}
+- **핵심 주제 및 소개 (필수 반영): ${client.description}**
+
+[트렌드 정보]
+${trendsData}
+
+[제공된 이미지]
+이미지가 제공되지 않았습니다. 텍스트만으로 작성해주세요.
+
+[작성 규칙]
+0. **포스팅 전체(제목과 본문)를 반드시 ${client.language}로 작성** (최우선 필수)
+1. 제목: **'${client.description}'의 핵심 내용을 반영**하여 매력적으로 작성 (완전 자유 창작)
+2. 본문 전체 글자수: **공백 포함 2800~3200자** (필수)
+3. 본문 구조: **8~10개의 문단으로 작성** (이미지 없음)
+   - 각 문단은 '${client.description}' 주제의 다양한 측면을 다룸
+   - [트렌드 정보]를 활용하여 흥미롭게 작성
+4. 각 문단:
+   - **각 문단은 공백 포함 약 280~320자 내외로 작성**
+   - **[트렌드 정보]를 적극 활용하여 풍부한 내용 구성**
+5. 문단 구분: 문단 사이에 빈 줄 2개 (\\n\\n)로 명확히 구분
+6. 금지어: 최고, 1등, 유일, 검증된
+7. 금지 창작: 경력, 학력, 자격증, 수상
+8. **본문의 모든 내용은 '${client.description}'의 주제와 자연스럽게 연결되어야 함 (최우선 순위)**
+9. **간결하고 핵심적인 표현 사용 - 장황한 설명 금지**
+
+출력 형식 (JSON):
+{
+  "title": "제목",
+  "body": "문단1\\n\\n문단2\\n\\n문단3\\n\\n..."
+}
+
+중요: 이미지 없이 텍스트만으로 매력적인 포스팅을 작성하며, '${client.description}'의 내용이 포스팅의 중심이 되어야 합니다.
 `;
 
   const parts = [{ text: prompt }];
@@ -1655,43 +2120,64 @@ ${trendsData}
     });
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: parts
-        }],
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 8000
-        }
-      })
+  try {
+    const response = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{"parts": parts}],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 8000
+          }
+        })
+      },
+      120000
+    );
+
+    // HTTP 응답 상태 확인
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
     }
-  );
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (!data.candidates || data.candidates.length === 0) {
-    throw new Error(`Gemini API error: ${JSON.stringify(data)}`);
+    // 에러 처리
+    if (data.error) {
+      throw new Error(`Gemini API error: ${data.error.message}`);
+    }
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
+    }
+
+    const text = data.candidates[0].content.parts[0].text;
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+
+    throw new Error('Failed to parse Gemini response');
+  } catch (error) {
+    console.error(`generatePostWithGeminiForPosting 에러: ${error.message}`);
+    throw error;
   }
-
-  const text = data.candidates[0].content.parts[0].text;
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]);
-  }
-
-  throw new Error('Failed to parse Gemini response');
 }
 
 async function getGoogleAccessTokenForPosting(env) {
   const serviceAccount = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON);
 
-  const jwtHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  // Base64URL 인코딩 (UTF-8 안전)
+  function base64urlEncode(str) {
+    const base64 = btoa(unescape(encodeURIComponent(str)));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  const jwtHeader = base64urlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const now = Math.floor(Date.now() / 1000);
   const jwtClaimSet = {
     iss: serviceAccount.client_email,
@@ -1701,7 +2187,7 @@ async function getGoogleAccessTokenForPosting(env) {
     iat: now
   };
 
-  const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
+  const jwtClaimSetEncoded = base64urlEncode(JSON.stringify(jwtClaimSet));
   const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
 
   const privateKey = await crypto.subtle.importKey(
@@ -1729,14 +2215,24 @@ async function getGoogleAccessTokenForPosting(env) {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
   });
 
-  const tokenData = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    throw new Error(`OAuth token error (${tokenResponse.status}): ${errorText}`);
+  }
+
+  const responseText = await tokenResponse.text();
+  if (!responseText) {
+    throw new Error('Empty OAuth token response');
+  }
+
+  const tokenData = JSON.parse(responseText);
   return tokenData.access_token;
 }
 
-async function getFolderImagesForPosting(businessName, folderName, accessToken, env, logs) {
+async function getFolderImagesForPosting(subdomain, folderName, accessToken, env, logs) {
   const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
 
-  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name contains '${subdomain}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
 
   const businessFolderResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
@@ -1789,18 +2285,18 @@ async function getFolderImagesForPosting(businessName, folderName, accessToken, 
     logs.push(`10개 초과: 랜덤 ${imageFiles.length}개 선택`);
   }
 
-  const images = [];
-  for (const file of imageFiles) {
+  // 병렬 다운로드 (속도 향상)
+  const downloadPromises = imageFiles.map(async (file) => {
     try {
       logs.push(`썸네일 다운로드: ${file.name}`);
-      
-      // Google Drive 썸네일 API 사용 (w800 크기)
-      const thumbnailUrl = `https://lh3.googleusercontent.com/d/${file.id}=w800`;
+
+      // Google Drive 썸네일 API 사용 (w400 크기)
+      const thumbnailUrl = `https://lh3.googleusercontent.com/d/${file.id}=w400`;
       const imageResponse = await fetch(thumbnailUrl);
 
       if (!imageResponse.ok) {
         logs.push(`썸네일 다운로드 실패: ${file.name} - ${imageResponse.status}`);
-        continue;
+        return null;
       }
 
       const arrayBuffer = await imageResponse.arrayBuffer();
@@ -1814,26 +2310,33 @@ async function getFolderImagesForPosting(businessName, folderName, accessToken, 
       }
       const base64 = btoa(binary);
 
-      images.push({
+      logs.push(`썸네일 다운로드 완료: ${file.name}`);
+      return {
         id: file.id,
         name: file.name,
         mimeType: file.mimeType,
         data: base64
-      });
-      logs.push(`썸네일 다운로드 완료: ${file.name}`);
+      };
     } catch (error) {
       logs.push(`썸네일 다운로드 에러: ${file.name} - ${error.message}`);
+      return null;
     }
-  }
+  });
+
+  const results = await Promise.all(downloadPromises);
+  const images = results.filter(img => img !== null);
 
   logs.push(`총 ${images.length}개 이미지 다운로드 완료`);
   return images;
 }
 
-async function getClientFoldersForPosting(businessName, accessToken, env, logs) {
+async function getClientFoldersForPosting(folderName, subdomain, accessToken, env, logs) {
   const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
 
-  const businessFolderQuery = `mimeType = 'application/vnd.google-apps.folder' and name = '${businessName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+  // 폴더명이 있으면 정확한 매칭, 없으면 subdomain 포함 검색 (폴백)
+  const businessFolderQuery = folderName
+    ? `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`
+    : `mimeType = 'application/vnd.google-apps.folder' and name contains '${subdomain}' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
 
   const businessFolderResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
@@ -1874,42 +2377,52 @@ async function getClientFoldersForPosting(businessName, accessToken, env, logs) 
   return folders;
 }
 
-async function getLastUsedFolderForPosting(subdomain, env) {
+async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
   try {
-    const accessToken = await getGoogleAccessTokenForPosting(env);
-    
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:G`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+
+    const response = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
     );
-    
+
     if (!response.ok) {
-      return null;
+      return { lastFolder: null, archiveHeaders: [] };
     }
-    
+
     const data = await response.json();
     const rows = data.values || [];
-    
-    if (rows.length < 2) {
-      return null;
+
+    if (rows.length < 1) {
+      return { lastFolder: null, archiveHeaders: [] };
     }
-    
+
     const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const folderNameIndex = headers.indexOf('folder_name');
-    
+    const domainIndex = headers.indexOf('도메인');
+    const folderNameIndex = headers.indexOf('폴더명');
+
+    if (domainIndex === -1 || folderNameIndex === -1) {
+      return { lastFolder: null, archiveHeaders: headers };
+    }
+
+    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+    const domain = `${normalizedSubdomain}.make-page.com`;
+
+    // 해당 도메인의 마지막 행에서 폴더명 가져오기
     let lastFolder = null;
     for (let i = rows.length - 1; i >= 1; i--) {
       const row = rows[i];
-      if (row[subdomainIndex] === subdomain) {
+      const rowDomain = row[domainIndex] || '';
+      if (rowDomain === domain) {
         lastFolder = row[folderNameIndex] || null;
         break;
       }
     }
-    
-    return lastFolder;
+
+    return { lastFolder, archiveHeaders: headers };
   } catch (error) {
-    return null;
+    return { lastFolder: null, archiveHeaders: [] };
   }
 }
 
@@ -1942,138 +2455,486 @@ function getNextFolderForPosting(folders, lastFolder) {
   return folders[nextIndex];
 }
 
-async function saveToPostsSheetForPosting(client, postData, folderName, images, env) {
-  const accessToken = await getGoogleAccessTokenForPosting(env);
-
-  // 1. 새 포스트 추가
-  const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
-
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env, archiveHeaders) {
   const now = new Date();
   const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
   const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
-  const values = [[
-    client.subdomain,
-    client.business_name,
-    client.language,
-    postData.title,
-    postData.body,
-    timestamp,
-    folderName,
-    imageUrls
-  ]];
+  const domain = `${normalizedSubdomain}.make-page.com`;
 
-  // Append new row
-  const appendResponse = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:H:append?valueInputOption=RAW`,
+  const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+  const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+
+  // 데이터 객체 (컬럼명: 값)
+  const postDataMap = {
+    '도메인': domain,
+    '상호명': client.business_name,
+    '제목': postData.title,
+    'URL': `${domain}/post?id=${encodeURIComponent(timestamp)}`,
+    '생성일시': timestamp,
+    '언어': client.language || 'ko',
+    '업종': client.industry || '',
+    '폴더명': folderName || '',
+    '본문': postData.body || '',
+    '이미지': postData.images || ''
+  };
+
+  // 1. 최신 포스팅 탭 먼저 처리 (트랜잭션 방식 - 실패 시 저장소 저장 안함)
+  const getResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    10000
+  );
+
+  if (!getResponse.ok) {
+    throw new Error(`최신 포스팅 시트 읽기 실패: ${getResponse.status}`);
+  }
+
+  const getData = await getResponse.json();
+  const rows = getData.values || [];
+
+  if (rows.length < 1) {
+    throw new Error('최신 포스팅 시트에 헤더가 없습니다');
+  }
+
+  const latestHeaders = rows[0];
+  const domainIndex = latestHeaders.indexOf('도메인');
+  const createdAtIndex = latestHeaders.indexOf('생성일시');
+
+  if (domainIndex === -1 || createdAtIndex === -1) {
+    throw new Error('최신 포스팅 시트에 필수 컬럼(도메인, 생성일시)이 없습니다');
+  }
+
+  // 2. 시트 메타데이터 한 번만 조회 (API 중복 호출 방지)
+  const spreadsheetResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    10000
+  );
+
+  if (!spreadsheetResponse.ok) {
+    throw new Error(`시트 메타데이터 조회 실패: ${spreadsheetResponse.status}`);
+  }
+
+  const spreadsheetData = await spreadsheetResponse.json();
+  const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
+  const archiveSheet = spreadsheetData.sheets.find(s => s.properties.title === archiveSheetName);
+  const adminSheet = spreadsheetData.sheets.find(s => s.properties.title === '관리자');
+
+  const latestSheetId = latestSheet ? latestSheet.properties.sheetId : 0;
+  const archiveSheetId = archiveSheet ? archiveSheet.properties.sheetId : 0;
+
+  console.log(`SheetID - 최신포스팅: ${latestSheetId}, 저장소: ${archiveSheetId}`);
+
+  // 3. 해당 도메인의 행들 찾기
+  const domainRows = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][domainIndex] === domain) {
+      domainRows.push({ index: i + 1, createdAt: rows[i][createdAtIndex] || '' });
+    }
+  }
+
+  // 4. 1개 이상이면 가장 오래된 행 삭제 (최신 1개만 유지)
+  if (domainRows.length >= 1) {
+    domainRows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    const oldestRowIndex = domainRows[0].index;
+
+    const deleteResponse = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requests: [{
+            deleteDimension: {
+              range: {
+                sheetId: latestSheetId,
+                dimension: 'ROWS',
+                startIndex: oldestRowIndex - 1,
+                endIndex: oldestRowIndex
+              }
+            }
+          }]
+        })
+      },
+      10000
+    );
+
+    if (!deleteResponse.ok) {
+      throw new Error(`최신 포스팅 행 삭제 실패: ${deleteResponse.status}`);
+    }
+  }
+
+  // 5. 최신 포스팅 탭에 append (헤더 순서대로)
+  const latestRowData = latestHeaders.map(header => postDataMap[header] || '');
+
+  const latestAppendResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z:append?valueInputOption=RAW`,
     {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ values })
-    }
+      body: JSON.stringify({ values: [latestRowData] })
+    },
+    10000
   );
 
-  // Apply WRAP format to the newly appended row
-  const appendData = await appendResponse.json();
-  if (appendData.updates && appendData.updates.updatedRange) {
-    // Extract row number from range like "Posts!A123:H123"
-    const rowMatch = appendData.updates.updatedRange.match(/!A(\d+)/);
-    if (rowMatch) {
-      const rowNumber = parseInt(rowMatch[1]);
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+  if (!latestAppendResponse.ok) {
+    const errorText = await latestAppendResponse.text();
+    throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
+  }
+
+  // 최신 포스팅 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
+  try {
+    const latestAppendResult = await latestAppendResponse.json();
+    const latestUpdatedRange = latestAppendResult.updates?.updatedRange;
+
+    if (latestUpdatedRange) {
+      const latestRowMatch = latestUpdatedRange.match(/:(\d+)$/);
+      const latestNewRowIndex = latestRowMatch ? parseInt(latestRowMatch[1]) - 1 : null;
+
+      if (latestNewRowIndex !== null) {
+        const latestFormatRequests = [{
+          updateDimensionProperties: {
+            range: {
+              sheetId: latestSheetId,
+              dimension: 'ROWS',
+              startIndex: latestNewRowIndex,
+              endIndex: latestNewRowIndex + 1
+            },
+            properties: {
+              pixelSize: 21
+            },
+            fields: 'pixelSize'
+          }
+        }, {
+          repeatCell: {
+            range: {
+              sheetId: latestSheetId,
+              startRowIndex: latestNewRowIndex,
+              endRowIndex: latestNewRowIndex + 1
+            },
+            cell: {
+              userEnteredFormat: {
+                wrapStrategy: 'WRAP'
+              }
+            },
+            fields: 'userEnteredFormat.wrapStrategy'
+          }
+        }];
+
+        const latestFormatResponse = await fetchWithTimeout(
+          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ requests: latestFormatRequests })
+          },
+          10000
+        );
+
+        if (!latestFormatResponse.ok) {
+          console.error(`최신 포스팅 행 서식 설정 실패: ${latestFormatResponse.status}`);
+        } else {
+          console.log(`최신 포스팅 행 ${latestNewRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 CLIP)`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`최신 포스팅 행 서식 설정 중 에러: ${error.message}`);
+  }
+
+  // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (트랜잭션 완료)
+  // archiveHeaders가 없거나 빈 배열이면 에러 처리
+  if (!archiveHeaders || archiveHeaders.length === 0) {
+    console.error('[ERROR] 저장소 헤더 없음. archiveHeaders:', archiveHeaders);
+    console.error('저장소 시트 헤더가 제공되지 않음');
+    return; // 최신 포스팅은 이미 저장됨, 저장소만 실패
+  }
+
+  // 헤더 순서대로 rowData 생성
+  const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
+  console.log('[INFO] 저장소 저장:', { sheet: archiveSheetName, headersCount: archiveHeaders.length, dataLength: archiveRowData.length });
+
+  // 저장소 탭에 append
+  const archiveAppendResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=RAW`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ values: [archiveRowData] })
+    },
+    10000
+  );
+
+  if (!archiveAppendResponse.ok) {
+    const errorText = await archiveAppendResponse.text();
+    console.error(`저장소 시트 append 실패: ${archiveAppendResponse.status} - ${errorText}`);
+    // 최신 포스팅은 이미 저장됨, 저장소 저장 실패는 치명적이지 않음
+  } else {
+    console.log('[SUCCESS] 저장소 저장 완료');
+    // 저장소 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
+    try {
+      const appendResult = await archiveAppendResponse.json();
+      const updatedRange = appendResult.updates?.updatedRange;
+
+      if (updatedRange) {
+        // 범위에서 행 번호 추출 (예: "저장소!A20:I20" → 20)
+        const rowMatch = updatedRange.match(/:(\d+)$/);
+        const newRowIndex = rowMatch ? parseInt(rowMatch[1]) - 1 : null;
+
+        if (newRowIndex !== null) {
+          // 행 높이 21px + 텍스트 줄바꿈 CLIP 설정
+          const formatRequests = [{
+            updateDimensionProperties: {
+              range: {
+                sheetId: archiveSheetId,
+                dimension: 'ROWS',
+                startIndex: newRowIndex,
+                endIndex: newRowIndex + 1
+              },
+              properties: {
+                pixelSize: 21
+              },
+              fields: 'pixelSize'
+            }
+          }, {
+            repeatCell: {
+              range: {
+                sheetId: archiveSheetId,
+                startRowIndex: newRowIndex,
+                endRowIndex: newRowIndex + 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  wrapStrategy: 'WRAP'
+                }
+              },
+              fields: 'userEnteredFormat.wrapStrategy'
+            }
+          }];
+
+          const formatResponse = await fetchWithTimeout(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ requests: formatRequests })
+            },
+            10000
+          );
+
+          if (!formatResponse.ok) {
+            console.error(`저장소 행 서식 설정 실패: ${formatResponse.status}`);
+          } else {
+            console.log(`저장소 행 ${newRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 CLIP)`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`저장소 행 서식 설정 중 에러: ${error.message}`);
+    }
+  }
+
+  // 7. 관리자 시트의 열 너비를 저장소 시트에 복사
+  try {
+    if (!adminSheet || !adminSheet.data || !adminSheet.data[0] || !adminSheet.data[0].columnMetadata) {
+      console.error('관리자 시트 열 너비 정보를 찾을 수 없음');
+      return;
+    }
+
+    const columnWidths = adminSheet.data[0].columnMetadata.slice(0, 9).map(col => col.pixelSize || 100);
+    console.log(`관리자 시트 열 너비 (복사할 값): ${JSON.stringify(columnWidths)}`);
+
+    // 저장소 시트에 열 너비 적용
+    const updateRequests = columnWidths.map((width, i) => ({
+      updateDimensionProperties: {
+        range: {
+          sheetId: archiveSheetId,
+          dimension: 'COLUMNS',
+          startIndex: i,
+          endIndex: i + 1
+        },
+        properties: {
+          pixelSize: width
+        },
+        fields: 'pixelSize'
+      }
+    }));
+
+    const updateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ requests: updateRequests })
+      }
+    );
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error(`저장소 시트 열 너비 업데이트 실패: ${updateResponse.status} - ${errorText}`);
+    } else {
+      console.log('저장소 시트 열 너비 업데이트 성공 (관리자 시트 기준)');
+    }
+  } catch (error) {
+    console.error(`열 너비 복사 중 에러: ${error.message}`);
+  }
+
+  // 8. 관리자 시트 "크론" 컬럼 업데이트 (다음 예정 시간)
+  try {
+    // 관리자 시트 데이터 읽기
+    const adminResponse = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
+    );
+
+    if (!adminResponse.ok) {
+      console.error('관리자 시트 읽기 실패 (크론 업데이트 스킵)');
+      return;
+    }
+
+    const adminData = await adminResponse.json();
+    const adminRows = adminData.values || [];
+
+    if (adminRows.length < 2) {
+      console.error('관리자 시트에 데이터 없음 (크론 업데이트 스킵)');
+      return;
+    }
+
+    const adminHeaders = adminRows[0];
+    const adminDomainIndex = adminHeaders.indexOf('도메인');
+    const cronIndex = adminHeaders.indexOf('크론');
+
+    if (adminDomainIndex === -1) {
+      console.error('관리자 시트에 "도메인" 컬럼 없음');
+      return;
+    }
+
+    if (cronIndex === -1) {
+      console.error('관리자 시트에 "크론" 컬럼 없음 (업데이트 스킵)');
+      return;
+    }
+
+    // 해당 거래처 행 찾기
+    let targetRowIndex = -1;
+    for (let i = 1; i < adminRows.length; i++) {
+      const row = adminRows[i];
+      const rowDomain = (row[adminDomainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      if (rowDomain === normalizedSubdomain) {
+        targetRowIndex = i + 1; // 1-indexed
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      console.error(`관리자 시트에서 ${normalizedSubdomain} 행을 찾을 수 없음`);
+      return;
+    }
+
+    // 다음 예정 시간 계산 (내일 09:00 KST)
+    const tomorrow = new Date(koreaTime);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    const nextCronTime = tomorrow.toISOString().replace('T', ' ').substring(0, 16); // "YYYY-MM-DD HH:mm"
+
+    // 크론 컬럼 업데이트
+    const cronColumnLetter = getColumnLetter(cronIndex);
+    const updateRange = `관리자!${cronColumnLetter}${targetRowIndex}`;
+
+    const updateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          values: [[nextCronTime]]
+        })
+      }
+    );
+
+    if (updateResponse.ok) {
+      console.log(`크론 컬럼 업데이트 성공: ${nextCronTime}`);
+    } else {
+      console.error(`크론 컬럼 업데이트 실패: ${updateResponse.status}`);
+    }
+
+    // 9. 관리자 시트 "상태" 컬럼 업데이트 (성공)
+    const statusIndex = adminHeaders.indexOf('상태');
+
+    if (statusIndex === -1) {
+      console.log('관리자 시트에 "상태" 컬럼 없음 (업데이트 스킵)');
+    } else {
+      const statusColumnLetter = getColumnLetter(statusIndex);
+      const statusUpdateRange = `관리자!${statusColumnLetter}${targetRowIndex}`;
+
+      const statusUpdateResponse = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(statusUpdateRange)}?valueInputOption=RAW`,
         {
-          method: 'POST',
+          method: 'PUT',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            requests: [{
-              repeatCell: {
-                range: {
-                  sheetId: 1895987712, // Posts sheet GID
-                  startRowIndex: rowNumber - 1,
-                  endRowIndex: rowNumber
-                },
-                cell: {
-                  userEnteredFormat: {
-                    wrapStrategy: 'WRAP'
-                  }
-                },
-                fields: 'userEnteredFormat.wrapStrategy'
-              }
-            }]
+            values: [['성공']]
           })
         }
       );
-    }
-  }
 
-  // 2. Retention Policy 적용 (최신 2개만 유지, 나머지 삭제)
-  try {
-    // 전체 목록 다시 조회
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/Posts!A:F`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const data = await response.json();
-    const rows = data.values || [];
-    
-    // 헤더 제외
-    const headers = rows[0];
-    const subdomainIndex = headers.indexOf('subdomain');
-    const createdAtIndex = headers.indexOf('created_at');
-
-    // 해당 서브도메인의 글 찾기 (인덱스 포함)
-    const clientPosts = [];
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i][subdomainIndex] === client.subdomain) {
-        clientPosts.push({
-          rowIndex: i, // 0-indexed (API용)
-          date: new Date(rows[i][createdAtIndex]).getTime()
-        });
+      if (statusUpdateResponse.ok) {
+        console.log(`상태 컬럼 업데이트 성공: 성공`);
+      } else {
+        console.error(`상태 컬럼 업데이트 실패: ${statusUpdateResponse.status}`);
       }
     }
 
-    // 2개 초과 시 삭제
-    if (clientPosts.length > 2) {
-      // 최신순 정렬 (날짜 내림차순)
-      clientPosts.sort((a, b) => b.date - a.date);
-
-      // 살려둘 2개를 제외한 나머지(오래된 것들) 삭제 대상
-      const postsToDelete = clientPosts.slice(2);
-      
-      // 뒤에서부터 삭제해야 인덱스 안 꼬임 (RowIndex 내림차순 정렬)
-      postsToDelete.sort((a, b) => b.rowIndex - a.rowIndex);
-
-      const requests = postsToDelete.map(p => ({
-        deleteDimension: {
-          range: {
-            sheetId: 1895987712, // Posts 시트 GID
-            dimension: 'ROWS',
-            startIndex: p.rowIndex,
-            endIndex: p.rowIndex + 1
-          }
-        }
-      }));
-
-      await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ requests })
-        }
-      );
-      console.log(`Cleaned up ${postsToDelete.length} old posts for ${client.subdomain}`);
-    }
   } catch (error) {
-    console.error('Retention policy error:', error);
+    console.error(`크론/상태 컬럼 업데이트 중 에러: ${error.message}`);
   }
 }
+
+// 컬럼 인덱스를 문자로 변환 (0 -> A, 1 -> B, ...)
+function getColumnLetter(index) {
+  let letter = '';
+  while (index >= 0) {
+    letter = String.fromCharCode((index % 26) + 65) + letter;
+    index = Math.floor(index / 26) - 1;
+  }
+  return letter;
+}
+
+async function getSheetId(sheetsId, sheetName, accessToken) {
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}?fields=sheets(properties(sheetId,title))`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const data = await response.json();
+  const sheet = data.sheets.find(s => s.properties.title === sheetName);
+  return sheet ? sheet.properties.sheetId : 0;
+}
+
+
+// Deploy trigger
+
+
