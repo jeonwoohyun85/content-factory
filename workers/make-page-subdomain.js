@@ -1988,7 +1988,7 @@ async function generateClientPage(client, debugInfo, env) {
 
             display: grid;
 
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
 
             gap: 12px;
 
@@ -2008,7 +2008,7 @@ async function generateClientPage(client, debugInfo, env) {
 
             border-radius: 8px;
 
-            padding: 20px 16px;
+            padding: 24px 16px;
 
             text-align: center;
 
@@ -2038,7 +2038,7 @@ async function generateClientPage(client, debugInfo, env) {
 
         .quick-link-icon {
 
-            font-size: 32px;
+            font-size: 36px;
 
             margin-bottom: 8px;
 
@@ -2048,7 +2048,7 @@ async function generateClientPage(client, debugInfo, env) {
 
         .quick-link-text {
 
-            font-size: 13px;
+            font-size: 14px;
 
             font-weight: 600;
 
@@ -2064,7 +2064,7 @@ async function generateClientPage(client, debugInfo, env) {
 
             display: grid;
 
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
 
             gap: 16px;
 
@@ -2128,9 +2128,33 @@ async function generateClientPage(client, debugInfo, env) {
 
         @media (min-width: 768px) {
 
+            .quick-links {
+
+                grid-template-columns: repeat(3, 1fr);
+
+            }
+
+            .gallery-grid {
+
+                grid-template-columns: repeat(3, 1fr);
+
+            }
+
             .video-grid {
 
                 grid-template-columns: repeat(2, 1fr);
+
+            }
+
+        }
+
+
+
+        @media (min-width: 1024px) {
+
+            .gallery-grid {
+
+                grid-template-columns: repeat(4, 1fr);
 
             }
 
