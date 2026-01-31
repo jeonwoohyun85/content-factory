@@ -139,18 +139,6 @@ async function detectLanguageCode(lang, env) {
   return 'ko'; // 기본값
 }
 
-  if (lower.includes('번체') || lower.includes('traditional') || lower === 'zh-tw') return 'zh-TW';
-
-  
-
-  // 나머지는 입력값 그대로 반환 (API에서 처리)
-
-  return lang;
-
-}
-
-
-
 // 주요 언어 하드코딩 번역 데이터
 
 const LANGUAGE_TEXTS = {
