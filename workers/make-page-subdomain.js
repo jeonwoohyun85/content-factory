@@ -634,64 +634,6 @@ function normalizeClient(client) {
 // Google Sheets에서 거래처 정보 조회
 
 
-// Umami Website 및 Share URL 자동 생성
-async function createUmamiWebsite(subdomain, businessName, env) {
-  try {
-    if (!env.UMAMI_API_KEY) {
-      console.error('UMAMI_API_KEY not found');
-      return null;
-    }
-
-    // 1. Website 생성
-    const createResponse = await fetch('https://cloud.umami.is/api/websites', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.UMAMI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        domain: `${subdomain}.make-page.com`,
-        name: businessName || subdomain
-      })
-    });
-
-    if (!createResponse.ok) {
-      const error = await createResponse.text();
-      console.error('Umami Website 생성 실패:', createResponse.status, error);
-      return null;
-    }
-
-    const websiteData = await createResponse.json();
-    const websiteId = websiteData.id;
-
-    console.log(`Umami Website 생성 성공: ${websiteId}`);
-
-    // 2. Share URL 생성
-    const shareResponse = await fetch(`https://cloud.umami.is/api/websites/${websiteId}/share`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.UMAMI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!shareResponse.ok) {
-      console.error('Share URL 생성 실패:', shareResponse.status);
-      return { websiteId, shareId: null };
-    }
-
-    const shareData = await shareResponse.json();
-    const shareId = shareData.id;
-
-    console.log(`Share URL 생성 성공: ${shareId}`);
-
-    return { websiteId, shareId };
-  } catch (error) {
-    console.error('Umami 생성 중 에러:', error);
-    return null;
-  }
-}
-
 // Google Sheets 업데이트
 async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
   try {
@@ -933,27 +875,6 @@ IMPORTANT: Return ONLY the JSON object.`;
 
 
 
-    // Umami 자동 생성 (첫 방문 시)
-    if (client && (!client.umami_id || !client.umami_share)) {
-      console.log(`[${clientId}] Umami 자동 생성 시작...`);
-      const umamiResult = await createUmamiWebsite(clientId, client.business_name, env);
-      
-      if (umamiResult && umamiResult.websiteId) {
-        const websiteId = umamiResult.websiteId;
-        const shareId = umamiResult.shareId || '';
-        
-        // 시트에 저장
-        await updateUmamiToSheet(clientId, websiteId, shareId, env);
-        
-        // 현재 client 객체에도 반영
-        client.umami_id = websiteId;
-        client.umami_share = shareId;
-        
-        console.log(`[${clientId}] Umami 생성 완료: Website=${websiteId}, Share=${shareId}`);
-      } else {
-        console.error(`[${clientId}] Umami 생성 실패`);
-      }
-    }
 
     return { client, debugInfo };
 
