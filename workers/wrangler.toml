@@ -31,9 +31,5 @@ max_batch_timeout = 30
 max_retries = 1
 
 [vars]
-API_BASE_URL = "https://caps-chatbot.fly.dev"
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
 DRIVE_FOLDER_ID = "1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt"
-# Umami Analytics - https://caps-umami.fly.dev (admin/jwh850920^^)
-# Website ID 확인: Settings > Websites에서 확인 후 입력
-# UMAMI_WEBSITE_ID = "your-website-id-here"
