@@ -1,6 +1,6 @@
 // Google Sheets CRUD
 
-import { fetchWithTimeout, parseCSV, normalizeClient, getColumnLetter } from './utils.js';
+import { fetchWithTimeout, parseCSV, parseCSVLine, normalizeClient, getColumnLetter } from './utils.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
 
 export async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
