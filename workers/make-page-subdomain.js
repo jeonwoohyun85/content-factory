@@ -106,11 +106,11 @@ export default {
             message.ack();
           } else {
             console.error(`❌ ${message.body.subdomain} 실패: ${result.error}`);
-            message.retry();  // 실패 시 재시도
+            message.ack();  // 실패해도 Queue에서 제거 (max_retries=0)
           }
         } catch (error) {
           console.error(`❌ ${message.body.subdomain} 에러: ${error.message}`);
-          message.retry();  // 에러 시 재시도
+          message.ack();  // 에러 발생해도 Queue에서 제거 (max_retries=0)
         }
       })
     );
