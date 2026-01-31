@@ -1,4 +1,5 @@
 // Content Factory - Minimal Version (Google Sheets Only)
+      ctx.waitUntil(setCachedHTML(subdomain, html, env));
 
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
 
@@ -612,6 +613,24 @@ function normalizeClient(client) {
 }
 
 
+
+
+// HTML 캐시
+async function getCachedHTML(key, env) {
+  try {
+    return await env.POSTING_KV.get(`html_${key}`);
+  } catch (error) {
+    return null;
+  }
+}
+
+async function setCachedHTML(key, html, env) {
+  try {
+    await env.POSTING_KV.put(`html_${key}`, html, { expirationTtl: 86400 });
+  } catch (error) {
+    console.error('Cache error:', error);
+  }
+}
 
 // Google Sheets에서 거래처 정보 조회
 
@@ -3832,6 +3851,17 @@ export default {
 
       // Google Sheets에서 거래처 정보 조회
 
+      
+      // 캐시 확인
+      if (!url.searchParams.get('refresh')) {
+        const cached = await getCachedHTML(subdomain, env);
+        if (cached) {
+          return new Response(cached, {
+            headers: { 'Content-Type': 'text/html; charset=utf-8' }
+          });
+        }
+      }
+
       const { client, debugInfo } = await getClientFromSheets(subdomain, env);
 
 
@@ -6249,3 +6279,17 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
 
 
 
+      // 캐시 새로고침
+      if (pathname === '/refresh') {
+        const sub = url.searchParams.get('subdomain');
+        if (!sub) return new Response('subdomain required', { status: 400 });
+        const { client } = await getClientFromSheets(sub, env);
+        if (!client) return new Response('Not found', { status: 404 });
+        const html = await generateClientPage(client, {}, env);
+        await setCachedHTML(sub, html, env);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      
