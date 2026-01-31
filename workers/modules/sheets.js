@@ -5,7 +5,7 @@ import { getGoogleAccessTokenForPosting } from './auth.js';
 
 export async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
   try {
-    const accessToken = await getGoogleAccessToken(env);
+    const accessToken = await getGoogleAccessTokenForPosting(env);
     
     // 관리자 시트 읽기
     const sheetResponse = await fetchWithTimeout(
