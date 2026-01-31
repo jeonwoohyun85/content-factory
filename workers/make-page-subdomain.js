@@ -738,7 +738,7 @@ async function getClientFromSheets(clientId, env) {
             const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
 
 {
-${fieldsToTranslate.map(f => `  "${f.key}": "${f.value.replace(/"/g, '\"')}"`).join(',
+${fieldsToTranslate.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',
 ')}
 }
 
