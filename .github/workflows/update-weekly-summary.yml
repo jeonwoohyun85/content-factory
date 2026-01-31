@@ -1,0 +1,236 @@
+name: 주간 요약 자동 업데이트
+
+on:
+  schedule:
+    # 매주 일요일 23:00 KST (14:00 UTC)
+    - cron: '0 14 * * 0'
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  update-weekly:
+    runs-on: ubuntu-latest
+    name: 주간 요약 재생성
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 전체 배포 이력 조회
+        run: |
+          gh run list \
+            --repo jeonwoohyun85/content-factory \
+            --status success \
+            --workflow "deploy-workers.yml" \
+            --limit 10000 \
+            --json displayTitle,createdAt,headSha,conclusion \
+            > all-runs.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 주간 요약 생성
+        run: |
+          cat > generate_weekly.py << 'SCRIPT_EOF'
+          import json
+          import sys
+          from datetime import datetime, timedelta
+          from collections import defaultdict
+
+          # 배포 데이터 로드
+          with open('all-runs.json', 'r', encoding='utf-8') as f:
+              runs = json.load(f)
+
+          # workflow_dispatch 제외
+          runs = [r for r in runs if r['displayTitle'] != '클라우드플레어 워커 자동 배포']
+
+          # 날짜별 배포 그룹화
+          deployments_by_date = defaultdict(list)
+
+          for run in runs:
+              timestamp = run['createdAt']
+              title = run['displayTitle'].strip()
+
+              # UTC to KST
+              utc_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+              kst_dt = utc_dt + timedelta(hours=9)
+
+              date_str = kst_dt.strftime('%Y-%m-%d')
+
+              # 카테고리 추출
+              if ':' in title:
+                  category = title.split(':')[0].strip()
+                  text = title.split(':', 1)[1].strip()
+              else:
+                  category = 'other'
+                  text = title
+
+              deployments_by_date[date_str].append({
+                  'category': category,
+                  'title': text
+              })
+
+          # 주차별 그룹화 (월요일 시작)
+          weekly_summary = defaultdict(lambda: defaultdict(list))
+
+          for date_str, items in deployments_by_date.items():
+              date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+
+              # 해당 주의 월요일 찾기
+              weekday = date_obj.weekday()
+              monday = date_obj - timedelta(days=weekday)
+              week_key = monday.strftime('%Y-%m-%d')
+
+              # 요일 이름
+              weekday_names = ['월', '화', '수', '목', '금', '토', '일']
+              weekday_name = weekday_names[weekday]
+
+              # 해당 날짜의 주요 작업 요약
+              summary_items = []
+
+              features = [item for item in items if item['category'] in ['feature', 'feat']]
+              fixes = [item for item in items if item['category'] in ['fix', 'bugfix']]
+              improvements = [item for item in items if item['category'] in ['improvement', 'performance']]
+
+              if features:
+                  for f in features[:2]:
+                      summary_items.append(f['title'][:50])
+              if fixes and len(summary_items) < 2:
+                  for f in fixes[:1]:
+                      summary_items.append(f['title'][:50])
+              if improvements and len(summary_items) < 2:
+                  for i in improvements[:1]:
+                      summary_items.append(i['title'][:50])
+
+              summary = ', '.join(summary_items) if summary_items else '유지보수'
+
+              weekly_summary[week_key][date_str] = {
+                  'weekday': weekday_name,
+                  'summary': summary,
+                  'count': len(items)
+              }
+
+          # 주차별 큰 흐름 파악
+          week_flows = {}
+          for week_key in sorted(weekly_summary.keys()):
+              dates = weekly_summary[week_key]
+
+              all_titles = []
+              for date_str, info in dates.items():
+                  for item in deployments_by_date[date_str]:
+                      all_titles.append(item['title'])
+
+              if any('Google Sheets' in t or 'Supabase' in t for t in all_titles):
+                  flow = "시스템 구축 → 인프라 전환"
+              elif any('Umami' in t for t in all_titles):
+                  if any('제거' in t or '폐기' in t for t in all_titles):
+                      flow = "통계 자동화 시도 → 폐기 → 수동 전환"
+                  else:
+                      flow = "통계 기능 실험"
+              elif any('Queue' in t or '병렬' in t for t in all_titles):
+                  flow = "성능 최적화 및 안정화"
+              elif any('중복' in t or '정합성' in t for t in all_titles):
+                  flow = "데이터 안정화"
+              else:
+                  flow = "기능 개발 및 개선"
+
+              week_flows[week_key] = flow
+
+          # 출력 생성
+          output = []
+          output.append("### 📅 주간 요약\n")
+
+          week_num = 1
+          for week_key in sorted(weekly_summary.keys()):
+              dates = weekly_summary[week_key]
+
+              monday = datetime.strptime(week_key, '%Y-%m-%d')
+              sunday = monday + timedelta(days=6)
+
+              output.append(f"#### {week_num}주차 ({monday.strftime('%m/%d')}-{sunday.strftime('%m/%d')})")
+              output.append(f"**주요 흐름**: {week_flows[week_key]}\n")
+
+              for date_str in sorted(dates.keys()):
+                  info = dates[date_str]
+                  date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                  output.append(f"- **{info['weekday']} {date_obj.strftime('%m/%d')}**: {info['summary']} ({info['count']}건)")
+
+              output.append("")
+              week_num += 1
+
+          # 파일 저장
+          with open('weekly-summary-new.txt', 'w', encoding='utf-8') as f:
+              f.write('\n'.join(output))
+
+          print(f"주간 요약 생성 완료: {week_num - 1}주차")
+          SCRIPT_EOF
+
+          python3 generate_weekly.py
+
+      - name: PROJECT.md 업데이트
+        run: |
+          python3 << 'UPDATE_EOF'
+          with open('PROJECT.md', 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          # '## 배포 이력' 위치 찾기
+          parts = content.split('## 배포 이력')
+          before = parts[0]
+          deploy_section = parts[1]
+
+          # 마일스톤 추출
+          if '### 🎯 주요 마일스톤' in deploy_section:
+              milestone_parts = deploy_section.split('### 🎯 주요 마일스톤')
+              milestones = '### 🎯 주요 마일스톤' + milestone_parts[1].split('---')[0] + '---'
+
+              if '### 📋 상세 타임라인' in milestone_parts[1]:
+                  timeline_start = milestone_parts[1].find('### 📋 상세 타임라인')
+                  timeline = milestone_parts[1][timeline_start:]
+              else:
+                  timeline = ''
+          else:
+              milestones = ''
+              timeline = deploy_section
+
+          # '## 다음 작업' 찾기
+          if '## 다음 작업' in timeline:
+              timeline_parts = timeline.split('## 다음 작업')
+              timeline = timeline_parts[0].rstrip()
+              after = '## 다음 작업' + timeline_parts[1]
+          else:
+              after = ''
+
+          # 새 주간 요약 읽기
+          with open('weekly-summary-new.txt', 'r', encoding='utf-8') as f:
+              weekly = f.read().strip()
+
+          # 합치기
+          with open('PROJECT.md', 'w', encoding='utf-8') as f:
+              f.write(before.rstrip())
+              f.write('\n\n## 배포 이력\n\n')
+              f.write(milestones)
+              f.write('\n\n')
+              f.write(weekly)
+              f.write('\n\n---\n\n')
+              f.write(timeline.strip())
+              f.write('\n\n---\n\n')
+              f.write(after)
+
+          print('PROJECT.md 업데이트 완료')
+          UPDATE_EOF
+
+      - name: 변경사항 커밋
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add PROJECT.md
+          git diff --staged --quiet || git commit -m "docs: 주간 요약 자동 업데이트 [skip ci]"
+
+      - name: 변경사항 푸시
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
