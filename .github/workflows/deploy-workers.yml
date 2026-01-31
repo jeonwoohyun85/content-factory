@@ -36,4 +36,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: 'workers'
-          command: deploy --config ../wrangler.toml
+          command: deploy --config wrangler.toml
