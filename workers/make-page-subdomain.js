@@ -384,7 +384,7 @@ IMPORTANT: Return ONLY the JSON object, no other text.`;
 
           temperature: 0.3,
 
-          maxOutputTokens: 500
+          maxOutputTokens: 8000
 
         }
 
@@ -753,7 +753,7 @@ IMPORTANT: Return ONLY the JSON object.`;
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   contents: [{"parts": [{"text": prompt}]}],
-                  generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+                  generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
                 })
               }
             );
@@ -4100,7 +4100,7 @@ IMPORTANT: Return ONLY the JSON object.`;
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   contents: [{"parts": [{"text": prompt}]}],
-                  generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+                  generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
                 })
               }
             );
