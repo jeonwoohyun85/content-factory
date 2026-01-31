@@ -4045,13 +4045,76 @@ async function getClientFromSheetsForPosting(subdomain, env) {
 
 
 
-    return clients.find(c => {
+    const client = clients.find(c => {
 
       let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
 
       return normalized === subdomain && c.subscription === '활성';
 
     }) || null;
+
+    // 상호명에서 언어 표시 자동 제거
+    if (client && client.business_name) {
+      const suffixes = [' Japan', ' 日本', ' japan', ' Korea', ' 한국', ' China', ' 中国', ' English', ' Japanese', ' 일본어'];
+      for (const s of suffixes) {
+        if (client.business_name.endsWith(s)) {
+          client.business_name = client.business_name.slice(0, -s.length).trim();
+          break;
+        }
+      }
+    }
+
+    // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
+    if (client && client.language) {
+      const langCode = normalizeLanguage(client.language);
+      if (langCode !== 'ko') {
+        const fieldsToTranslate = [];
+        if (client.business_name) fieldsToTranslate.push({ key: 'business_name', value: client.business_name });
+        if (client.address) fieldsToTranslate.push({ key: 'address', value: client.address });
+        if (client.business_hours) fieldsToTranslate.push({ key: 'business_hours', value: client.business_hours });
+
+        if (fieldsToTranslate.length > 0) {
+          try {
+            const fieldsJson = fieldsToTranslate.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',\n');
+            const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
+
+{
+${fieldsJson}
+}
+
+IMPORTANT: Return ONLY the JSON object.`;
+
+            const translateResponse = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{"parts": [{"text": prompt}]}],
+                  generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+                })
+              }
+            );
+
+            if (translateResponse.ok) {
+              const data = await translateResponse.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const jsonMatch = text.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const translations = JSON.parse(jsonMatch[0]);
+                if (translations.business_name) client.business_name = translations.business_name;
+                if (translations.address) client.address = translations.address;
+                if (translations.business_hours) client.business_hours = translations.business_hours;
+              }
+            }
+          } catch (error) {
+            console.error('Translation error in getClientFromSheetsForPosting:', error);
+          }
+        }
+      }
+    }
+
+    return client;
 
   } catch (error) {
 
