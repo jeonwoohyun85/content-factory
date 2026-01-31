@@ -602,6 +602,7 @@ function normalizeClient(client) {
 
     '폴더명': 'folder_name',
     '우마미': 'umami_id',
+    '우마미_공유': 'umami_share',
     '우마미공유': 'umami_share'
 
   };
@@ -631,6 +632,156 @@ function normalizeClient(client) {
 
 
 // Google Sheets에서 거래처 정보 조회
+
+
+// Umami Website 및 Share URL 자동 생성
+async function createUmamiWebsite(subdomain, businessName, env) {
+  try {
+    if (!env.UMAMI_API_KEY) {
+      console.error('UMAMI_API_KEY not found');
+      return null;
+    }
+
+    // 1. Website 생성
+    const createResponse = await fetch('https://cloud.umami.is/api/websites', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.UMAMI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        domain: `${subdomain}.make-page.com`,
+        name: businessName || subdomain
+      })
+    });
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      console.error('Umami Website 생성 실패:', createResponse.status, error);
+      return null;
+    }
+
+    const websiteData = await createResponse.json();
+    const websiteId = websiteData.id;
+
+    console.log(`Umami Website 생성 성공: ${websiteId}`);
+
+    // 2. Share URL 생성
+    const shareResponse = await fetch(`https://cloud.umami.is/api/websites/${websiteId}/share`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.UMAMI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!shareResponse.ok) {
+      console.error('Share URL 생성 실패:', shareResponse.status);
+      return { websiteId, shareId: null };
+    }
+
+    const shareData = await shareResponse.json();
+    const shareId = shareData.id;
+
+    console.log(`Share URL 생성 성공: ${shareId}`);
+
+    return { websiteId, shareId };
+  } catch (error) {
+    console.error('Umami 생성 중 에러:', error);
+    return null;
+  }
+}
+
+// Google Sheets 업데이트
+async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
+  try {
+    const accessToken = await getGoogleAccessToken(env);
+    
+    // 관리자 시트 읽기
+    const sheetResponse = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
+    );
+
+    if (!sheetResponse.ok) {
+      console.error('시트 읽기 실패');
+      return false;
+    }
+
+    const sheetData = await sheetResponse.json();
+    const rows = sheetData.values || [];
+    
+    if (rows.length < 2) return false;
+
+    const headers = rows[0];
+    const domainIndex = headers.indexOf('도메인');
+    const umamiIndex = headers.indexOf('우마미');
+    const umamiShareIndex = headers.indexOf('우마미_공유');
+
+    if (domainIndex === -1 || umamiIndex === -1 || umamiShareIndex === -1) {
+      console.error('필수 컬럼 없음');
+      return false;
+    }
+
+    // 해당 거래처 행 찾기
+    let targetRowIndex = -1;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const rowDomain = (row[domainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      if (rowDomain === subdomain) {
+        targetRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (targetRowIndex === -1) {
+      console.error('거래처 행을 찾을 수 없음');
+      return false;
+    }
+
+    // 일괄 업데이트
+    const umamiCol = getColumnLetter(umamiIndex);
+    const shareCol = getColumnLetter(umamiShareIndex);
+
+    const updateData = [
+      {
+        range: `관리자!${umamiCol}${targetRowIndex}`,
+        values: [[websiteId]]
+      },
+      {
+        range: `관리자!${shareCol}${targetRowIndex}`,
+        values: [[shareId]]
+      }
+    ];
+
+    const batchUpdateResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          valueInputOption: 'RAW',
+          data: updateData
+        })
+      }
+    );
+
+    if (batchUpdateResponse.ok) {
+      console.log('Umami 정보 시트 업데이트 성공');
+      return true;
+    } else {
+      console.error('시트 업데이트 실패:', batchUpdateResponse.status);
+      return false;
+    }
+  } catch (error) {
+    console.error('시트 업데이트 중 에러:', error);
+    return false;
+  }
+}
 
 async function getClientFromSheets(clientId, env) {
 
@@ -781,6 +932,28 @@ IMPORTANT: Return ONLY the JSON object.`;
     }
 
 
+
+    // Umami 자동 생성 (첫 방문 시)
+    if (client && (!client.umami_id || !client.umami_share)) {
+      console.log(`[${clientId}] Umami 자동 생성 시작...`);
+      const umamiResult = await createUmamiWebsite(clientId, client.business_name, env);
+      
+      if (umamiResult && umamiResult.websiteId) {
+        const websiteId = umamiResult.websiteId;
+        const shareId = umamiResult.shareId || '';
+        
+        // 시트에 저장
+        await updateUmamiToSheet(clientId, websiteId, shareId, env);
+        
+        // 현재 client 객체에도 반영
+        client.umami_id = websiteId;
+        client.umami_share = shareId;
+        
+        console.log(`[${clientId}] Umami 생성 완료: Website=${websiteId}, Share=${shareId}`);
+      } else {
+        console.error(`[${clientId}] Umami 생성 실패`);
+      }
+    }
 
     return { client, debugInfo };
 
@@ -1588,18 +1761,13 @@ async function generateClientPage(client, debugInfo, env) {
 
   // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
-  const links = (client.links || '').split(',').map(l => extractUrlFromMarkdown(l.trim())).filter(l => l).map(url => getLinkInfo(url, texts)).filter(l => l);
+  const links = (client.links || '').split(',')
+    .map(l => extractUrlFromMarkdown(l.trim()))
+    .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL 제외
+    .map(url => getLinkInfo(url, texts))
+    .filter(l => l);
   
-  // Umami 통계 자동 추가
-  if (client.umami_share) {
-    links.push({
-      icon: '📊',
-      text: texts.stats,
-      url: `https://cloud.umami.is/share/${client.umami_share}`
-    });
-  }
-
-  // Umami 통계 자동 추가
+  // Umami 통계 버튼 (우마미_공유 컬럼 사용)
   if (client.umami_share) {
     links.push({
       icon: '📊',
