@@ -32,6 +32,31 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
 
 }
 
+// Sheets CSV 조회 재시도 로직 (R4-1)
+export async function fetchSheetsWithRetry(url, maxRetries = 3) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, {}, 15000); // 15초 타임아웃
+      if (response.ok) {
+        return response;
+      }
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      console.error(`Sheets fetch attempt ${attempt}/${maxRetries} failed:`, error.message);
+    }
+    
+    // 마지막 시도가 아니면 대기 후 재시도
+    if (attempt < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // 2초, 4초, 6초 대기
+    }
+  }
+  
+  throw lastError;
+}
+
 export function escapeHtml(text) {
 
   if (!text) return '';
@@ -153,6 +178,11 @@ export function parseCSVLine(line) {
 
 
   result.push(current.trim());
+  
+  // CSV 파싱 검증 (R8-1)
+  if (inQuotes) {
+    console.error('[CSV Parse Error] Unclosed quotes detected in line:', line.substring(0, 100));
+  }
 
   return result;
 
@@ -501,4 +531,10 @@ export function getColumnLetter(index) {
 
   return letter;
 
+}
+
+// 폴더명 정규화 (R4-3)
+export function normalizeFolderName(name) {
+  if (!name) return '';
+  return name.trim().toLowerCase();
 }
