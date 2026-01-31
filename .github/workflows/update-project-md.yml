@@ -20,7 +20,7 @@ jobs:
         id: commit
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          COMMIT_DATE=$(date -u +"%Y-%m-%d %H:%M")
+          COMMIT_DATE=$(TZ='Asia/Seoul' date +"%Y-%m-%d %H:%M")
           CATEGORY=$(echo "$COMMIT_MSG" | grep -oP '^[a-z]+(?=:)' || echo "other")
           TITLE=$(echo "$COMMIT_MSG" | sed 's/^[a-z]*: //' | head -1)
 
