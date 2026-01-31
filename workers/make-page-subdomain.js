@@ -575,6 +575,8 @@ function normalizeClient(client) {
     '상태': 'posting_status',
 
     '폴더명': 'folder_name'
+    '우마미': 'umami_id',
+    '우마미공유': 'umami_share'
 
   };
 
@@ -1226,7 +1228,7 @@ async function generatePostPage(client, post, env) {
 
     <!-- Umami Cloud Analytics -->
 
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="${UMAMI_WEBSITE_ID}"></script>
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="${client.umami_id || UMAMI_WEBSITE_ID}"></script>
 
     <style>
 
@@ -1493,6 +1495,15 @@ async function generateClientPage(client, debugInfo, env) {
   // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
   const links = (client.links || '').split(',').map(l => extractUrlFromMarkdown(l.trim())).filter(l => l).map(url => getLinkInfo(url, texts)).filter(l => l);
+  
+  // Umami 통계 자동 추가
+  if (client.umami_share) {
+    links.push({
+      icon: '📊',
+      text: texts.stats || '통계',
+      url: `https://cloud.umami.is/share/${client.umami_share}`
+    });
+  }
 
   // Umami 통계 자동 추가
   if (client.umami_share) {
@@ -1575,7 +1586,7 @@ async function generateClientPage(client, debugInfo, env) {
 
     <!-- Umami Cloud Analytics -->
 
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="${UMAMI_WEBSITE_ID}"></script>
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="${client.umami_id || UMAMI_WEBSITE_ID}"></script>
 
     <style>
 
