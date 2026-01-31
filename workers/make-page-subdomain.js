@@ -723,6 +723,58 @@ async function getClientFromSheets(clientId, env) {
       }
     }
 
+    // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
+    if (client && client.language) {
+      const langCode = normalizeLanguage(client.language);
+      if (langCode !== 'ko') {
+        // 번역할 필드 수집
+        const fieldsToTranslate = [];
+        if (client.business_name) fieldsToTranslate.push({ key: 'business_name', value: client.business_name });
+        if (client.address) fieldsToTranslate.push({ key: 'address', value: client.address });
+        if (client.business_hours) fieldsToTranslate.push({ key: 'business_hours', value: client.business_hours });
+
+        if (fieldsToTranslate.length > 0) {
+          try {
+            const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
+
+{
+${fieldsToTranslate.map(f => `  "${f.key}": "${f.value.replace(/"/g, '\"')}"`).join(',
+')}
+}
+
+IMPORTANT: Return ONLY the JSON object.`;
+
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{"parts": [{"text": prompt}]}],
+                  generationConfig: { temperature: 0.3, maxOutputTokens: 500 }
+                })
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const jsonMatch = text.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const translations = JSON.parse(jsonMatch[0]);
+                if (translations.business_name) client.business_name = translations.business_name;
+                if (translations.address) client.address = translations.address;
+                if (translations.business_hours) client.business_hours = translations.business_hours;
+              }
+            }
+          } catch (error) {
+            console.error('Translation error:', error);
+            // 번역 실패 시 원본 유지
+          }
+        }
+      }
+    }
+
 
 
     return { client, debugInfo };
