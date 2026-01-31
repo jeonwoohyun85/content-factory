@@ -1,3 +1,4 @@
+// 워크플로우 테스트 - workers 폴더 변경 감지 확인
 // Content Factory - Minimal Version (Google Sheets Only)
 
 // 거래처 페이지만 제공 (랜딩페이지, 블로그, Supabase 전부 제거)
