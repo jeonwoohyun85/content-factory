@@ -5539,32 +5539,6 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
         const latestFormatRequests = [{
 
-          updateDimensionProperties: {
-
-            range: {
-
-              sheetId: latestSheetId,
-
-              dimension: 'ROWS',
-
-              startIndex: latestNewRowIndex,
-
-              endIndex: latestNewRowIndex + 1
-
-            },
-
-            properties: {
-
-              pixelSize: 21
-
-            },
-
-            fields: 'pixelSize'
-
-          }
-
-        }, {
-
           repeatCell: {
 
             range: {
@@ -5784,32 +5758,6 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
           const formatRequests = [{
-
-            updateDimensionProperties: {
-
-              range: {
-
-                sheetId: archiveSheetId,
-
-                dimension: 'ROWS',
-
-                startIndex: newRowIndex,
-
-                endIndex: newRowIndex + 1
-
-              },
-
-              properties: {
-
-                pixelSize: 21
-
-              },
-
-              fields: 'pixelSize'
-
-            }
-
-          }, {
 
             repeatCell: {
 
