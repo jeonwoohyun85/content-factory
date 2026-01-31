@@ -3861,9 +3861,9 @@ export default {
 
       // Google Sheets에서 거래처 정보 조회
 
-      
-      // 캐시 확인
-      if (!url.searchParams.get('refresh')) {
+
+      // 캐시 확인 (포스트 상세 페이지 제외)
+      if (pathname !== '/post' && !url.searchParams.get('refresh')) {
         const cached = await getCachedHTML(subdomain, env);
         if (cached) {
           return new Response(cached, {
