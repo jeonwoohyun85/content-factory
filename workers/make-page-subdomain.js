@@ -734,7 +734,7 @@ async function getClientFromSheets(clientId, env) {
         if (client.business_hours) fieldsToTranslate.push({ key: 'business_hours', value: client.business_hours });
 
         if (fieldsToTranslate.length > 0) {
-            console.log("[DEBUG] Translating", fieldsToTranslate.length, "fields to", langCode);
+          try {
             const fieldsJson = fieldsToTranslate.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',\n');
             const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
 
@@ -756,12 +756,12 @@ IMPORTANT: Return ONLY the JSON object.`;
               }
             );
 
+            if (translateResponse.ok) {
               const data = await translateResponse.json();
-              console.log("[DEBUG] Gemini API response:", JSON.stringify(data).substring(0, 500));
               const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const jsonMatch = text.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const translations = JSON.parse(jsonMatch[0]);
-                console.log("[DEBUG] Translation result:", translations);
                 if (translations.business_name) client.business_name = translations.business_name;
                 if (translations.address) client.address = translations.address;
                 if (translations.business_hours) client.business_hours = translations.business_hours;
