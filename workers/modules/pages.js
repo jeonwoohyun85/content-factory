@@ -1517,10 +1517,12 @@ export async function handleSitemap(env) {
     // 거래처 메인 페이지만 포함
 
     activeClients.forEach(client => {
+      // subdomain 정규화 (.make-page.com 제거)
+      const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
 
       urls.push({
 
-        loc: `https://${client.subdomain}.make-page.com/`,
+        loc: `https://${normalizedSubdomain}.make-page.com/`,
 
         lastmod: getKstDate(),
 
