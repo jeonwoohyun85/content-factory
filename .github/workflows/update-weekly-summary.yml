@@ -1,610 +1,304 @@
 name: 월별 요약 자동 업데이트
 
-
-
 on:
-
   schedule:
-
     # 매월 1일 09:00 KST (1일 00:00 UTC)
-
     - cron: '0 0 1 * *'
-
   workflow_dispatch:  # 수동 실행 가능
 
-
-
 jobs:
-
   update-monthly:
-
     runs-on: ubuntu-latest
-
     name: 월별 요약 및 아키텍처 자동 업데이트
-
     permissions:
-
       contents: write
-
     steps:
-
       - uses: actions/checkout@v4
 
-
-
       - name: Setup Python
-
         uses: actions/setup-python@v4
-
         with:
-
           python-version: '3.11'
 
-
-
       - name: 전체 배포 이력 조회
-
         run: |
-
           gh run list \
-
             --repo jeonwoohyun85/content-factory \
-
             --status success \
-
             --workflow "deploy-workers.yml" \
-
             --limit 10000 \
-
             --json displayTitle,createdAt,headSha,conclusion \
-
             > all-runs.json
-
         env:
-
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
-
       - name: 월별 요약 및 아키텍처 섹션 생성
-
         run: |
-
           cat > update_monthly.py << 'SCRIPT_EOF'
-
           import json
-
           import sys
-
           from datetime import datetime, timedelta
-
           from collections import defaultdict
 
-
-
           # 배포 데이터 로드
-
           with open('all-runs.json', 'r', encoding='utf-8') as f:
-
               runs = json.load(f)
 
-
-
           # workflow_dispatch 제외
-
           runs = [r for r in runs if r['displayTitle'] != '클라우드플레어 워커 자동 배포']
 
-
-
           # ========== 1. 월별 요약 생성 ==========
-
           monthly_summary = defaultdict(lambda: defaultdict(list))
 
-
-
           for run in runs:
-
               timestamp = run['createdAt']
-
               title = run['displayTitle'].strip()
 
-
-
               utc_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-
               kst_dt = utc_dt + timedelta(hours=9)
 
-
-
               month_key = kst_dt.strftime('%Y년 %m월')
-
               date_str = kst_dt.strftime('%Y-%m-%d')
 
-
-
               if ':' in title:
-
                   category = title.split(':')[0].strip()
-
                   text = title.split(':', 1)[1].strip()
-
               else:
-
                   category = 'other'
-
                   text = title
 
-
-
               monthly_summary[month_key][date_str].append({
-
                   'category': category,
-
                   'title': text
-
               })
 
-
-
           # 월별 요약 출력
-
           monthly_output = []
-
           monthly_output.append("### 📅 월별 요약\n")
 
-
-
           for month in sorted(monthly_summary.keys()):
-
               monthly_output.append(f"#### {month}")
-
-
 
               dates = monthly_summary[month]
 
-
-
               for date_str in sorted(dates.keys()):
-
                   items = dates[date_str]
-
                   date_obj = datetime.strptime(date_str, '%Y-%m-%d')
 
-
-
                   weekday_names = ['월', '화', '수', '목', '금', '토', '일']
-
                   weekday = weekday_names[date_obj.weekday()]
 
-
-
                   summary_items = []
-
                   features = [item for item in items if item['category'] in ['feature', 'feat']]
-
                   fixes = [item for item in items if item['category'] in ['fix', 'bugfix']]
-
                   improvements = [item for item in items if item['category'] in ['improvement', 'performance']]
 
-
-
                   if features:
-
                       for f in features[:2]:
-
                           summary_items.append(f['title'][:50])
-
                   if fixes and len(summary_items) < 2:
-
                       for f in fixes[:1]:
-
                           summary_items.append(f['title'][:50])
-
                   if improvements and len(summary_items) < 2:
-
                       for i in improvements[:1]:
-
                           summary_items.append(i['title'][:50])
-
-
 
                   summary = ', '.join(summary_items) if summary_items else '유지보수'
 
-
-
                   monthly_output.append(f"- **{weekday} {date_obj.strftime('%m/%d')}**: {summary} ({len(items)}건)")
-
-
 
               monthly_output.append("")
 
-
-
           # 파일 저장
-
           with open('monthly-summary.txt', 'w', encoding='utf-8') as f:
-
               f.write('\n'.join(monthly_output))
-
-
 
           print(f"월별 요약 생성 완료: {len(monthly_summary)}개월")
 
-
-
           # ========== 2. 이전 달 신규 항목 감지 ==========
-
           now_kst = datetime.now() + timedelta(hours=9)
 
-
-
           # 이전 달 계산
-
           first_day_this_month = now_kst.replace(day=1)
-
           last_day_prev_month = first_day_this_month - timedelta(days=1)
-
           first_day_prev_month = last_day_prev_month.replace(day=1)
 
-          # 기술 스택 (삭제됨)
+          # 이전 달 배포만 필터링
+          prev_month_deployments = []
+          for run in runs:
               timestamp = run['createdAt']
-
               utc_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-
               kst_dt = utc_dt + timedelta(hours=9)
 
-
-
               if first_day_prev_month.date() <= kst_dt.date() <= last_day_prev_month.date():
-
                   title = run['displayTitle'].strip()
-
                   if ':' in title:
-
                       category = title.split(':')[0].strip()
-
                       text = title.split(':', 1)[1].strip()
-
                   else:
-
                       category = 'other'
-
                       text = title
 
-
-
                   prev_month_deployments.append({
-
                       'category': category,
-
-
-
+                      'title': text
+                  })
 
           # 신규 항목 감지
-
           new_arch = []
-
           new_deprecated = []
-
           all_titles = [d['title'] for d in prev_month_deployments]
 
-
-
           # 아키텍처 결정 감지
-
           if any('Queue' in t or '병렬' in t for t in all_titles):
-
               new_arch.append(f"- Queue 확장 또는 최적화 ({last_day_prev_month.strftime('%m/%d')})")
-
           if any('Sheets' in t or 'DB' in t for t in all_titles):
-
               new_arch.append(f"- 데이터베이스 구조 개선 ({last_day_prev_month.strftime('%m/%d')})")
 
-
-
           # 폐기 감지
-
           if any('폐기' in t or '제거' in t or 'Revert' in t for t in all_titles):
-
               for item in prev_month_deployments:
-
                   if any(kw in item['title'] for kw in ['폐기', '제거', 'Revert', '삭제']):
-
                       new_deprecated.append(f"- {item['title'][:60]} ({last_day_prev_month.strftime('%m/%d')})")
-
                       break
 
-
-
           # 신규 항목 출력
-
           with open('new-items.txt', 'w', encoding='utf-8') as f:
-
               if new_arch:
-
                   f.write("ARCH_NEW:\n")
-
                   f.write('\n'.join(new_arch) + '\n')
-
               if new_deprecated:
-
                   f.write("DEPRECATED_NEW:\n")
-
                   f.write('\n'.join(new_deprecated) + '\n')
 
-
-
           print("신규 항목 감지 완료")
-
           SCRIPT_EOF
-
-
 
           python3 update_monthly.py
 
-
-
       - name: PROJECT.md 업데이트
-
         run: |
-
           python3 << 'UPDATE_EOF'
-
           with open('PROJECT.md', 'r', encoding='utf-8') as f:
-
               content = f.read()
 
-
-
           # 신규 항목 읽기
-
           new_items = {}
-
           try:
-
               with open('new-items.txt', 'r', encoding='utf-8') as f:
-
                   lines = f.read().strip().split('\n')
-
                   current_section = None
-
                   for line in lines:
-
                       if line.startswith('ARCH_NEW:'):
-
                           current_section = 'arch'
-
                           new_items['arch'] = []
-
                       elif line.startswith('DEPRECATED_NEW:'):
-
                           current_section = 'deprecated'
-
                           new_items['deprecated'] = []
-
                       elif line.strip() and current_section:
-
                           new_items[current_section].append(line)
-
           except:
-
               new_items = {}
 
-
-
           # PROJECT.md 파싱
-
           parts = content.split('## 배포 이력')
-
           before = parts[0]
-
           deploy_section = parts[1]
 
-
-
-          # 마일스톤 추출
-
-          if '### 🎯 주요 마일스톤' in deploy_section:
-
-              milestone_parts = deploy_section.split('### 🎯 주요 마일스톤')
-
-              milestones = '### 🎯 주요 마일스톤' + milestone_parts[1].split('---')[0] + '---'
-
-              after_milestone = '---' + milestone_parts[1].split('---', 1)[1] if '---' in milestone_parts[1] else ''
-
-          else:
-
-              milestones = ''
-
-              after_milestone = deploy_section
-
-
+          # 마일스톤 제거됨 (자동화 불가)
+          after_deploy = deploy_section
 
           # 아키텍처 섹션 추출 및 업데이트
-
-          if '### 💡 주요 아키텍처 결정' in after_milestone:
-
-              arch_parts = after_milestone.split('### 💡 주요 아키텍처 결정')
-
+          if '### 💡 주요 아키텍처 결정' in after_deploy:
+              arch_parts = after_deploy.split('### 💡 주요 아키텍처 결정')
               arch_header = '### 💡 주요 아키텍처 결정\n'
-
               arch_content_parts = arch_parts[1].split('---', 1)
-
               arch_content = arch_content_parts[0]
 
-
-
               if 'arch' in new_items and new_items['arch']:
-
                   arch_content += '\n' + '\n'.join(new_items['arch']) + '\n'
 
-
-
               after_arch = '---' + arch_content_parts[1] if len(arch_content_parts) > 1 else ''
-
           else:
-
               arch_header = ''
-
               arch_content = ''
-
-              after_arch = after_milestone
-
-
+              after_arch = after_deploy
 
           # 폐기 섹션
-
           if '### 🗑️ 폐기된 시도들' in after_arch:
-
               dep_parts = after_arch.split('### 🗑️ 폐기된 시도들')
-
               dep_header = '### 🗑️ 폐기된 시도들\n'
-
               dep_content_parts = dep_parts[1].split('---', 1)
-
               dep_content = dep_content_parts[0]
 
-
-
               if 'deprecated' in new_items and new_items['deprecated']:
-
                   dep_content += '\n' + '\n'.join(new_items['deprecated']) + '\n'
 
-
-
               after_dep = '---' + dep_content_parts[1] if len(dep_content_parts) > 1 else ''
-
           else:
-
               dep_header = ''
-
               dep_content = ''
-
               after_dep = after_arch
 
-
-
           # 기술 스택
-
           stack_section = ''
-
           if '### 🔧 기술 스택 진화' in after_dep:
-
               stack_parts = after_dep.split('### 🔧 기술 스택 진화')
-
               stack_section = '### 🔧 기술 스택 진화' + stack_parts[1].split('---')[0] + '---'
-
               after_stack = '---' + stack_parts[1].split('---', 1)[1] if '---' in stack_parts[1] else ''
-
           else:
-
               after_stack = after_dep
 
-
-
           # 월별 요약 (새로 생성된 것으로 교체)
-
           with open('monthly-summary.txt', 'r', encoding='utf-8') as f:
-
               new_monthly = f.read().strip()
 
-
-
           # 상세 타임라인 찾기
-
-          if '### 📋 상세 타임라인' in after_dep:
-
-              timeline = '### 📋 상세 타임라인' + after_dep.split('### 📋 상세 타임라인')[1]
-
+          if '### 📋 상세 타임라인' in after_stack:
+              timeline = '### 📋 상세 타임라인' + after_stack.split('### 📋 상세 타임라인')[1]
           else:
-
-              timeline = after_dep
-
-
+              timeline = after_stack
 
           # 재조립
-
           with open('PROJECT.md', 'w', encoding='utf-8') as f:
-
               f.write(before.rstrip())
-
               f.write('\n\n## 배포 이력\n\n')
 
-
-
               if milestones:
-
                   f.write(milestones)
-
                   f.write('\n\n')
-
-
 
               if arch_header:
-
                   f.write(arch_header)
-
                   f.write(arch_content)
-
                   f.write('\n---\n\n')
-
-
 
               if dep_header:
-
                   f.write(dep_header)
-
                   f.write(dep_content)
-
                   f.write('\n---\n\n')
 
-
-
               if stack_section:
-
                   f.write(stack_section)
-
                   f.write('\n\n')
 
-
-
               f.write(new_monthly)
-
               f.write('\n\n---\n\n')
-
-
 
               f.write(timeline.strip())
 
-
-
           print('PROJECT.md 업데이트 완료')
-
           UPDATE_EOF
 
-
-
       - name: 변경사항 커밋
-
         run: |
-
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-
           git config --local user.name "github-actions[bot]"
-
           git add PROJECT.md
-
           git diff --staged --quiet || git commit -m "docs: 월별 요약 및 아키텍처 자동 업데이트 [skip ci]"
 
-
-
       - name: 변경사항 푸시
-
         uses: ad-m/github-push-action@master
-
         with:
-
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
           branch: main
-
