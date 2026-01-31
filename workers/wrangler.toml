@@ -27,8 +27,8 @@ binding = "POSTING_QUEUE"
 [[queues.consumers]]
 queue = "posting-queue"
 max_batch_size = 5
-max_batch_timeout = 60  # Cloudflare 제한: 최대 60초 (Gemini 타임아웃도 50초로 맞춤)
-max_retries = 3  # 1회 → 3회 (일시적 오류 복구력 향상)
+max_batch_timeout = 60  # Cloudflare 제한: 최대 60초
+max_retries = 0  # 재시도 비활성화 (API 비용 중복 차감 방지)
 
 [vars]
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
