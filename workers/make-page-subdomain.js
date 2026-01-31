@@ -347,6 +347,7 @@ async function translateWithGemini(language, env) {
   "location": "Location/Map link",
 
   "blog": "Blog link",
+  "store": "Store/Shop link",
 
   "booking": "Booking/Reservation button",
 
