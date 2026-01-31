@@ -78,10 +78,8 @@ export default {
 
     } catch (error) {
       console.error('Scheduled handler error:', error);
-    } finally {
-      // 락 해제
-      await env.POSTING_KV.delete(lockKey);
     }
+    // 락은 TTL(48시간)로 자동 만료됨 - 수동 삭제 불필요
   },
 
   async queue(batch, env) {
@@ -94,11 +92,11 @@ export default {
             message.ack();
           } else {
             console.error(`❌ ${message.body.subdomain} 실패: ${result.error}`);
-            message.ack();
+            message.retry();  // 실패 시 재시도
           }
         } catch (error) {
           console.error(`❌ ${message.body.subdomain} 에러: ${error.message}`);
-          message.ack();
+          message.retry();  // 에러 시 재시도
         }
       })
     );
@@ -153,7 +151,8 @@ export default {
           }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
-          });
+          })
+;
         }
       }
 
