@@ -52,12 +52,12 @@ jobs:
           if [ ! -f PROJECT.md ]; then
             echo "# CAPS Project History" > PROJECT.md
             echo "" >> PROJECT.md
-            echo "## Development Log" >> PROJECT.md
+            echo "## 배포 이력" >> PROJECT.md
             echo "" >> PROJECT.md
           fi
 
           ENTRY="- **$DATE** $ICON [$CATEGORY] $TITLE"
-          sed -i "/## Development Log/a\\
+          sed -i "/## 배포 이력/a\
           $ENTRY" PROJECT.md
 
       - name: 변경사항 커밋
