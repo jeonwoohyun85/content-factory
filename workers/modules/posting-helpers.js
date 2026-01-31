@@ -206,7 +206,23 @@ export async function searchWithGeminiForPosting(client, env) {
 
     console.error(`searchWithGeminiForPosting 에러: ${error.message}`);
 
-    throw error;
+    // 폴백: 기본 키워드 반환
+    const fallbackText = `
+최신 트렌드:
+${client.industry || client.business_name} 분야의 최신 트렌드와 소비자 관심사를 반영한 콘텐츠입니다.
+
+검색 키워드:
+1. ${client.industry || client.business_name}
+2. 추천
+3. 인기
+4. 후기
+5. 정보
+
+소비자 관심사:
+품질, 가격, 서비스, 편의성에 대한 관심이 높습니다.
+`;
+    console.log('Gemini API 실패 - 기본 트렌드 텍스트 사용');
+    return fallbackText;
 
   }
 
@@ -480,7 +496,29 @@ ${trendsData}
 
     console.error(`generatePostWithGeminiForPosting 에러: ${error.message}`);
 
-    throw error;
+    // 폴백: 기본 포스트 반환
+    const fallbackTitle = `${client.business_name} - ${client.description || client.industry}`;
+    const fallbackBody = `${client.business_name}을(를) 소개합니다.
+
+${client.description || client.industry} 분야에서 고객 여러분께 최상의 서비스를 제공하고 있습니다.
+
+${trendsData.substring(0, 300)}
+
+언제든지 방문해 주시면 친절하게 안내해 드리겠습니다.
+
+고객 만족을 위해 항상 최선을 다하고 있습니다.
+
+많은 관심과 방문 부탁드립니다.
+
+더 자세한 정보는 문의 주시기 바랍니다.
+
+감사합니다.`;
+
+    console.log('Gemini API 실패 - 기본 포스트 반환');
+    return {
+      title: fallbackTitle,
+      body: fallbackBody
+    };
 
   }
 
@@ -1913,4 +1951,3 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
   }
 
 }
-
