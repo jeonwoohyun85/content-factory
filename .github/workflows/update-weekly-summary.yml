@@ -1,15 +1,15 @@
-name: 주간 요약 자동 업데이트
+name: 월별 요약 자동 업데이트
 
 on:
   schedule:
-    # 매주 월요일 00:00 KST (일요일 15:00 UTC)
-    - cron: '0 15 * * 0'
+    # 매월 1일 09:00 KST (1일 00:00 UTC)
+    - cron: '0 0 1 * *'
   workflow_dispatch:  # 수동 실행 가능
 
 jobs:
-  update-weekly:
+  update-monthly:
     runs-on: ubuntu-latest
-    name: 주간 요약 및 아키텍처 자동 업데이트
+    name: 월별 요약 및 아키텍처 자동 업데이트
     permissions:
       contents: write
     steps:
@@ -32,9 +32,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 주간 요약 및 아키텍처 섹션 생성
+      - name: 월별 요약 및 아키텍처 섹션 생성
         run: |
-          cat > update_all.py << 'SCRIPT_EOF'
+          cat > update_monthly.py << 'SCRIPT_EOF'
           import json
           import sys
           from datetime import datetime, timedelta
@@ -47,8 +47,8 @@ jobs:
           # workflow_dispatch 제외
           runs = [r for r in runs if r['displayTitle'] != '클라우드플레어 워커 자동 배포']
 
-          # ========== 1. 주간 요약 생성 ==========
-          deployments_by_date = defaultdict(list)
+          # ========== 1. 월별 요약 생성 ==========
+          monthly_summary = defaultdict(lambda: defaultdict(list))
 
           for run in runs:
               timestamp = run['createdAt']
@@ -56,6 +56,8 @@ jobs:
 
               utc_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
               kst_dt = utc_dt + timedelta(hours=9)
+
+              month_key = kst_dt.strftime('%Y년 %m월')
               date_str = kst_dt.strftime('%Y-%m-%d')
 
               if ':' in title:
@@ -65,133 +67,99 @@ jobs:
                   category = 'other'
                   text = title
 
-              deployments_by_date[date_str].append({
+              monthly_summary[month_key][date_str].append({
                   'category': category,
                   'title': text
               })
 
-          # 주차별 그룹화
-          weekly_summary = defaultdict(lambda: defaultdict(list))
+          # 월별 요약 출력
+          monthly_output = []
+          monthly_output.append("### 📅 월별 요약\n")
 
-          for date_str, items in deployments_by_date.items():
-              date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-              weekday = date_obj.weekday()
-              monday = date_obj - timedelta(days=weekday)
-              week_key = monday.strftime('%Y-%m-%d')
+          for month in sorted(monthly_summary.keys()):
+              monthly_output.append(f"#### {month}")
 
-              weekday_names = ['월', '화', '수', '목', '금', '토', '일']
-              weekday_name = weekday_names[weekday]
-
-              summary_items = []
-              features = [item for item in items if item['category'] in ['feature', 'feat']]
-              fixes = [item for item in items if item['category'] in ['fix', 'bugfix']]
-              improvements = [item for item in items if item['category'] in ['improvement', 'performance']]
-
-              if features:
-                  for f in features[:2]:
-                      summary_items.append(f['title'][:50])
-              if fixes and len(summary_items) < 2:
-                  for f in fixes[:1]:
-                      summary_items.append(f['title'][:50])
-              if improvements and len(summary_items) < 2:
-                  for i in improvements[:1]:
-                      summary_items.append(i['title'][:50])
-
-              summary = ', '.join(summary_items) if summary_items else '유지보수'
-
-              weekly_summary[week_key][date_str] = {
-                  'weekday': weekday_name,
-                  'summary': summary,
-                  'count': len(items)
-              }
-
-          # 주차별 큰 흐름 파악
-          week_flows = {}
-          for week_key in sorted(weekly_summary.keys()):
-              dates = weekly_summary[week_key]
-              all_titles = []
-              for date_str, info in dates.items():
-                  for item in deployments_by_date[date_str]:
-                      all_titles.append(item['title'])
-
-              if any('Google Sheets' in t or 'Supabase' in t for t in all_titles):
-                  flow = "시스템 구축 → 인프라 전환"
-              elif any('Umami' in t for t in all_titles):
-                  if any('제거' in t or '폐기' in t for t in all_titles):
-                      flow = "통계 자동화 시도 → 폐기 → 수동 전환"
-                  else:
-                      flow = "통계 기능 실험"
-              elif any('Queue' in t or '병렬' in t for t in all_titles):
-                  flow = "성능 최적화 및 안정화"
-              elif any('중복' in t or '정합성' in t for t in all_titles):
-                  flow = "데이터 안정화"
-              else:
-                  flow = "기능 개발 및 개선"
-
-              week_flows[week_key] = flow
-
-          # 주간 요약 출력
-          weekly_output = []
-          weekly_output.append("### 📅 주간 요약\n")
-
-          week_num = 1
-          for week_key in sorted(weekly_summary.keys()):
-              dates = weekly_summary[week_key]
-              monday = datetime.strptime(week_key, '%Y-%m-%d')
-              sunday = monday + timedelta(days=6)
-
-              weekly_output.append(f"#### {week_num}주차 ({monday.strftime('%m/%d')}-{sunday.strftime('%m/%d')})")
-              weekly_output.append(f"**주요 흐름**: {week_flows[week_key]}\n")
+              dates = monthly_summary[month]
 
               for date_str in sorted(dates.keys()):
-                  info = dates[date_str]
+                  items = dates[date_str]
                   date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                  weekly_output.append(f"- **{info['weekday']} {date_obj.strftime('%m/%d')}**: {info['summary']} ({info['count']}건)")
 
-              weekly_output.append("")
-              week_num += 1
+                  weekday_names = ['월', '화', '수', '목', '금', '토', '일']
+                  weekday = weekday_names[date_obj.weekday()]
+
+                  summary_items = []
+                  features = [item for item in items if item['category'] in ['feature', 'feat']]
+                  fixes = [item for item in items if item['category'] in ['fix', 'bugfix']]
+                  improvements = [item for item in items if item['category'] in ['improvement', 'performance']]
+
+                  if features:
+                      for f in features[:2]:
+                          summary_items.append(f['title'][:50])
+                  if fixes and len(summary_items) < 2:
+                      for f in fixes[:1]:
+                          summary_items.append(f['title'][:50])
+                  if improvements and len(summary_items) < 2:
+                      for i in improvements[:1]:
+                          summary_items.append(i['title'][:50])
+
+                  summary = ', '.join(summary_items) if summary_items else '유지보수'
+
+                  monthly_output.append(f"- **{weekday} {date_obj.strftime('%m/%d')}**: {summary} ({len(items)}건)")
+
+              monthly_output.append("")
 
           # 파일 저장
-          with open('weekly-summary.txt', 'w', encoding='utf-8') as f:
-              f.write('\n'.join(weekly_output))
+          with open('monthly-summary.txt', 'w', encoding='utf-8') as f:
+              f.write('\n'.join(monthly_output))
 
-          print(f"주간 요약 생성 완료: {week_num - 1}주차")
+          print(f"월별 요약 생성 완료: {len(monthly_summary)}개월")
 
-          # ========== 2. 이전 주 신규 항목 감지 ==========
-          # 가장 최근 월요일 찾기
+          # ========== 2. 이전 달 신규 항목 감지 ==========
           now_kst = datetime.now() + timedelta(hours=9)
-          days_since_monday = now_kst.weekday()
-          last_monday = now_kst - timedelta(days=days_since_monday)
 
-          # 이전 주 범위 (지난주 월~일)
-          prev_monday = last_monday - timedelta(days=7)
-          prev_sunday = prev_monday + timedelta(days=6)
+          # 이전 달 계산
+          first_day_this_month = now_kst.replace(day=1)
+          last_day_prev_month = first_day_this_month - timedelta(days=1)
+          first_day_prev_month = last_day_prev_month.replace(day=1)
 
-          # 이전 주 배포만 필터링
-          prev_week_deployments = []
-          for date_str, items in deployments_by_date.items():
-              date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-              if prev_monday.date() <= date_obj.date() <= prev_sunday.date():
-                  prev_week_deployments.extend(items)
+          # 이전 달 배포만 필터링
+          prev_month_deployments = []
+          for run in runs:
+              timestamp = run['createdAt']
+              utc_dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+              kst_dt = utc_dt + timedelta(hours=9)
+
+              if first_day_prev_month.date() <= kst_dt.date() <= last_day_prev_month.date():
+                  title = run['displayTitle'].strip()
+                  if ':' in title:
+                      category = title.split(':')[0].strip()
+                      text = title.split(':', 1)[1].strip()
+                  else:
+                      category = 'other'
+                      text = title
+
+                  prev_month_deployments.append({
+                      'category': category,
+                      'title': text
+                  })
 
           # 신규 항목 감지
           new_arch = []
           new_deprecated = []
-          new_stack = []
-
-          all_titles = [d['title'] for d in prev_week_deployments]
+          all_titles = [d['title'] for d in prev_month_deployments]
 
           # 아키텍처 결정 감지
           if any('Queue' in t or '병렬' in t for t in all_titles):
-              new_arch.append("- Queue 확장 또는 최적화")
+              new_arch.append(f"- Queue 확장 또는 최적화 ({last_day_prev_month.strftime('%m/%d')})")
           if any('Sheets' in t or 'DB' in t for t in all_titles):
-              new_arch.append("- 데이터베이스 구조 개선")
+              new_arch.append(f"- 데이터베이스 구조 개선 ({last_day_prev_month.strftime('%m/%d')})")
 
           # 폐기 감지
           if any('폐기' in t or '제거' in t or 'Revert' in t for t in all_titles):
-              for item in prev_week_deployments:
+              for item in prev_month_deployments:
                   if any(kw in item['title'] for kw in ['폐기', '제거', 'Revert', '삭제']):
-                      new_deprecated.append(f"- {item['title'][:60]} ({prev_monday.strftime('%m/%d')})")
+                      new_deprecated.append(f"- {item['title'][:60]} ({last_day_prev_month.strftime('%m/%d')})")
                       break
 
           # 신규 항목 출력
@@ -206,7 +174,7 @@ jobs:
           print("신규 항목 감지 완료")
           SCRIPT_EOF
 
-          python3 update_all.py
+          python3 update_monthly.py
 
       - name: PROJECT.md 업데이트
         run: |
@@ -250,12 +218,9 @@ jobs:
           if '### 💡 주요 아키텍처 결정' in after_milestone:
               arch_parts = after_milestone.split('### 💡 주요 아키텍처 결정')
               arch_header = '### 💡 주요 아키텍처 결정\n'
-
-              # 기존 내용
               arch_content_parts = arch_parts[1].split('---', 1)
               arch_content = arch_content_parts[0]
 
-              # 신규 항목 추가
               if 'arch' in new_items and new_items['arch']:
                   arch_content += '\n' + '\n'.join(new_items['arch']) + '\n'
 
@@ -265,15 +230,13 @@ jobs:
               arch_content = ''
               after_arch = after_milestone
 
-          # 폐기 섹션 추출 및 업데이트
+          # 폐기 섹션
           if '### 🗑️ 폐기된 시도들' in after_arch:
               dep_parts = after_arch.split('### 🗑️ 폐기된 시도들')
               dep_header = '### 🗑️ 폐기된 시도들\n'
-
               dep_content_parts = dep_parts[1].split('---', 1)
               dep_content = dep_content_parts[0]
 
-              # 신규 항목 추가
               if 'deprecated' in new_items and new_items['deprecated']:
                   dep_content += '\n' + '\n'.join(new_items['deprecated']) + '\n'
 
@@ -283,24 +246,24 @@ jobs:
               dep_content = ''
               after_dep = after_arch
 
-          # 주간 요약
-          if '### 📅 주간 요약' in after_dep:
-              weekly_parts = after_dep.split('### 📅 주간 요약')
-              weekly_header = '### 📅 주간 요약'
-
-              # 새 주간 요약으로 교체
-              with open('weekly-summary.txt', 'r', encoding='utf-8') as f:
-                  new_weekly = f.read().strip()
-
-              # 주간 요약 이후 부분 (상세 타임라인)
-              if '---' in weekly_parts[1]:
-                  timeline = '---' + weekly_parts[1].split('---', 1)[1]
-              else:
-                  timeline = ''
+          # 기술 스택
+          stack_section = ''
+          if '### 🔧 기술 스택 진화' in after_dep:
+              stack_parts = after_dep.split('### 🔧 기술 스택 진화')
+              stack_section = '### 🔧 기술 스택 진화' + stack_parts[1].split('---')[0] + '---'
+              after_stack = '---' + stack_parts[1].split('---', 1)[1] if '---' in stack_parts[1] else ''
           else:
-              weekly_header = ''
-              new_weekly = ''
-              timeline = after_dep
+              after_stack = after_dep
+
+          # 월별 요약 (새로 생성된 것으로 교체)
+          with open('monthly-summary.txt', 'r', encoding='utf-8') as f:
+              new_monthly = f.read().strip()
+
+          # 상세 타임라인 찾기
+          if '### 📋 상세 타임라인' in after_stack:
+              timeline = '### 📋 상세 타임라인' + after_stack.split('### 📋 상세 타임라인')[1]
+          else:
+              timeline = after_stack
 
           # 재조립
           with open('PROJECT.md', 'w', encoding='utf-8') as f:
@@ -321,17 +284,12 @@ jobs:
                   f.write(dep_content)
                   f.write('\n---\n\n')
 
-              # 기술 스택 (기존 유지)
-              if '### 🔧 기술 스택 진화' in content:
-                  stack_start = content.find('### 🔧 기술 스택 진화')
-                  stack_end = content.find('---', stack_start + 1)
-                  if stack_end > stack_start:
-                      f.write(content[stack_start:stack_end])
-                      f.write('---\n\n')
+              if stack_section:
+                  f.write(stack_section)
+                  f.write('\n\n')
 
-              if new_weekly:
-                  f.write(new_weekly)
-                  f.write('\n\n---\n\n')
+              f.write(new_monthly)
+              f.write('\n\n---\n\n')
 
               f.write(timeline.strip())
 
@@ -343,7 +301,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add PROJECT.md
-          git diff --staged --quiet || git commit -m "docs: 주간 요약 및 아키텍처 자동 업데이트 [skip ci]"
+          git diff --staged --quiet || git commit -m "docs: 월별 요약 및 아키텍처 자동 업데이트 [skip ci]"
 
       - name: 변경사항 푸시
         uses: ad-m/github-push-action@master
