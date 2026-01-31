@@ -760,6 +760,7 @@ IMPORTANT: Return ONLY the JSON object.`;
 
             if (translateResponse.ok) {
               const data = await translateResponse.json();
+              console.log("[DEBUG] Gemini API response:", JSON.stringify(data).substring(0, 500));
               const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
               const jsonMatch = text.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
@@ -768,7 +769,12 @@ IMPORTANT: Return ONLY the JSON object.`;
                 if (translations.business_name) client.business_name = translations.business_name;
                 if (translations.address) client.address = translations.address;
                 if (translations.business_hours) client.business_hours = translations.business_hours;
+              } else {
+                console.error("[ERROR] No JSON match in Gemini response");
               }
+            } else {
+              const errorText = await translateResponse.text();
+              console.error("[ERROR] Gemini API failed:", translateResponse.status, errorText.substring(0, 500));
             }
           } catch (error) {
             console.error('Translation error:', error);
