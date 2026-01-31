@@ -250,10 +250,26 @@
 ---
 
 ## 배포 이력
-- **2026-01-31 07:51** 📝 [docs] 배포 이력 전체 이관 (날짜별 분류)
 
-### 2026-01-31
+### 🎯 주요 마일스톤
+
+- **2026-01-27 00:22** ✨ Google Sheets 연동 (Supabase 폐기)
+- **2026-01-27 01:53** ⚡ Worker 코드 대폭 간소화 (5540줄 → 526줄)
+- **2026-01-29 11:48** ✨ Cron 자동 포스팅 활성화 (매일 09:00 KST)
+- **2026-01-29 15:51** ⚡ Queue 병렬 5개 처리 + 재시도 3회 추가
+- **2026-01-30 17:56** ✨ Umami 통계 자동 추가
+- **2026-01-30 23:08** ✨ Umami Website 자동 생성 (크론)
+- **2026-01-31 00:11** 🐛 기존 Umami 웹사이트 이름 자동 업데이트
+- **2026-01-31 02:53** ♻️ Umami 자동화 제거, 수동 링크 방식으로 변경
+- **2026-01-31 03:05** ♻️ 코드 정리 및 Umami 수동 방식 문서화
+- **2026-01-31 07:15** ⚡ Queue 병렬 처리 최적화 (Promise.all)
+
+---
+
+### 2026-01-31 - 데이터 정합성 개선
 **16:32** 🐛 [bugfix] 최신 포스팅 및 저장소 시트 데이터 정합성 개선
+  - - 최신 포스팅: 도메인별 기존 행 전체 삭제 (누적 방지)
+  - - 저장소/최신: 생성일시 datetime 형식 적용 (시간 표시)
 **16:13** 🐛 [fix] 최신포스팅 도메인 비교 정규화
 **13:54** 🐛 [fix] Queue 핸들러 복구 및 WRAP 적용
 **13:25** 🐛 [bugfix] Cron 중복 실행 방지 (날짜별 락 키)
@@ -263,51 +279,169 @@
 **04:10** 🐛 [fix] 저장소 시트 헤더 조회 조건 수정 (데이터 없어도 헤더 반환)
 **03:53** 🔧 [chore] Worker 재배포 트리거
 **03:29** ✨ [feature] 포스팅 URL 자동 저장
+  - - 최신 포스팅/저장소 시트에 URL 컬럼 추가
+  - - 포스팅 생성 시 {domain}/post?id={timestamp} 형식으로 자동 저장
+  - - URL 인코딩 적용
 **03:25** 🐛 [fix] 빈 try 블록 제거 (문법 에러 수정)
 **03:05** ♻️ [refactor] 코드 정리 및 Umami 수동 방식 문서화
+  - 코드 정리:
+  - - UMAMI_API_KEY 상수 삭제 (사용 안 함)
+  - - 중복 스크립트 제거 (718줄)
+  - - 빈 줄 정리
+  - PROJECT.md 업데이트:
 **02:53** ♻️ [refactor] Umami 자동화 제거, 수동 링크 방식으로 변경
+  - 자동화 로직 전체 제거:
+  - - 자동 통계 버튼 제거
+  - - /stats 자동 생성 제거
+  - - createUmamiWebsite 함수 제거
+  - - 크론 Umami 생성 제거
 **00:11** 🐛 [fix] 기존 Umami 웹사이트 이름 자동 업데이트
+  - 생성 실패 시 기존 웹사이트 찾아서 이름 업데이트
+  - - 중복 생성 에러 해결
+  - - 모든 거래처 상호명으로 표시
+  - - Umami Cloud 수동 삭제 불필요
 
-### 2026-01-30
+### 2026-01-30 - 통계 기능 실험
 **23:46** 🐛 [fix] 기본값 shareId도 재생성
+  - 통계ID가 기본값(1cf65ebd4541c5fb)이면 재생성
+  - - 00001, 00003도 상호명으로 변경됨
+  - - 모든 거래처 상호명 표시
 **23:41** 🐛 [fix] 통계ID 없으면 무조건 재생성
+  - 통계ID 컬럼 없을 때 KV 무시하고 항상 새로 생성
+  - - 기존 KV 자동 덮어쓰기
+  - - 모든 거래처가 상호명으로 표시됨
+  - - 컬럼 삭제 시 전체 리셋 효과
 **23:36** ✨ [feature] 통계 첫 방문 시 자동 생성 (상호명)
+  - /stats 첫 클릭 시 Umami 웹사이트 즉시 생성
+  - - 도메인 생성 즉시 통계 작동 (크론 대기 불필요)
+  - - 웹사이트 이름: 거래처 상호명 (business_name)
+  - - KV 저장 + Google Sheets 자동 입력 시도
+  - - 실패 시 기본값으로 폴백
 **23:08** ✨ [feature] Umami Website 자동 생성 (크론)
+  - - 크론: 통계ID 없는 거래처 감지 → Umami API 호출 → Website 생성
+  - - 공유 링크 생성 후 KV에 임시 저장 (umami_share_{subdomain})
+  - - /stats: Sheets 통계ID → KV → 기본값 순으로 확인
+  - - D1 Analytics 정리 코드 제거
+  - - 로그에 수동 작업 안내 출력 (Sheets에 shareId 입력)
 **23:05** ⚡ [improvement] Google Sheets '통계ID' 컬럼 연동
+  - - /stats 리다이렉트 시 Sheets의 '통계ID' 컬럼 사용
+  - - 기본값: 00001 공유 ID (1cf65ebd4541c5fb)
 **21:22** ✨ [feature] Plausible 추적 스크립트 추가
+  - 게시글/거래처 페이지 head에 Plausible Analytics 스크립트 추가
+  - - 프라이버시 친화적 분석 도구
+  - - D1 기반 커스텀 분석 시스템 대체 준비
 **20:47** 🐛 [bugfix] API 호출과 정적 리소스를 방문 통계에서 제외
+  - /stats/api/* API 호출이 방문으로 카운트되던 문제 수정
+  - favicon, 이미지 등 정적 리소스 요청 제외
+  - 이제 실제 페이지 방문만 카운트됨
 **20:44** 🐛 [bugfix] 템플릿 리터럴 변수 치환 수정
+  - ${siteTitle} ->  변경으로 사이트 제목 표시 수정
 **20:42** 🐛 [bugfix] Worker 파일 손상 수정
+  - curl progress 메시지가 파일에 포함되어 배포 실패
+  - 정상 커밋(10a4d51)에서 파일 복구 후 SPA 수정 재적용
 **20:34** 🔹 [Revert "refactor] SPA 방식 통계 구현 (파일 분할)"
+  - This reverts commit 17b6e5511af9426ce262114383ebf12f9ec8f4b0.
 **18:45** ✨ [feature] D1 기반 통계 기능 추가
+  - - SHA-256 해싱 및 방문자 추적 (recordVisit)
+  - - 통계 조회 핸들러 (handleStats)
+  - - 8가지 통계 차트 (전체/오늘/주간/월간, 국가/도시/유입/페이지별, 시간대별, 실시간)
+  - - /stats 경로 처리 및 자동 버튼 추가
+  - - 90일 이상 오래된 데이터 자동 정리 (scheduled)
 **17:56** ✨ [feature] Umami 통계 자동 추가
+  - - Umami 추적 스크립트 삽입
+  - - 통계 바로가기 자동 생성
+  - - 도메인별 자동 추적
 **17:32** ⚡ [improvement] 포스트 표시 2개→1개로 변경
+  - - UI: 포스트 섹션 1열 그리드로 변경
+  - - Sheets: 최신 포스팅 1개만 유지
+  - - 위 섹션과 크기/간격 통일
 
-### 2026-01-29
+### 2026-01-29 - 성능 최적화 및 안정화
 **21:40** 🐛 [bugfix] 포스팅 언어 설정 누락 수정
+  - - 포스팅 생성 프롬프트에 언어 지시 추가
+  - - 관리자 시트 언어 컬럼 값 그대로 반영
+  - - 동적 언어 지원 (한국어, 일본어, English, 태국어 등)
 **21:28** 🚀 [performance] 저장소 시트 중복 읽기 제거
+  - - getLastUsedFolderForPosting 함수 반환값 변경 (헤더 포함)
+  - - saveToLatestPostingSheet 함수에서 저장소 헤더 재조회 제거
+  - - API 호출 1회 절감 (포스팅 1개당)
 **20:53** 🔍 [debug] 디버그 엔드포인트 추가 (v3)
 **20:52** 🔍 [debug] 웹 검색 Gemini API 응답 로깅 추가
 **20:51** 🔍 [debug] Gemini API 응답 로깅 추가
 **20:45** ⚡ [improvement] 포스팅 생성 시 언어 명시적 지시 추가
+  - - Gemini API 프롬프트에 언어 지시 강화
+  - - 제목과 본문 전체를 해당 언어로 작성하도록 명확히 지시
+  - - 00003(일본어) 등 다국어 거래처 포스팅 정상화
 **19:36** 🧹 [cleanup] 디버깅 로그 제거
+  - 행 높이 설정 정상 작동 확인
 **19:33** 🐛 [fix] 행 높이 설정 정규식 개선
+  - - 다양한 updatedRange 형식 지원
+  - - /:(\d+)$/ → /(\d+)(?::\w\d+)?$/
+  - - "A2:I2", "시트!A2:I2" 모두 매칭
 **19:28** 🔍 [debug] 행 높이 설정 디버깅 로그 추가
+  - - updatedRange 값 확인
+  - - rowMatch 결과 확인
+  - - 원인 파악용 임시 로그
 **19:08** ✨ [feature] /test-cron 엔드포인트 추가
+  - - Cron 수동 테스트용 엔드포인트
+  - - 활성 거래처 조회 → Queue 등록
+  - - 실제 Cron과 동일한 로직
+  - - Lock 없이 테스트 가능
 **18:59** ⚡ [improvement] 저장소/최신포스팅 시트 행 높이 고정
+  - - 새 포스팅 추가 시 행 높이 21px 강제 지정
+  - - 텍스트 줄바꿈 CLIP 설정 (자르기)
+  - - 본문/이미지 길이와 무관하게 시트 정리
 **18:38** ⚡ [improvement] Gemini API timeout 120초로 증가
+  - Flash 30초 → 120초
+  - Pro 60초 → 120초
 **15:52** ⚡ [improvement] Queue 재시도 3회 → 1회로 조정
 **15:51** ⚡ [improvement] Queue 병렬 5개 처리 + 재시도 3회 추가
+  - - max_batch_size: 1 → 5 (동시 5개 처리)
+  - - max_retries: 3 (실패 시 자동 재시도)
+  - - 처리량: 4000개 거래처까지 안전
+  - - 1000개 기준 4.2시간 처리
 **15:26** ⚡ [improvement] TTL 23시간 59분으로 변경 (크론 타이밍 충돌 방지)
 **12:25** 🐛 [bugfix] 상태 컬럼 업데이트 스코프 오류 수정
+  - - adminHeaders/targetRowIndex 스코프 문제 해결
+  - - 상태 업데이트를 크론 업데이트와 같은 try-catch 블록으로 이동
+  - - 포스팅 성공 시 상태 = "성공" 정상 작동
 **12:22** ✨ [feature] 구독/상태 컬럼 분리 및 자동 상태 업데이트
+  - - normalizeClient: 구독/상태 매핑 추가
+  - - 필터링: subscription === '활성'
+  - - 포스팅 성공 시 상태 = "성공" 자동 기록
+  - - 관리자 시트 동적 감지
 **12:07** ✨ [feature] 스마트스토어 링크 아이콘 추가
+  - - smartstore.naver.com, brand.naver.com 감지
+  - - 아이콘: 🛒 스토어
+  - - 언어별 텍스트: 한/영/일/중(간체)/중(번체)
 **11:56** ✨ [feature] 크론 예정 시간 자동 업데이트
+  - - 포스팅 완료 후 관리자 시트 "크론" 컬럼 자동 업데이트
+  - - 다음 예정 시간: 내일 09:00 (KST)
+  - - 형식: "YYYY-MM-DD HH:mm"
+  - - getColumnLetter() 헬퍼 함수 추가
 **11:48** ✨ [feature] Cron 자동 포스팅 활성화 (매일 09:00 KST)
+  - - crons = ["0 0 * * *"] 활성화
+  - - UTC 00:00 = 한국시간 09:00
+  - - 매일 자동 포스팅 생성
 **11:46** 🐛 [bugfix] Worker 빈 파일 복구
+  - - 배포 실패 원인: 빈 파일(0 bytes) 푸시
+  - - 이전 정상 버전(d32fc0a)으로 복원
+  - - post1/post2 로직 제거는 다음 커밋에서 진행
 **08:52** ✨ [feature] Cron 자동 포스팅 안정화 및 이미지 선택사항 적용
+  - - 이미지 없어도 텍스트 포스팅 생성 가능
+  - - Gemini 프롬프트: 이미지 유무에 따라 분기
+  - - Cron 동시 실행 방지 (KV 플래그)
+  - - 배치 처리 (10개씩 Queue 전송)
+  - - 중복 체크 삭제 (매일 무조건 실행)
 **08:43** 🐛 [bugfix] 포스팅 생성 주요 버그 수정
+  - - API 중복 호출 제거 (accessToken 재사용)
+  - - fetchWithTimeout 적용 (타임아웃 설정)
+  - - 에러 핸들링 추가 (try-catch, HTTP status 체크)
+  - - 트랜잭션 방식 저장 (최신 포스팅 성공 → 저장소 저장)
+  - - Race Condition 완화 (데이터 손실 방지)
 **08:32** ⚡ [improvement] Queue 무한 루프 방지 및 API 중복 호출 제거
+  - - Queue 실패 시 재시도 제거 (무한 루프 방지)
+  - - 시트 메타데이터 조회 4번 → 1번 (API 호출 75% 감소)
 **08:17** 🐛 [bugfix] 저장소 시트 열 간격을 관리자 시트 기준으로 복사하도록 수정
 **08:05** 🔍 [debug] 저장소 시트 열 너비 복사 로그 및 에러 처리 강화
 **07:58** ⚡ [improvement] 저장소 시트 열 간격을 최신 포스팅 시트와 동일하게 맞춤
@@ -320,16 +454,45 @@
 **07:09** ⚡ [improvement] test-sheet 엔드포인트에 저장소 시트도 확인
 **07:08** 🐛 [bugfix] test-sheet 엔드포인트 추가 (시트 데이터 디버깅용)
 **07:01** 🔍 [debug] 테스트 엔드포인트 추가 (/test-posting)
+  - - Queue 우회하고 직접 generatePostingForClient 실행
+  - - 전체 결과와 logs 반환
+  - - 에러 디버깅용
 **06:55** 🔍 [debug] Queue consumer 에러 로깅 강화
+  - - 결과 전체 JSON 출력
+  - - 실패 시 logs 배열 출력
+  - - 에러 스택 트레이스 출력
 **06:35** 🐛 [bugfix] 포스트 본문과 이미지 저장 및 표시 기능 추가
+  - - Google Sheets에 "본문", "이미지" 컬럼 추가됨
+  - - saveToLatestPostingSheet: 본문과 이미지 URL 저장
+  - - getPostsFromArchive: 본문과 이미지 데이터 읽기
+  - - 이미지 URL: Google Drive thumbnail (w800)
 **06:32** ⚡ [improvement] 모든 시간을 한국 서울 시간(KST)으로 통일
+  - - Scheduled handler의 로그 시간 KST 변경
+  - - 오늘 포스팅 체크 시 KST 기준 적용
+  - - 기존에 이미 KST 사용 중인 부분들:
+  - • formatKoreanTime() - 화면 표시
+  - • saveToLatestPostingSheet() - 시트 저장
 **06:27** 🐛 [bugfix] 시트 이름 URL 인코딩 추가
+  - - 한글 시트 이름 인코딩 (Sheets API 400 에러 수정)
 **06:26** 🔍 [debug] 자세한 에러 로깅 추가
+  - - 토큰 발급 에러 별도 처리
+  - - Sheets API 응답 상태 확인
+  - - 에러 스택 트레이스 추가
 **01:36** 🔍 [debug] OAuth token 응답 에러 처리 강화
+  - - tokenResponse 상태 확인 추가
+  - - 빈 응답 체크 추가
+  - - 자세한 에러 메시지 반환
 **01:34** 🐛 [bugfix] JWT base64url 인코딩 수정 (포스트 표시 문제)
+  - - btoa()를 base64urlEncode()로 변경 (UTF-8 안전)
+  - - "Unexpected end of JSON input" 에러 수정
 **01:32** 🔍 [debug] 포스트 에러 로깅 추가 (디버깅용)
+  - - getPostsFromArchive 함수가 에러 정보 반환하도록 수정
+  - - debugInfo에 postsError 추가
+  - - 홈페이지 포스트 표시 문제 원인 파악용
 **01:27** 🐛 [bugfix] 홈페이지 포스트 표시 버그 수정 (최신 포스팅 시트에서 읽기)
 **01:13** 🐛 [bugfix] 언어 인식 및 마크다운 링크 파싱 버그 수정
+  - - 언어 매칭에 '한국' 키워드 추가 (한국어 인식 오류 해결)
+  - - 마크다운 링크 [텍스트](URL) 형식 파싱 추가 (중첩 URL 오류 해결)
 **00:57** 🐛 [bugfix] Google Sheets API append 경로 수정 (:append -> /append)
 **00:43** ⚡ [improvement] Queue 백그라운드 처리 (ctx.waitUntil 대체)
 **00:37** ⚡ [improvement] ctx.waitUntil() 백그라운드 처리 (timeout 회피)
@@ -340,11 +503,20 @@
 **00:04** 🐛 [bugfix] 이미지 5개로 제한 (Gemini timeout 방지)
 **00:00** 🐛 [bugfix] Gemini API HTTP 응답 상태 확인 추가
 
-### 2026-01-28
+### 2026-01-28 - 기능 확장 및 실험
 **23:56** 📦 [deployment] Worker 재배포 트리거
 **23:53** 🔹 [Merge branch 'main' of https] //github.com/jeonwoohyun85/content-factory
 **23:44** ⚡ [improvement] 포스팅 글자수 조정 (실제 3500자 목표)
+  - - 웹검색: 1000자 → 500자 (maxOutputTokens: 600)
+  - - 포스팅: 3000~3500자 → 2800~3200자
+  - - AI가 20~30% 더 길게 작성하는 경향 반영
+  - - 최종 출력: 약 3200~3800자 범위 (평균 3500자)
 **23:04** ♻️ [refactor] 모든 시트 컬럼 동적 매핑으로 전환 (순서 무관)
+  - - getPostsFromArchive: headers.indexOf로 동적 컬럼 매핑
+  - - getLastUsedFolderForPosting: headers.indexOf로 동적 컬럼 매핑
+  - - deletePost: 저장소/최신 포스팅 탭 모두 동적 인덱스 사용
+  - - saveToLatestPostingSheet: 헤더 읽기 후 순서 맞춰 데이터 배열 생성
+  - 이제 Google Sheets에서 컬럼 순서를 자유롭게 변경해도 코드가 정상 작동합니다.
 **22:50** 🐛 [fix] 폴더 순환 로직 수정 (저장소 탭 기반)
 **21:55** ♻️ [refactor] 관리자 탭 post 컬럼 제거, 저장소 탭 기반으로 전환
 **21:46** 🐛 [fix] 시트 조회 JSON 파싱 에러 수정
@@ -354,10 +526,23 @@
 **21:22** ✨ [feature] 저장소+최신포스팅 동적 관리 (거래처당 2개만 유지)
 **21:15** ✨ [feature] 최신 포스팅 시트 자동 저장 추가
 **21:00** ✨ [feature] 무제한 언어 지원 추가 (API + 캐싱)
+  - - 주요 5개 언어 하드코딩 (한/영/일/중간/중번)
+  - - 나머지 언어는 Gemini 2.5 Flash API 호출
+  - - Worker 메모리 캐싱으로 비용 최소화
+  - - 시트 언어 컬럼 값 그대로 사용 (무제한 지원)
 **20:39** ✨ [feature] 언어별 거래처 페이지 다국어 지원 추가
+  - - 언어 컬럼 값에 따라 페이지 레이아웃 다국어 표시
+  - - 한글, 영어, 일본어, 중국어 지원
+  - - Info/Video/Posts 섹션 제목 다국어화
+  - - 바로가기 링크 텍스트 다국어화
+  - - 기본값: 한글
 **20:26** 🐛 [bugfix] 유효하지 않은 바로가기 링크 필터링
+  - http/https/tel: 로 시작하는 유효한 URL만 표시
 **20:06** 🐛 [bugfix] Info 섹션 구글 드라이브 URL 썸네일 변환 추가
 **19:51** 🐛 [bugfix] 관리자 탭(gid=0) CSV URL로 수정
+  - - 기존: gid=1895987712 (최신 포스팅 탭 - 주소/연락처/영업시간 없음)
+  - - 변경: gid=0 (관리자 탭 - 모든 거래처 정보 포함)
+  - - 변경 위치: getClientFromSheets, handleSitemap, getClientFromSheetsForPosting
 **19:29** 🔹 [other] wrangler.toml 시트 GID 환경변수 수정
 **18:43** 🔹 [other] CSV 헤더 파싱 개선 (BOM/공백 제거)
 **18:35** 🔹 [other] 시트 GID 수정 및 구독 체크 해제
@@ -383,7 +568,13 @@
 **02:32** 🐛 [bugfix] Posts 시트 저장 시 subdomain 정규화 (00001.make-page.com → 00001)
 **02:26** 🐛 [bugfix] Drive 검색 시 subdomain 정규화 (00001.make-page.com → 00001)
 **02:23** ⚡ [improvement] Drive 폴더 검색 개선 (contains 연산자 사용)
+  - - subdomain 포함 여부로 검색하여 폴더명 유연성 향상
+  - - "00001 상상피아노", "00001.make-page.com 상상피아노" 등 모두 검색 가능
 **02:18** ⚡ [improvement] 코드 품질 개선 (중복 코드 제거, 2670 chars 감소)
+  - - 중복된 deleteRowIndex 체크 제거
+  - - CSV 파싱 로직을 parseCSV() 함수 재사용으로 통합
+  - - JWT 생성 로직을 getGoogleAccessTokenForPosting() 재사용으로 통합
+  - - 불필요한 generatePosting() 래퍼 함수 제거
 **02:07** ⚡ [improvement] Gemini 1.5 Pro → 3 Pro Preview 모델 변경
 **00:47** 🔹 [other] 🔧 [설정] 테스트를 위해 Cron Trigger 일시 비활성화
 **00:45** 🔹 [♻️ [정책] 포스팅 유지 정책 변경] 최신 2개만 유지하고 오래된 포스트 자동 삭제
@@ -394,20 +585,28 @@
 **00:09** 🔹 [other] 🐛 [버그] 포스트 삭제 날짜 비교 로직 개선 (숫자 추출 비교 방식 적용)
 **00:05** 🔹 [other] 🐛 [버그] 포스트 삭제 시 날짜 비교 오차 허용(1분) 및 문자열 타입 강제 변환 적용
 
-### 2026-01-27
+### 2026-01-27 - 시스템 기반 구축
 **23:45** 🔹 [other] ✨ [feature] Complete automated posting system with Scheduled handler
 **23:02** ✨ [feat] add /generate-post endpoint and update Gemini model to 1.5-pro
 **23:01** 🐛 [fix] improve date comparison logic in deletePost to prevent 400 errors
 **22:49** ⚡ [improvement] 포스팅 생성 최적화 (이미지 10개 제한, 썸네일 사용, Sheets API 전환)
 **22:22** ⚡ [improvement] Retention Policy 제거 - 모든 포스트 보관
-**21:49** ♻️ [refactor] implemented 1 client 1 post retention policy and updated de…
+**21:49** ♻️ [refactor] implemented 1 client 1 post retention policy and updated deletion UI
 **21:37** 🔹 [Feat] Implement single post retention policy
 **21:32** 🔹 [Refactor] Move post delete button to detail page
 **18:52** ✨ [feature] 포스트 삭제 기능 추가 (비밀번호: 55000)
 **18:41** 🗑️ [deprecate] wrangler-posting-generator.toml 삭제 (Worker 폐기)
 **18:41** 🗑️ [deprecate] posting-generator.js 삭제 (make-page-subdomain에 통합됨)
 **18:30** ⚡ [improvement] posting-generator 로직을 make-page-subdomain에 통합
+  - - HTTP 호출 오버헤드 제거
+  - - 단일 worker로 통합하여 배포/관리 단순화
+  - - GEMINI_API_KEY 추가
+  - - 모든 포스팅 생성 함수를 make-page-subdomain.js로 이동
 **18:24** ⚡ [improvement] 폐기 코드 정리 (일회성 함수 및 백업 파일 제거)
+  - - make-page-subdomain.js.backup 삭제
+  - - getRecentPostsOLD_CSV 함수 제거
+  - - 일회성 엔드포인트 제거 (create-posts-sheet, update-posts-header, fix-posts-row-height, rename-sheet1)
+  - - 일회성 함수 제거 (createPostsSheet, updatePostsHeader, fixPostsRowHeight, renameSheet1)
 **18:20** 🐛 [bugfix] Sheet1 이름 변경 함수를 직접 구현
 **18:17** ✨ [feature] Sheet1 이름 변경 프록시 엔드포인트 추가
 **18:12** ✨ [feature] Sheet1 이름을 ContentFactory로 변경하는 엔드포인트 추가
@@ -443,6 +642,118 @@
 **14:56** ✨ [feature] Posts 시트 자동 생성 기능 추가
 **11:48** 🐛 [fix] Gemini API 키 코드에 직접 작성 (private repo)
 **11:43** ✨ [feature] 포스팅 자동 생성 시스템 추가 (Gemini API, Posts 섹션)
+**11:27** ⚡ [improvement] 하단 푸터 제거 (중복 정보 삭제)
+**10:45** ⚡ [improvement] Video 섹션 모바일 최적화 복구 (모바일 1열, PC 2열)
+**10:42** ⚡ [improvement] Video 섹션 모바일/PC 동일하게 2열로 변경
+**10:37** ⚡ [improvement] 섹션 max-width 1200px 복구 (모바일 최적화)
+**10:33** ⚡ [improvement] info_images 컬럼명을 info로 변경
+**10:31** ⚡ [improvement] Info/Video 섹션 모두 풀 너비로 변경
+**10:21** ⚡ [improvement] Video 섹션 풀 너비로 변경 (양옆 공백 제거)
+**10:15** ✨ [feature] Video 섹션 구현 (YouTube/Drive/TikTok/Instagram 지원, 모바일 최적화 16:9)
+**09:57** ⚡ [improvement] description 텍스트 제거 (AI 참고용으로만 사용)
+**09:53** ✨ [feature] Info 섹션 라이트박스 구현 (이미지 확대/이전/다음/ESC 닫기)
+**09:31** ⚡ [improvement] 모바일/PC 동일한 레이아웃으로 통일 - Info 사진 3열 고정
+**09:24** ⚡ [improvement] Remove debug logging, keep dynamic column detection
+**09:21** ⚡ [improvement] Add debug logging for header detection
+**09:16** 🐛 [bugfix] Worker가 헤더 이름으로 컬럼 찾도록 수정
+  - - 하드코딩된 인덱스 8 제거
+  - - 동적으로 info_images 컬럼 위치 탐색
+  - - 컬럼 순서 변경해도 작동하도록 개선
+**04:28** 🧹 [cleanup] 폐기된 wrangler 설정 파일 삭제
+**04:26** 🧹 [cleanup] 폐기된 Workers 삭제 + CLAUDE.md, PROJECT.md 업데이트
+  - - 삭제: daily-monitor, failed-postings-retry, token-monitor, caps-image-proxy, posting-queue-consumer
+  - - 유지: make-page-subdomain, drive-to-sheets, umami-proxy
+  - - 인프라 최종 확정: Google Sheets + Google Drive + Cloudflare Workers
+**04:21** ⚡ [improvement] subdomain 컬럼 '00001' 또는 '00001.make-page.com' 둘 다 지원
+**04:14** ⚡ [improvement] Cron 임시 비활성화 (테스트 중)
+**04:14** ⚡ [improvement] Info 섹션 최대 6개 랜덤 표시 (3열 그리드)
+**04:09** 🐛 [bugfix] 중복 URL 방지 로직 추가
+**04:05** 🐛 [bugfix] CSV 파서 개선 - 큰따옴표로 감싸진 필드 처리
+**03:54** ⚡ [improvement] Cron 주기 5분 → 1분으로 변경 (테스트용)
+**03:46** 🐛 [bugfix] 시트 이름 Sheet1로 복원
+**03:44** 🐛 [bugfix] 시트 이름 Sheet1 → 시트1로 수정
+**03:42** 🔍 [debug] 상세 로그 추가 - Sheets 업데이트 실패 원인 파악
+**03:35** 🐛 [bugfix] 재귀 검색 제거 및 직접 검색으로 타임아웃 해결
+**03:26** 🔍 [debug] 응답에 상세 로그 포함
+**03:24** 🔍 [debug] OAuth 토큰 및 Drive API 응답 로그 추가
+**03:19** 🔍 [debug] business folders 검색 로그 추가
+**03:17** 🔍 [debug] Worker 응답에 상세 정보 추가
+**03:09** 🐛 [bugfix] 재귀 검색 로직 수정
+  - - 전체 Drive 검색 금지
+  - - 각 business 폴더 아래만 재귀적으로 검색
+  - - /콘텐츠팩토리/상상피아노/Info/ 하위 모든 이미지 검색
+**03:07** 🔍 [debug] 디버깅 로그 추가
+**03:05** ✨ [feature] 모바일 최적화 이미지 URL 생성
+  - - Google Drive 썸네일 API 사용 (sz=w800)
+  - - 800px 너비로 자동 리사이징
+  - - 모든 이미지 포맷 지원 (jpg, png, webp, gif)
+  - - 무료, 즉시 적용
+**03:00** ⚡ [improvement] 시간 제한 제거 + 재귀 검색 지원
+  - - 10분 제한 제거: 모든 사진 검색
+  - - 재귀 검색: 하위 폴더 이미지 모두 검색
+  - - /콘텐츠팩토리/상상피아노/info/ 하위 모든 사진 감지
+**02:56** ✨ [feature] Drive to Sheets 상호명 매칭 지원
+  - - 폴더명에서 business_name 추출
+  - - Google Sheets에서 business_name 또는 subdomain으로 매칭
+  - - /콘텐츠팩토리/상상피아노/INFO/photo.jpg -> '상상피아노'로 매칭
+**02:54** 🐛 [bugfix] Drive to Sheets subdomain 추출 로직 수정
+  - - 재귀적으로 하위 폴더 파일 검색
+  - - 전체 경로 구축 후 subdomain 추출
+  - - /콘텐츠팩토리/00001/INFO/photo.jpg -> 00001
+**02:50** 🐛 [bugfix] 코드 품질 체크 오탐 수정 + 백업 파일 삭제
+  - - 백업 파일 삭제: make-page-subdomain-backup.js, make-page-subdomain-old-5540lines.js
+  - - 폐기 파일 삭제: config-snapshot.js
+  - - 코드 품질 체크 개선: 함수명 기반으로 정교하게 체크
+**01:53** ⚡ [improvement] Worker 코드 대폭 간소화 (5540줄 → 526줄)
+  - - Supabase 관련 전부 제거 (블로그, 번역, 사진)
+  - - 랜딩페이지, 약관, 개인정보처리방침 제거
+  - - Google Sheets 거래처 페이지만 유지
+  - - Cloudinary, 이미지 프록시 제거
+  - - 91% 코드 감소 (194KB → 16KB)
+**01:19** 🐛 [bugfix] 템플릿 리터럴 중첩 구문 에러 수정
+  - - generateClientPage 함수의 백틱 중첩 문제 해결
+  - - 조건부 표현식 내 템플릿 리터럴을 문자열 연결 방식으로 변경
+  - - Quick Links, Info Section, Contact Info, Footer 백틱 제거
+  - - 배포 시 "Expected : but found ;" 에러 수정
+**00:36** ✨ [feature] Google Sheets 컬럼명 한글화
+  - - 컬럼 구조 변경:
+  - - A: 서브도메인 (client_id)
+  - - B: 상호명 (client_name)
+  - - C: 주소 (address)
+  - - D: 전화번호 (phone)
+**00:22** ✨ [feature] Google Sheets 연동 (Supabase 폐기)
+  - - SUPABASE_URL, SUPABASE_ANON_KEY 제거
+  - - GOOGLE_SHEETS_CSV_URL 추가
+  - - parseCSV() 함수 추가 (CSV 파싱)
+  - - getClientFromSheets() 함수 추가 (거래처 조회)
+  - - Supabase 조회 로직 → Google Sheets 조회로 변경
+
+### 2026-01-26 - 시스템 기반 구축
+**23:31** ✨ [feature] Supabase 신규 프로젝트 연동 및 동적 페이지 생성
+  - - Supabase ContentFactory 프로젝트 생성 (rhgfhfmerewwodctuoyh)
+  - - clients 테이블 생성 (client_id, client_name, address, phone, business_hours, info_image_1~6, status)
+  - - 상상피아노 데이터 삽입 (00001)
+  - - Worker 코드 Supabase URL/Key 변경
+  - - generateClientPage(client) 함수 추가 (동적 HTML 생성)
+**22:48** ⚡ [improvement] 거래처명 텍스트 디자인 개선
+  - - 폰트 크기: 32px → 48px
+  - - 폰트 굵기: 700 → 800
+  - - 글자 간격: -0.5px (타이트하게)
+  - - 텍스트 그림자 추가 (입체감)
+**22:46** ⚡ [improvement] 헤더에서 '피아노 학원 · 서울 강남' 텍스트 삭제
+**22:44** ⚡ [improvement] 피아노 이모지 삭제 및 상상피아노 텍스트 수직 중앙 정렬
+  - - 이모지 아이콘 제거
+  - - 보라색 배경 영역 수직 중앙 정렬 강화
+  - - padding 및 min-height 조정
+**22:38** ✨ [feat] 갤러리 섹션 Info로 변경 및 부제목 삭제
+**22:33** ⚡ [improvement] 모바일/PC 동일한 레이아웃으로 통일
+  - - 미디어 쿼리 제거 (contact-info row 제외)
+  - - 모든 기기에서 3열 2행 바로가기 버튼 유지
+  - - 갤러리/블로그 그리드 동일한 레이아웃
+**22:30** ✨ [feat] 00001 서브도메인 UI 업데이트
+  - - 상단 설명 텍스트 2줄 삭제
+  - - 바로가기 버튼 3열 2행으로 변경
+  - - 보라색 배경 영역 수직 중앙 정렬 추가
 
 ---
 
