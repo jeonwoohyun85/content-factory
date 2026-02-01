@@ -1493,6 +1493,32 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
           const formatRequests = [{
 
+            updateDimensionProperties: {
+
+              range: {
+
+                sheetId: archiveSheetId,
+
+                dimension: 'ROWS',
+
+                startIndex: newRowIndex,
+
+                endIndex: newRowIndex + 1
+
+              },
+
+              properties: {
+
+                pixelSize: 21
+
+              },
+
+              fields: 'pixelSize'
+
+            }
+
+          }, {
+
             repeatCell: {
 
               range: {
@@ -1603,7 +1629,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
           } else {
 
-            console.log(`저장소 행 ${newRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 CLIP)`);
+            console.log(`저장소 행 ${newRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 WRAP)`);
 
           }
 
