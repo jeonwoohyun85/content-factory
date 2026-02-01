@@ -1,6 +1,6 @@
 // 포스팅 자동화 헬퍼 함수
 
-import { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter } from './utils.js';
+import { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName } from './utils.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
 
 // 관리자 시트 헤더 고정값 (A~Q열, 17개)
@@ -19,6 +19,9 @@ const LATEST_POSTING_HEADERS_FALLBACK = [
 const ARCHIVE_HEADERS_FALLBACK = [
   '도메인', '상호명', '제목', '생성일시', '언어', '업종', '폴더명', '본문', '이미지', 'URL'
 ];
+
+// 포스팅당 최대 이미지 개수
+const MAX_IMAGES_PER_POSTING = 10;
 
 export async function getClientFromSheetsForPosting(subdomain, env) {
 
@@ -56,13 +59,7 @@ export async function getClientFromSheetsForPosting(subdomain, env) {
 
     // 상호명에서 언어 표시 자동 제거
     if (client && client.business_name) {
-      const suffixes = [' Japan', ' 日本', ' japan', ' Korea', ' 한국', ' China', ' 中国', ' English', ' Japanese', ' 일본어'];
-      for (const s of suffixes) {
-        if (client.business_name.endsWith(s)) {
-          client.business_name = client.business_name.slice(0, -s.length).trim();
-          break;
-        }
-      }
+      client.business_name = removeLanguageSuffixFromBusinessName(client.business_name);
     }
 
     // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
@@ -621,13 +618,13 @@ export async function getFolderImagesForPosting(subdomain, folderName, accessTok
 
 
 
-  // 10개 초과시 랜덤 10개 선택
+  // 최대 이미지 개수 초과 시 랜덤 선택
 
-  if (imageFiles.length > 10) {
+  if (imageFiles.length > MAX_IMAGES_PER_POSTING) {
 
-    imageFiles = imageFiles.sort(() => Math.random() - 0.5).slice(0, 10);
+    imageFiles = imageFiles.sort(() => Math.random() - 0.5).slice(0, MAX_IMAGES_PER_POSTING);
 
-    logs.push(`10개 초과: 랜덤 ${imageFiles.length}개 선택`);
+    logs.push(`${MAX_IMAGES_PER_POSTING}개 초과: 랜덤 ${imageFiles.length}개 선택`);
 
   }
 

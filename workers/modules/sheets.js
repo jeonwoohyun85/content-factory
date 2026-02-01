@@ -1,6 +1,6 @@
 // Google Sheets CRUD
 
-import { fetchWithTimeout, parseCSV, parseCSVLine, normalizeClient, normalizeLanguage, getColumnLetter } from './utils.js';
+import { fetchWithTimeout, parseCSV, parseCSVLine, normalizeClient, normalizeLanguage, getColumnLetter, removeLanguageSuffixFromBusinessName } from './utils.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
 
 export async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
@@ -175,13 +175,7 @@ export async function getClientFromSheets(clientId, env) {
 
     // 상호명에서 언어 표시 자동 제거
     if (client && client.business_name) {
-      const suffixes = [' Japan', ' 日本', ' japan', ' Korea', ' 한국', ' China', ' 中国', ' English', ' Japanese', ' 일본어'];
-      for (const s of suffixes) {
-        if (client.business_name.endsWith(s)) {
-          client.business_name = client.business_name.slice(0, -s.length).trim();
-          break;
-        }
-      }
+      client.business_name = removeLanguageSuffixFromBusinessName(client.business_name);
     }
 
     // Sheets 데이터 번역 (언어가 한국어가 아닐 때)

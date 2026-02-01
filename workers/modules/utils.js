@@ -32,31 +32,6 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
 
 }
 
-// Sheets CSV 조회 재시도 로직 (R4-1)
-export async function fetchSheetsWithRetry(url, maxRetries = 3) {
-  let lastError;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await fetchWithTimeout(url, {}, 15000); // 15초 타임아웃
-      if (response.ok) {
-        return response;
-      }
-      lastError = new Error(`HTTP ${response.status}`);
-    } catch (error) {
-      lastError = error;
-      console.error(`Sheets fetch attempt ${attempt}/${maxRetries} failed:`, error.message);
-    }
-    
-    // 마지막 시도가 아니면 대기 후 재시도
-    if (attempt < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // 2초, 4초, 6초 대기
-    }
-  }
-  
-  throw lastError;
-}
-
 export function escapeHtml(text) {
 
   if (!text) return '';
@@ -537,6 +512,19 @@ export function getColumnLetter(index) {
 export function normalizeFolderName(name) {
   if (!name) return '';
   return name.trim().toLowerCase();
+}
+
+// 상호명에서 언어 표시 자동 제거
+export function removeLanguageSuffixFromBusinessName(businessName) {
+  if (!businessName) return businessName;
+
+  const suffixes = [' Japan', ' 日本', ' japan', ' Korea', ' 한국', ' China', ' 中国', ' English', ' Japanese', ' 일본어', ' Thailand'];
+  for (const suffix of suffixes) {
+    if (businessName.endsWith(suffix)) {
+      return businessName.slice(0, -suffix.length).trim();
+    }
+  }
+  return businessName;
 }
 
 // ntfy 알림 전송
