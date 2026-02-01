@@ -366,11 +366,11 @@ export async function generateClientPage(client, debugInfo, env) {
 
 
 
-  // 랜덤으로 섞고 최대 6개만 선택
+  // 랜덤으로 섞고 최대 9개만 선택
 
-  if (infoImages.length > 6) {
+  if (infoImages.length > 9) {
 
-    infoImages = infoImages.sort(() => Math.random() - 0.5).slice(0, 6);
+    infoImages = infoImages.sort(() => Math.random() - 0.5).slice(0, 9);
 
   }
 
