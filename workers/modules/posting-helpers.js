@@ -1194,13 +1194,12 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
       );
 
-    }
 
+      if (!deleteResponse.ok) {
 
+        throw new Error(`최신 포스팅 행 삭제 실패: ${deleteResponse.status}`);
 
-    if (!deleteResponse.ok) {
-
-      throw new Error(`최신 포스팅 행 삭제 실패: ${deleteResponse.status}`);
+      }
 
     }
 

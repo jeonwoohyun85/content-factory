@@ -1,7 +1,7 @@
 // Content Factory - Modularized Version
 
 // 모듈 import
-import { fetchWithTimeout, fetchSheetsWithRetry, parseCSV, normalizeClient } from './modules/utils.js';
+import { fetchWithTimeout, parseCSV, normalizeClient } from './modules/utils.js';
 import { getCachedHTML, setCachedHTML } from './modules/cache.js';
 import { getClientFromSheets } from './modules/sheets.js';
 import {
@@ -14,26 +14,8 @@ import {
 import { generatePostingForClient } from './modules/posting.js';
 import { getGoogleAccessTokenForPosting } from './modules/auth.js';
 
-// 환경변수 검증 (R1-1)
-function validateEnv(env) {
-  const required = ['POSTING_KV', 'POSTING_QUEUE', 'GEMINI_API_KEY', 'SHEETS_ID'];
-  const missing = required.filter(key => !env[key]);
-  
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
-}
-
 export default {
   async scheduled(event, env, ctx) {
-    // 환경변수 검증 (R1-1)
-    try {
-      validateEnv(env);
-    } catch (error) {
-      console.error('[CRITICAL]', error.message);
-      return;
-    }
-
     const nowUtc = new Date();
     const nowKst = new Date(nowUtc.getTime() + (9 * 60 * 60 * 1000));
     const timestamp = nowKst.toISOString().replace('T', ' ').substring(0, 19);
@@ -50,19 +32,23 @@ export default {
     }
 
     try {
-      // 락 설정 (24시간 TTL - R2-1 수정)
-      await env.POSTING_KV.put(lockKey, timestamp, { expirationTtl: 86400 });
+      // 락 설정 (48시간 TTL - 다음 날 실행 보장)
+      await env.POSTING_KV.put(lockKey, timestamp, { expirationTtl: 172800 });
 
-      // 1. 모든 구독 거래처 조회 (재시도 로직 R4-1)
+      // 1. 모든 구독 거래처 조회
       const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
-      const response = await fetchSheetsWithRetry(SHEET_URL);
+      const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+      if (!response.ok) {
+        throw new Error(`Sheets fetch failed: ${response.status}`);
+      }
 
       const csvText = await response.text();
       const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.subscription === '활성');
 
       console.log(`Found ${clients.length} active clients`);
 
-      // 2. 배치 처리 (10개씩 Queue 전송, 배치 간 10초 대기 - R4-2)
+      // 2. 배치 처리 (10개씩 Queue 전송)
       const batchSize = 10;
       let successCount = 0;
       let failCount = 0;
@@ -82,9 +68,9 @@ export default {
           }
         }
 
-        // 배치 간 10초 대기 (R4-2: Gemini RPM 초과 방지)
+        // 배치 간 1초 대기
         if (i + batchSize < clients.length) {
-          await new Promise(resolve => setTimeout(resolve, 10000));
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
@@ -93,7 +79,7 @@ export default {
     } catch (error) {
       console.error('Scheduled handler error:', error);
     }
-    // 락은 TTL(24시간)로 자동 만료됨 - 수동 삭제 불필요
+    // 락은 TTL(48시간)로 자동 만료됨 - 수동 삭제 불필요
   },
 
   async queue(batch, env) {
@@ -106,11 +92,11 @@ export default {
             message.ack();
           } else {
             console.error(`❌ ${message.body.subdomain} 실패: ${result.error}`);
-            message.ack();  // 실패해도 Queue에서 제거 (max_retries=0)
+            message.retry();  // 실패 시 재시도
           }
         } catch (error) {
           console.error(`❌ ${message.body.subdomain} 에러: ${error.message}`);
-          message.ack();  // 에러 발생해도 Queue에서 제거 (max_retries=0)
+          message.retry();  // 에러 시 재시도
         }
       })
     );
@@ -179,7 +165,11 @@ export default {
 
           // 1. 모든 구독 거래처 조회
           const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
-          const response = await fetchSheetsWithRetry(SHEET_URL);
+          const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+
+          if (!response.ok) {
+            throw new Error(`Sheets fetch failed: ${response.status}`);
+          }
 
           const csvText = await response.text();
           const clients = parseCSV(csvText).map(normalizeClient).filter(c => c.subscription === '활성');
@@ -205,9 +195,9 @@ export default {
               }
             }
 
-            // 배치 간 10초 대기
+            // 배치 간 1초 대기
             if (i + batchSize < clients.length) {
-              await new Promise(resolve => setTimeout(resolve, 10000));
+              await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
 
