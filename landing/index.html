@@ -13,73 +13,30 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #ffffff;
-            color: #1a1a1a;
-            line-height: 1.6;
-        }
-
-        /* Navigation */
-        nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-            z-index: 1000;
-        }
-
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 24px;
-            font-weight: 700;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
         }
 
-        .nav-links {
+        .container {
             display: flex;
-            gap: 32px;
+            flex-direction: column;
+            justify-content: center;
             align-items: center;
-        }
-
-        .nav-links a {
-            color: #666;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
-
-        .nav-links a:hover {
-            color: #667eea;
-        }
-
-        .nav-cta {
-            padding: 10px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white !important;
-            border-radius: 8px;
-        }
-
-        /* Hero Section */
-        .hero {
-            padding: 160px 24px 120px;
-            max-width: 1200px;
-            margin: 0 auto;
+            height: 100vh;
+            padding: 40px 24px;
             text-align: center;
         }
 
-        .hero h1 {
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 48px;
+            opacity: 0.9;
+        }
+
+        h1 {
             font-size: 64px;
             font-weight: 800;
             margin-bottom: 24px;
@@ -87,376 +44,105 @@
             line-height: 1.1;
         }
 
-        .hero .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero p {
+        .subtitle {
             font-size: 22px;
-            color: #666;
             margin-bottom: 48px;
+            opacity: 0.9;
             max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
         }
 
-        .hero-buttons {
+        .features {
             display: flex;
-            gap: 16px;
-            justify-content: center;
+            gap: 48px;
+            margin-bottom: 48px;
             flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .feature {
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .feature-text {
+            font-size: 16px;
+            opacity: 0.9;
         }
 
         .btn-primary {
-            padding: 16px 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            padding: 18px 48px;
+            background: white;
+            color: #667eea;
             text-decoration: none;
             border-radius: 12px;
             font-weight: 600;
-            font-size: 16px;
+            font-size: 18px;
             display: inline-block;
             transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.35);
-        }
-
-        .btn-secondary {
-            padding: 16px 40px;
-            background: white;
-            color: #1a1a1a;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 16px;
-            display: inline-block;
-            border: 2px solid #e5e5e5;
-            transition: border-color 0.2s;
-        }
-
-        .btn-secondary:hover {
-            border-color: #667eea;
-        }
-
-        /* Features Section */
-        .features {
-            padding: 100px 24px;
-            background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
-        }
-
-        .section-title {
-            text-align: center;
-            margin-bottom: 64px;
-        }
-
-        .section-title h2 {
-            font-size: 42px;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-
-        .section-title p {
-            font-size: 18px;
-            color: #666;
-        }
-
-        .features-grid {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 32px;
-        }
-
-        .feature-card {
-            background: white;
-            padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.15);
-        }
-
-        .feature-icon {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 16px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-        }
-
-        .feature-card h3 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-
-        .feature-card p {
-            color: #666;
-            line-height: 1.7;
-        }
-
-        /* Stats Section */
-        .stats {
-            padding: 100px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .stats-grid {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 48px;
-            text-align: center;
-        }
-
-        .stat h3 {
-            font-size: 56px;
-            font-weight: 800;
-            margin-bottom: 8px;
-        }
-
-        .stat p {
-            font-size: 18px;
-            opacity: 0.9;
-        }
-
-        /* CTA Section */
-        .cta-section {
-            padding: 120px 24px;
-            text-align: center;
-            background: white;
-        }
-
-        .cta-section h2 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 24px;
-        }
-
-        .cta-section p {
-            font-size: 20px;
-            color: #666;
-            margin-bottom: 40px;
-        }
-
-        /* Footer */
-        footer {
-            padding: 60px 24px 40px;
-            background: #1a1a1a;
-            color: white;
-        }
-
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 48px;
-            margin-bottom: 40px;
-        }
-
-        .footer-logo {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-
-        .footer-section h4 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            opacity: 0.9;
-        }
-
-        .footer-section a {
-            display: block;
-            color: #999;
-            text-decoration: none;
-            margin-bottom: 12px;
-            transition: color 0.2s;
-        }
-
-        .footer-section a:hover {
-            color: white;
-        }
-
-        .footer-bottom {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
-            color: #999;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
         }
 
         @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-            }
-
-            .hero h1 {
+            h1 {
                 font-size: 40px;
             }
 
-            .hero p {
+            .subtitle {
                 font-size: 18px;
             }
 
-            .section-title h2 {
-                font-size: 32px;
-            }
-
-            .stats-grid {
+            .features {
                 gap: 32px;
             }
 
-            .cta-section h2 {
-                font-size: 36px;
+            .feature-icon {
+                font-size: 28px;
+            }
+
+            .feature-text {
+                font-size: 14px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav>
-        <div class="nav-container">
-            <div class="logo">Make Page</div>
-            <div class="nav-links">
-                <a href="#features">기능</a>
-                <a href="#about">소개</a>
-                <a href="#contact" class="nav-cta">시작하기</a>
-            </div>
-        </div>
-    </nav>
+    <div class="container">
+        <div class="logo">Make Page</div>
 
-    <!-- Hero Section -->
-    <section class="hero">
         <h1>
             비즈니스 성장을 위한<br>
-            <span class="gradient-text">스마트한 웹 솔루션</span>
+            스마트한 웹 솔루션
         </h1>
-        <p>전세계 어디서나 빠르고 안정적인 웹 경험을 제공합니다. Cloudflare 기반의 강력한 인프라로 비즈니스를 성장시키세요.</p>
-        <div class="hero-buttons">
-            <a href="#contact" class="btn-primary">무료로 시작하기</a>
-            <a href="#features" class="btn-secondary">자세히 알아보기</a>
-        </div>
-    </section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
-        <div class="section-title">
-            <h2>왜 Make Page인가요?</h2>
-            <p>성능과 안정성을 동시에 제공하는 웹 솔루션</p>
-        </div>
-        <div class="features-grid">
-            <div class="feature-card">
+        <p class="subtitle">
+            전세계 어디서나 빠르고 안정적인 웹 경험을 제공합니다
+        </p>
+
+        <div class="features">
+            <div class="feature">
                 <div class="feature-icon">⚡</div>
-                <h3>글로벌 CDN</h3>
-                <p>전세계 275개 이상의 CDN 네트워크를 통해 사용자에게 최적화된 속도로 콘텐츠를 전달합니다.</p>
+                <div class="feature-text">글로벌 CDN</div>
             </div>
-            <div class="feature-card">
+            <div class="feature">
                 <div class="feature-icon">🔒</div>
-                <h3>보안 우선</h3>
-                <p>DDoS 방어, SSL/TLS 암호화, WAF 등 엔터프라이즈급 보안 기능을 기본으로 제공합니다.</p>
+                <div class="feature-text">엔터프라이즈 보안</div>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">📊</div>
-                <h3>실시간 분석</h3>
-                <p>방문자 통계, 트래픽 분석, 성능 지표를 실시간으로 확인하고 데이터 기반 의사결정을 내리세요.</p>
-            </div>
-            <div class="feature-card">
+            <div class="feature">
                 <div class="feature-icon">🚀</div>
-                <h3>즉시 배포</h3>
-                <p>Git 연동을 통한 자동 배포로 코드 푸시 후 몇 초 만에 전세계에 배포됩니다.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">💰</div>
-                <h3>합리적인 가격</h3>
-                <p>종량제가 아닌 무제한 트래픽과 대역폭으로 예측 가능한 비용 관리가 가능합니다.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔧</div>
-                <h3>쉬운 관리</h3>
-                <p>직관적인 대시보드와 API를 통해 누구나 쉽게 웹 페이지를 관리하고 최적화할 수 있습니다.</p>
+                <div class="feature-text">즉시 배포</div>
             </div>
         </div>
-    </section>
 
-    <!-- Stats Section -->
-    <section class="stats">
-        <div class="stats-grid">
-            <div class="stat">
-                <h3>99.9%</h3>
-                <p>가동 시간 보장</p>
-            </div>
-            <div class="stat">
-                <h3>&lt;50ms</h3>
-                <p>평균 응답 속도</p>
-            </div>
-            <div class="stat">
-                <h3>275+</h3>
-                <p>글로벌 엣지 네트워크</p>
-            </div>
-            <div class="stat">
-                <h3>24/7</h3>
-                <p>모니터링 및 지원</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="cta-section" id="contact">
-        <h2>지금 바로 시작하세요</h2>
-        <p>복잡한 설정 없이 5분 안에 웹 페이지를 배포할 수 있습니다.</p>
-        <a href="#" class="btn-primary">무료로 시작하기</a>
-    </section>
-
-    <!-- Footer -->
-    <footer>
-        <div class="footer-content">
-            <div>
-                <div class="footer-logo">Make Page</div>
-                <p style="color: #999; margin-top: 16px;">비즈니스 성장을 위한<br>스마트한 웹 솔루션</p>
-            </div>
-            <div class="footer-section">
-                <h4>제품</h4>
-                <a href="#">기능</a>
-                <a href="#">가격</a>
-                <a href="#">문서</a>
-            </div>
-            <div class="footer-section">
-                <h4>회사</h4>
-                <a href="#">소개</a>
-                <a href="#">블로그</a>
-                <a href="#">채용</a>
-            </div>
-            <div class="footer-section">
-                <h4>지원</h4>
-                <a href="#">문의하기</a>
-                <a href="#">FAQ</a>
-                <a href="#">상태</a>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2026 Make Page. All rights reserved.</p>
-        </div>
-    </footer>
+        <a href="#contact" class="btn-primary">시작하기</a>
+    </div>
 </body>
 </html>
