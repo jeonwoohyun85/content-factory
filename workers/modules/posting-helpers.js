@@ -1,6 +1,6 @@
 // 포스팅 자동화 헬퍼 함수
 
-import { fetchWithTimeout, parseCSV, normalizeClient, formatKoreanTime, getColumnLetter } from './utils.js';
+import { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter } from './utils.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
 
 export async function getClientFromSheetsForPosting(subdomain, env) {
