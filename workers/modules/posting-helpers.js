@@ -3,6 +3,12 @@
 import { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter } from './utils.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
 
+// 저장소 헤더 고정값 (백업용 - API 실패 시 사용)
+const ARCHIVE_HEADERS_FALLBACK = [
+  '도메인', '상호명', '제목', 'URL', '생성일시',
+  '언어', '업종', '폴더명', '본문', '이미지'
+];
+
 export async function getClientFromSheetsForPosting(subdomain, env) {
 
   const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
@@ -838,7 +844,9 @@ export async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
     if (!response.ok) {
 
-      return { lastFolder: null, archiveHeaders: [] };
+      console.warn('[WARNING] 저장소 시트 읽기 실패, 고정 헤더 사용');
+
+      return { lastFolder: null, archiveHeaders: ARCHIVE_HEADERS_FALLBACK };
 
     }
 
@@ -852,7 +860,9 @@ export async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
     if (rows.length < 1) {
 
-      return { lastFolder: null, archiveHeaders: [] };
+      console.warn('[WARNING] 저장소 시트 비어있음, 고정 헤더 사용');
+
+      return { lastFolder: null, archiveHeaders: ARCHIVE_HEADERS_FALLBACK };
 
     }
 
@@ -906,7 +916,11 @@ export async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
   } catch (error) {
 
-    return { lastFolder: null, archiveHeaders: [] };
+    console.error('[ERROR] 저장소 조회 중 에러:', error.message);
+
+    console.warn('[WARNING] 고정 헤더 사용');
+
+    return { lastFolder: null, archiveHeaders: ARCHIVE_HEADERS_FALLBACK };
 
   }
 
@@ -1401,19 +1415,9 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
 
 
-  // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (트랜잭션 완료)
+  // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (실패해도 무시)
 
-  // archiveHeaders가 없거나 빈 배열이면 에러 처리
-
-  if (!archiveHeaders || archiveHeaders.length === 0) {
-
-    console.error('[ERROR] 저장소 헤더 없음. archiveHeaders:', archiveHeaders);
-
-    console.error('저장소 시트 헤더가 제공되지 않음');
-
-    return; // 최신 포스팅은 이미 저장됨, 저장소만 실패
-
-  }
+  try {
 
 
 
@@ -1714,6 +1718,16 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
   } catch (error) {
 
     console.error(`열 너비 복사 중 에러: ${error.message}`);
+
+  }
+
+  } catch (archiveError) {
+
+    // 저장소 저장 실패해도 무시 (최신 포스팅은 이미 저장됨)
+
+    console.error('[ERROR] 저장소 저장 실패:', archiveError.message);
+
+    console.log('[INFO] 최신 포스팅 저장은 성공, 저장소만 실패 (무시하고 계속)');
 
   }
 
