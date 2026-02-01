@@ -340,9 +340,9 @@ export async function generateClientPage(client, debugInfo, env) {
     });
   }
 
-  // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환
+  // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환 (전체 이미지 포함, 제한 없음)
 
-  let infoImages = (client.info || '').split(',')
+  const allInfoImages = (client.info || '').split(',')
 
     .map(i => i.trim())
 
@@ -363,16 +363,6 @@ export async function generateClientPage(client, debugInfo, env) {
       return url;
 
     });
-
-
-
-  // 랜덤으로 섞고 최대 6개만 선택
-
-  if (infoImages.length > 6) {
-
-    infoImages = infoImages.sort(() => Math.random() - 0.5).slice(0, 6);
-
-  }
 
 
 
@@ -1346,9 +1336,9 @@ export async function generateClientPage(client, debugInfo, env) {
 
 
 
-    <!-- Info Section -->
+    <!-- Info Section (클라이언트 사이드 랜덤 렌더링) -->
 
-    ${infoImages.length > 0 ? '<section><h2 class="section-title">' + texts.info + '</h2><div class="gallery-grid">' + infoImages.map((img, index) => '<div class="gallery-item" onclick="openLightbox(' + index + ')"><img src="' + escapeHtml(img) + '" alt="' + texts.galleryImage + '" class="gallery-image"></div>').join('') + '</div></section>' : ''}
+    ${allInfoImages.length > 0 ? '<section><h2 class="section-title">' + texts.info + '</h2><div id="gallery-grid" class="gallery-grid"></div></section>' : ''}
 
 
 
@@ -1374,7 +1364,7 @@ export async function generateClientPage(client, debugInfo, env) {
 
         <div class="lightbox-content" onclick="event.stopPropagation()">
 
-            <img id="lightbox-image" class="lightbox-image" src="" alt="' + texts.info + '">
+            <img id="lightbox-image" class="lightbox-image" src="" alt="${texts.info}">
 
         </div>
 
@@ -1386,9 +1376,49 @@ export async function generateClientPage(client, debugInfo, env) {
 
     <script>
 
-        const infoImages = ${JSON.stringify(infoImages)};
+        // 전체 이미지 배열
+
+        const allInfoImages = ${JSON.stringify(allInfoImages)};
+
+        let displayedImages = [];
 
         let currentImageIndex = 0;
+
+
+
+        // 페이지 로드 시 랜덤 6개 선택 및 렌더링
+
+        function renderGallery() {
+
+            const galleryGrid = document.getElementById('gallery-grid');
+
+            if (!galleryGrid || allInfoImages.length === 0) return;
+
+
+
+            // 랜덤으로 섞고 최대 6개 선택
+
+            displayedImages = allInfoImages.length > 6 
+
+                ? [...allInfoImages].sort(() => Math.random() - 0.5).slice(0, 6)
+
+                : [...allInfoImages];
+
+
+
+            // 갤러리 렌더링
+
+            galleryGrid.innerHTML = displayedImages.map((img, index) => 
+
+                \`<div class="gallery-item" onclick="openLightbox(\${index})">
+
+                    <img src="\${img}" alt="${texts.galleryImage}" class="gallery-image">
+
+                </div>\`
+
+            ).join('');
+
+        }
 
 
 
@@ -1396,7 +1426,7 @@ export async function generateClientPage(client, debugInfo, env) {
 
             currentImageIndex = index;
 
-            document.getElementById('lightbox-image').src = infoImages[index];
+            document.getElementById('lightbox-image').src = displayedImages[index];
 
             document.getElementById('lightbox').classList.add('active');
 
@@ -1418,9 +1448,9 @@ export async function generateClientPage(client, debugInfo, env) {
 
         function nextImage() {
 
-            currentImageIndex = (currentImageIndex + 1) % infoImages.length;
+            currentImageIndex = (currentImageIndex + 1) % displayedImages.length;
 
-            document.getElementById('lightbox-image').src = infoImages[currentImageIndex];
+            document.getElementById('lightbox-image').src = displayedImages[currentImageIndex];
 
         }
 
@@ -1428,9 +1458,9 @@ export async function generateClientPage(client, debugInfo, env) {
 
         function prevImage() {
 
-            currentImageIndex = (currentImageIndex - 1 + infoImages.length) % infoImages.length;
+            currentImageIndex = (currentImageIndex - 1 + displayedImages.length) % displayedImages.length;
 
-            document.getElementById('lightbox-image').src = infoImages[currentImageIndex];
+            document.getElementById('lightbox-image').src = displayedImages[currentImageIndex];
 
         }
 
@@ -1451,6 +1481,20 @@ export async function generateClientPage(client, debugInfo, env) {
             if (e.key === 'ArrowLeft') prevImage();
 
         });
+
+
+
+        // 페이지 로드 시 갤러리 렌더링
+
+        if (document.readyState === 'loading') {
+
+            document.addEventListener('DOMContentLoaded', renderGallery);
+
+        } else {
+
+            renderGallery();
+
+        }
 
     </script>
 
