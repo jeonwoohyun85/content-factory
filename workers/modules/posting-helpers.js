@@ -12,7 +12,7 @@ const ADMIN_HEADERS_FALLBACK = [
 
 // 최신_포스팅 헤더 고정값 (10개)
 const LATEST_POSTING_HEADERS_FALLBACK = [
-  '도메인', '상호명', '제목', '생성일시', '언어', '업종', '폴더명', '본문', '이미지', 'URL'
+  '도메인', '상호명', '제목', '생성일시', '언어', '업종', '폴더명', '본문', '이미지', 'URL', '크론'
 ];
 
 // 저장소 헤더 고정값 (백업용 - API 실패 시 사용, 10개)
@@ -1094,6 +1094,9 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
   // 포스트 ID: 타임스탬프를 36진수로 변환 (날짜 숨김)
   const postId = new Date(timestamp).getTime().toString(36);
 
+  // 크론 날짜: MM-DD 형식 추출 (timestamp: "2026-02-01 09:05:23" → "02-01")
+  const cronDate = timestamp.substring(5, 10); // "02-01"
+
   const postDataMap = {
 
     '도메인': domain,
@@ -1114,7 +1117,9 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '본문': postData.body || '',
 
-    '이미지': postData.images || ''
+    '이미지': postData.images || '',
+
+    '크론': cronDate
 
   };
 
@@ -1211,26 +1216,6 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
 
   console.log(`SheetID - 최신포스팅: ${latestSheetId}, 저장소: ${archiveSheetId}`);
-
-  // 2-1. 관리자 시트 데이터 미리 읽기 (크론 업데이트용)
-  let adminRows = [];
-  try {
-    const adminResponse = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Z`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-      10000
-    );
-
-    if (adminResponse.ok) {
-      const adminData = await adminResponse.json();
-      adminRows = adminData.values || [];
-      console.log(`관리자 시트 읽기 성공: ${adminRows.length}행`);
-    } else {
-      console.warn(`[WARNING] 관리자 시트 읽기 실패: ${adminResponse.status} - 크론 업데이트 스킵`);
-    }
-  } catch (error) {
-    console.error(`관리자 시트 읽기 에러: ${error.message} - 크론 업데이트 스킵`);
-  }
 
   // 3. 해당 도메인의 행들 찾기
 
@@ -1883,206 +1868,5 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
 
 
-  // 8. 관리자 시트 "크론" 컬럼 업데이트 (실제 실행 시간)
-
-  try {
-
-    // 관리자 시트 데이터는 이미 위에서 읽음 (adminRows)
-
-    if (adminRows.length < 2) {
-
-      console.log('[INFO] 관리자 시트 데이터 없음 - 크론 업데이트 스킵');
-
-      return;
-
-    }
-
-
-
-    const adminHeaders = adminRows[0];
-
-    const adminDomainIndex = adminHeaders.indexOf('도메인');
-
-    const cronIndex = adminHeaders.indexOf('크론');
-
-
-
-    if (adminDomainIndex === -1) {
-
-      console.error('관리자 시트에 "도메인" 컬럼 없음');
-
-      return;
-
-    }
-
-
-
-    if (cronIndex === -1) {
-
-      console.error('관리자 시트에 "크론" 컬럼 없음 (업데이트 스킵)');
-
-      return;
-
-    }
-
-
-
-    // 해당 거래처 행 찾기
-
-    let targetRowIndex = -1;
-
-    for (let i = 1; i < adminRows.length; i++) {
-
-      const row = adminRows[i];
-
-      const rowDomain = (row[adminDomainIndex] || '').replace('.make-page.com', '').replace('/', '');
-
-      if (rowDomain === normalizedSubdomain) {
-
-        targetRowIndex = i + 1; // 1-indexed
-
-        break;
-
-      }
-
-    }
-
-
-
-    if (targetRowIndex === -1) {
-
-      console.error(`관리자 시트에서 ${normalizedSubdomain} 행을 찾을 수 없음`);
-
-      return;
-
-    }
-
-
-
-    // 현재 실행 시간 (KST) - "09시 05분" 형식
-
-    const hour = String(koreaTime.getHours()).padStart(2, '0');
-
-    const minute = String(koreaTime.getMinutes()).padStart(2, '0');
-
-    const currentCronTime = `${hour}시 ${minute}분`;
-
-
-
-
-
-    // 크론 컬럼 업데이트
-
-    const cronColumnLetter = getColumnLetter(cronIndex);
-
-    const updateRange = `관리자!${cronColumnLetter}${targetRowIndex}`;
-
-
-
-    const updateResponse = await fetch(
-
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
-
-      {
-
-        method: 'PUT',
-
-        headers: {
-
-          'Authorization': `Bearer ${accessToken}`,
-
-          'Content-Type': 'application/json'
-
-        },
-
-        body: JSON.stringify({
-
-          values: [[currentCronTime]]
-
-        })
-
-      }
-
-    );
-
-
-
-    if (updateResponse.ok) {
-
-      console.log(`크론 컬럼 업데이트 성공: ${currentCronTime}`);
-
-    } else {
-
-      console.error(`크론 컬럼 업데이트 실패: ${updateResponse.status}`);
-
-    }
-
-
-
-    // 9. 관리자 시트 "상태" 컬럼 업데이트 (성공)
-
-    const statusIndex = adminHeaders.indexOf('상태');
-
-
-
-    if (statusIndex === -1) {
-
-      console.log('관리자 시트에 "상태" 컬럼 없음 (업데이트 스킵)');
-
-    } else {
-
-      const statusColumnLetter = getColumnLetter(statusIndex);
-
-      const statusUpdateRange = `관리자!${statusColumnLetter}${targetRowIndex}`;
-
-
-
-      const statusUpdateResponse = await fetch(
-
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(statusUpdateRange)}?valueInputOption=RAW`,
-
-        {
-
-          method: 'PUT',
-
-          headers: {
-
-            'Authorization': `Bearer ${accessToken}`,
-
-            'Content-Type': 'application/json'
-
-          },
-
-          body: JSON.stringify({
-
-            values: [['성공']]
-
-          })
-
-        }
-
-      );
-
-
-
-      if (statusUpdateResponse.ok) {
-
-        console.log(`상태 컬럼 업데이트 성공: 성공`);
-
-      } else {
-
-        console.error(`상태 컬럼 업데이트 실패: ${statusUpdateResponse.status}`);
-
-      }
-
-    }
-
-
-
-  } catch (error) {
-
-    console.error(`크론/상태 컬럼 업데이트 중 에러: ${error.message}`);
-
-  }
 
 }
