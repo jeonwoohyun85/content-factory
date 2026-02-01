@@ -3,7 +3,20 @@
 import { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter } from './utils.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
 
-// 저장소 헤더 고정값 (백업용 - API 실패 시 사용)
+// 관리자 시트 헤더 고정값 (A~Q열, 17개)
+const ADMIN_HEADERS_FALLBACK = [
+  '도메인', '구독', '성함', '상호명', '주소', '연락처', '영업시간', '언어',
+  '거래처_정보', '업종', '폴더명', '우마미', '우마미_공유', '바로가기',
+  'info', 'video', '크론'
+];
+
+// 최신_포스팅 헤더 고정값 (10개)
+const LATEST_POSTING_HEADERS_FALLBACK = [
+  '도메인', '상호명', '제목', 'URL', '생성일시',
+  '언어', '업종', '폴더명', '본문', '이미지'
+];
+
+// 저장소 헤더 고정값 (백업용 - API 실패 시 사용, 10개)
 const ARCHIVE_HEADERS_FALLBACK = [
   '도메인', '상호명', '제목', 'URL', '생성일시',
   '언어', '업종', '폴더명', '본문', '이미지'
@@ -66,13 +79,7 @@ export async function getClientFromSheetsForPosting(subdomain, env) {
         if (fieldsToTranslate.length > 0) {
           try {
             const fieldsJson = fieldsToTranslate.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',\n');
-            const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
-
-{
-${fieldsJson}
-}
-
-IMPORTANT: Return ONLY the JSON object.`;
+            const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:\n\n{\n${fieldsJson}\n}\n\nIMPORTANT: Return ONLY the JSON object.`;
 
             const translateResponse = await fetch(
               `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
@@ -504,21 +511,7 @@ ${trendsData}
 
     // 폴백: 기본 포스트 반환
     const fallbackTitle = `${client.business_name} - ${client.description || client.industry}`;
-    const fallbackBody = `${client.business_name}을(를) 소개합니다.
-
-${client.description || client.industry} 분야에서 고객 여러분께 최상의 서비스를 제공하고 있습니다.
-
-${trendsData.substring(0, 300)}
-
-언제든지 방문해 주시면 친절하게 안내해 드리겠습니다.
-
-고객 만족을 위해 항상 최선을 다하고 있습니다.
-
-많은 관심과 방문 부탁드립니다.
-
-더 자세한 정보는 문의 주시기 바랍니다.
-
-감사합니다.`;
+    const fallbackBody = `${client.business_name}을(를) 소개합니다.\n\n${client.description || client.industry} 분야에서 고객 여러분께 최상의 서비스를 제공하고 있습니다.\n\n${trendsData.substring(0, 300)}\n\n언제든지 방문해 주시면 친절하게 안내해 드리겠습니다.\n\n고객 만족을 위해 항상 최선을 다하고 있습니다.\n\n많은 관심과 방문 부탁드립니다.\n\n더 자세한 정보는 문의 주시기 바랍니다.\n\n감사합니다.`;
 
     console.log('Gemini API 실패 - 기본 포스트 반환');
     return {
