@@ -513,9 +513,16 @@ export default {
         // Query parameter에서 post ID 추출
         const postId = url.searchParams.get('id');
 
-        // created_at으로 포스트 찾기
+        // 포스트 찾기 (새 형식: 36진수 ID, 기존 형식: created_at)
         const post = postId
-          ? client.posts.find(p => p.created_at === postId)
+          ? client.posts.find(p => {
+              // 새 형식: 타임스탬프 36진수 ID
+              const generatedId = new Date(p.created_at).getTime().toString(36);
+              if (generatedId === postId) return true;
+              // 기존 형식: created_at 그대로
+              if (p.created_at === postId) return true;
+              return false;
+            })
           : client.posts[0];
 
         if (!post) {

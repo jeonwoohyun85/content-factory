@@ -993,6 +993,8 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
 
   // 데이터 객체 (컬럼명: 값)
+  // 포스트 ID: 타임스탬프를 36진수로 변환 (날짜 숨김)
+  const postId = new Date(timestamp).getTime().toString(36);
 
   const postDataMap = {
 
@@ -1002,7 +1004,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '제목': postData.title,
 
-    'URL': `${domain}/post?id=${encodeURIComponent(timestamp)}`,
+    'URL': `${domain}/post?id=${postId}`,
 
     '생성일시': timestamp,
 
@@ -1014,7 +1016,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '본문': postData.body || '',
 
-    '이미지': postData.images || ''
+    '이미지': `${domain}/post?id=${postId}` // 포스트 URL 저장
 
   };
 
