@@ -397,8 +397,15 @@ export async function getPostsFromArchive(subdomain, env) {
 
         const titleIndex = headers.indexOf('제목');
 
-        // 저장소 시트는 데이터가 1칸 밀려있음 (URL 헤더 위치에 실제 생성일시)
-        const urlHeaderIndex = headers.indexOf('URL');
+        const createdAtIndex = headers.indexOf('생성일시');
+
+        const languageIndex = headers.indexOf('언어');
+
+        const industryIndex = headers.indexOf('업종');
+
+        const bodyIndex = headers.indexOf('본문');
+
+        const imagesIndex = headers.indexOf('이미지');
 
 
 
@@ -418,12 +425,15 @@ export async function getPostsFromArchive(subdomain, env) {
 
             if (normalizedDomain === normalizedSubdomain) {
 
-              // 저장소 시트는 데이터가 1칸 밀려있으므로 URL 헤더 위치부터 읽음
-              const createdAt = urlHeaderIndex !== -1 ? (row[urlHeaderIndex] || '') : '';
-              const language = urlHeaderIndex !== -1 ? (row[urlHeaderIndex + 1] || '') : '';
-              const industry = urlHeaderIndex !== -1 ? (row[urlHeaderIndex + 2] || '') : '';
-              const body = urlHeaderIndex !== -1 ? (row[urlHeaderIndex + 4] || '') : '';
-              const images = urlHeaderIndex !== -1 ? (row[urlHeaderIndex + 5] || '') : '';
+              const createdAt = createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '';
+
+              const language = languageIndex !== -1 ? (row[languageIndex] || '') : '';
+
+              const industry = industryIndex !== -1 ? (row[industryIndex] || '') : '';
+
+              const body = bodyIndex !== -1 ? (row[bodyIndex] || '') : '';
+
+              const images = imagesIndex !== -1 ? (row[imagesIndex] || '') : '';
 
 
 
