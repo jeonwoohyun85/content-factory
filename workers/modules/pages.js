@@ -972,6 +972,92 @@ export async function generateClientPage(client, debugInfo, env) {
 
 
 
+        /* Footer */
+
+        footer {
+
+            background: #f7fafc;
+
+            border-top: 1px solid #e2e8f0;
+
+            padding: 60px 16px;
+
+        }
+
+
+
+        .footer-content {
+
+            max-width: 1200px;
+
+            margin: 0 auto;
+
+            text-align: center;
+
+        }
+
+
+
+        .footer-title {
+
+            font-size: 20px;
+
+            font-weight: 700;
+
+            color: #1a1a1a;
+
+            margin-bottom: 24px;
+
+        }
+
+
+
+        .footer-info {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 12px;
+
+            align-items: center;
+
+        }
+
+
+
+        .footer-item {
+
+            font-size: 14px;
+
+            color: #4a5568;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+        }
+
+
+
+        @media (min-width: 768px) {
+
+            .footer-info {
+
+                flex-direction: row;
+
+                justify-content: center;
+
+                gap: 32px;
+
+            }
+
+        }
+
+
+
         /* Lightbox */
 
         .lightbox {
@@ -1351,6 +1437,30 @@ export async function generateClientPage(client, debugInfo, env) {
     <!-- Posts Section -->
 
     ${posts.length > 0 ? '<section><h2 class="section-title">' + texts.posts + '</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
+
+
+
+    <!-- Footer -->
+
+    <footer>
+
+        <div class="footer-content">
+
+            <h3 class="footer-title">${escapeHtml(client.business_name)}</h3>
+
+            <div class="footer-info">
+
+                ${client.address ? '<div class="footer-item"><span>📍</span><span>' + escapeHtml(client.address) + '</span></div>' : ''}
+
+                ${client.phone ? '<div class="footer-item"><span>📞</span><span>' + escapeHtml(client.phone) + '</span></div>' : ''}
+
+                ${client.business_hours ? '<div class="footer-item"><span>🕐</span><span>' + escapeHtml(client.business_hours) + '</span></div>' : ''}
+
+            </div>
+
+        </div>
+
+    </footer>
 
 
 
