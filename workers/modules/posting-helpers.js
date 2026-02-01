@@ -1425,7 +1425,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
   const archiveAppendResponse = await fetchWithTimeout(
 
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=USER_ENTERED`,
 
     {
 
