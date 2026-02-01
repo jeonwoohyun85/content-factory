@@ -2,7 +2,7 @@ name: Daily Posting Cron
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 매일 00:00 UTC = 09:00 KST
+    - cron: '0 15 * * *'  # 매일 15:00 UTC = 00:00 KST (다음날)
   workflow_dispatch:  # 수동 실행 가능
 
 jobs:
