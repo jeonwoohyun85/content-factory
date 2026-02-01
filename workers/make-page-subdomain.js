@@ -309,7 +309,7 @@ export default {
         }
       }
 
-      // 저장소 시트 URL 복구 (1회성)
+      // 저장소 이미지 컬럼 포스트 URL 복구
       if (pathname === '/restore-archive-urls' && request.method === 'POST') {
         try {
           const accessToken = await getGoogleAccessTokenForPosting(env);
@@ -332,36 +332,37 @@ export default {
 
           const headers = rows[0];
           const domainIndex = headers.indexOf('도메인');
-          const urlIndex = headers.indexOf('URL');
+          const imagesIndex = headers.indexOf('이미지');
           const createdAtIndex = headers.indexOf('생성일시');
 
-          if (domainIndex === -1 || urlIndex === -1 || createdAtIndex === -1) {
+          if (domainIndex === -1 || imagesIndex === -1 || createdAtIndex === -1) {
             return new Response(JSON.stringify({ 
               success: false, 
-              message: '필수 컬럼(도메인, URL, 생성일시) 없음' 
+              message: '필수 컬럼(도메인, 이미지, 생성일시) 없음' 
             }), {
               status: 400,
               headers: { 'Content-Type': 'application/json' }
             });
           }
 
-          // 2. URL 없는 행 찾기 및 URL 생성
+          // 2. 이미지 컬럼이 비어있는 행 찾기 및 포스트 URL 생성
           const updates = [];
 
           for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             const domain = row[domainIndex] || '';
-            const url_value = row[urlIndex] || '';
+            const images = row[imagesIndex] || '';
             const createdAt = row[createdAtIndex] || '';
 
-            if (!url_value && domain && createdAt) {
+            // 이미지 컬럼이 비어있고 도메인과 생성일시가 있으면
+            if (!images && domain && createdAt) {
               const normalizedDomain = domain.replace('.make-page.com', '');
               const encodedCreatedAt = encodeURIComponent(createdAt);
-              const generatedUrl = `${normalizedDomain}.make-page.com/post?id=${encodedCreatedAt}`;
+              const postUrl = `${normalizedDomain}.make-page.com/post?id=${encodedCreatedAt}`;
 
               updates.push({
                 row: i + 1,
-                url: generatedUrl
+                url: postUrl
               });
             }
           }
@@ -376,10 +377,10 @@ export default {
             });
           }
 
-          // 3. 일괄 업데이트
-          const urlColumnLetter = String.fromCharCode(65 + urlIndex);
+          // 3. 일괄 업데이트 (이미지 컬럼에 포스트 URL 저장)
+          const imagesColumnLetter = String.fromCharCode(65 + imagesIndex);
           const batchData = updates.map(u => ({
-            range: `${archiveSheetName}!${urlColumnLetter}${u.row}`,
+            range: `${archiveSheetName}!${imagesColumnLetter}${u.row}`,
             values: [[u.url]]
           }));
 
@@ -409,7 +410,7 @@ export default {
               totalUpdated += batch.length;
             } else {
               const errorText = await batchResponse.text();
-              console.error(`URL 복구 실패 (배치 ${i / batchSize + 1}):`, errorText);
+              console.error(`이미지 컬럼 URL 복구 실패 (배치 ${i / batchSize + 1}):`, errorText);
             }
 
             // API 제한 방지
@@ -420,7 +421,7 @@ export default {
 
           return new Response(JSON.stringify({
             success: true,
-            message: `${totalUpdated}개 URL 복구 완료`,
+            message: `${totalUpdated}개 포스트 URL 복구 완료`,
             updated: totalUpdated,
             total: updates.length
           }), {
