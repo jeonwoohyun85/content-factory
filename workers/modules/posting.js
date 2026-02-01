@@ -12,10 +12,14 @@ import {
 } from './posting-helpers.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
 import { deleteCachedHTML } from './cache.js';
+import { sendNtfyAlert } from './utils.js';
 
 export async function generatePostingForClient(subdomain, env) {
 
   const logs = [];
+  let client = null;
+  let nextFolder = null;
+  let images = [];
 
 
 
@@ -25,7 +29,7 @@ export async function generatePostingForClient(subdomain, env) {
 
     logs.push('거래처 정보 조회 중...');
 
-    const client = await getClientFromSheetsForPosting(subdomain, env);
+    client = await getClientFromSheetsForPosting(subdomain, env);
 
     if (!client) {
 
@@ -85,7 +89,7 @@ export async function generatePostingForClient(subdomain, env) {
 
     const archiveHeaders = folderData?.archiveHeaders || [];
 
-    const nextFolder = getNextFolderForPosting(folders, lastFolder);
+    nextFolder = getNextFolderForPosting(folders, lastFolder);
 
     logs.push(`선택된 폴더: ${nextFolder}`);
 
@@ -95,7 +99,7 @@ export async function generatePostingForClient(subdomain, env) {
 
     logs.push('폴더 내 이미지 조회 중...');
 
-    const images = await getFolderImagesForPosting(normalizedSubdomain, nextFolder, accessToken, env, logs);
+    images = await getFolderImagesForPosting(normalizedSubdomain, nextFolder, accessToken, env, logs);
 
     logs.push(`이미지 ${images.length}개 발견`);
 
@@ -166,6 +170,38 @@ export async function generatePostingForClient(subdomain, env) {
   } catch (error) {
 
     logs.push(`에러: ${error.message}`);
+
+    // 실패 단계 파악
+    let stage = '알 수 없음';
+    if (logs.some(log => log.includes('저장소/최신포스팅'))) {
+      stage = '시트 저장';
+    } else if (logs.some(log => log.includes('포스팅 생성'))) {
+      stage = '포스팅 생성';
+    } else if (logs.some(log => log.includes('웹 검색'))) {
+      stage = '웹 검색';
+    } else if (logs.some(log => log.includes('이미지 조회'))) {
+      stage = '이미지 조회';
+    } else if (logs.some(log => log.includes('폴더 조회'))) {
+      stage = '폴더 조회';
+    } else if (logs.some(log => log.includes('거래처 정보'))) {
+      stage = '거래처 조회';
+    }
+
+    // ntfy 알림 전송
+    const now = new Date();
+    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const timestamp = kst.toISOString().replace('T', ' ').substring(0, 19);
+
+    await sendNtfyAlert({
+      status: '❌ 포스팅 실패',
+      subdomain: subdomain,
+      businessName: client?.business_name || '알 수 없음',
+      error: error.message,
+      stage: stage,
+      folder: nextFolder,
+      imageCount: images?.length,
+      timestamp: timestamp
+    });
 
     return {
 
