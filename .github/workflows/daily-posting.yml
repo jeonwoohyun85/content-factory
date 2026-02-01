@@ -1,0 +1,47 @@
+name: Daily Posting Cron
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 매일 00:00 UTC = 09:00 KST
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  posting:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Post 00001 (상상피아노)
+        run: |
+          curl -X POST "https://make-page.com/test-posting" \
+            -H "Content-Type: application/json" \
+            -d '{"subdomain":"00001"}' \
+            --max-time 120 \
+            --fail-with-body
+        continue-on-error: true
+        
+      - name: Post 00002 (제이공방)
+        run: |
+          curl -X POST "https://make-page.com/test-posting" \
+            -H "Content-Type: application/json" \
+            -d '{"subdomain":"00002"}' \
+            --max-time 120 \
+            --fail-with-body
+        continue-on-error: true
+        
+      - name: Post 00003 (상상피아노 Japan)
+        run: |
+          curl -X POST "https://make-page.com/test-posting" \
+            -H "Content-Type: application/json" \
+            -d '{"subdomain":"00003"}' \
+            --max-time 120 \
+            --fail-with-body
+        continue-on-error: true
+        
+      - name: Post 00004 (제이공방 Thailand)
+        run: |
+          curl -X POST "https://make-page.com/test-posting" \
+            -H "Content-Type: application/json" \
+            -d '{"subdomain":"00004"}' \
+            --max-time 120 \
+            --fail-with-body
+        continue-on-error: true
