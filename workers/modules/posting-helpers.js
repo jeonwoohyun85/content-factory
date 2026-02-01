@@ -1216,7 +1216,25 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
   console.log(`SheetID - 최신포스팅: ${latestSheetId}, 저장소: ${archiveSheetId}`);
 
+  // 2-1. 관리자 시트 데이터 미리 읽기 (크론 업데이트용)
+  let adminRows = [];
+  try {
+    const adminResponse = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
+    );
 
+    if (adminResponse.ok) {
+      const adminData = await adminResponse.json();
+      adminRows = adminData.values || [];
+      console.log(`관리자 시트 읽기 성공: ${adminRows.length}행`);
+    } else {
+      console.warn(`[WARNING] 관리자 시트 읽기 실패: ${adminResponse.status} - 크론 업데이트 스킵`);
+    }
+  } catch (error) {
+    console.error(`관리자 시트 읽기 에러: ${error.message} - 크론 업데이트 스킵`);
+  }
 
   // 3. 해당 도메인의 행들 찾기
 
@@ -1303,7 +1321,6 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
         10000
 
       );
-
 
 
       if (!deleteResponse.ok) {
@@ -1861,39 +1878,11 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
   try {
 
-    // 관리자 시트 데이터 읽기
-
-    const adminResponse = await fetchWithTimeout(
-
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Z`,
-
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-
-      10000
-
-    );
-
-
-
-    if (!adminResponse.ok) {
-
-      console.error('관리자 시트 읽기 실패 (크론 업데이트 스킵)');
-
-      return;
-
-    }
-
-
-
-    const adminData = await adminResponse.json();
-
-    const adminRows = adminData.values || [];
-
-
+    // 관리자 시트 데이터는 이미 위에서 읽음 (adminRows)
 
     if (adminRows.length < 2) {
 
-      console.error('관리자 시트에 데이터 없음 (크론 업데이트 스킵)');
+      console.log('[INFO] 관리자 시트 데이터 없음 - 크론 업데이트 스킵');
 
       return;
 
@@ -1906,7 +1895,6 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
     const adminDomainIndex = adminHeaders.indexOf('도메인');
 
     const cronIndex = adminHeaders.indexOf('크론');
-
 
 
     if (adminDomainIndex === -1) {
