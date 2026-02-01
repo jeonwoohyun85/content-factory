@@ -157,7 +157,7 @@ export async function getClientFromSheets(clientId, env) {
 
 
 
-    // Posts 조회 추가 (최신 포스팅 시트에서 읽기)
+    // Posts 조회 추가 (최신 포스팅 + 저장소)
 
     if (client) {
 
@@ -197,13 +197,7 @@ export async function getClientFromSheets(clientId, env) {
         if (fieldsToTranslate.length > 0) {
           try {
             const fieldsJson = fieldsToTranslate.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',\n');
-            const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:
-
-{
-${fieldsJson}
-}
-
-IMPORTANT: Return ONLY the JSON object.`;
+            const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:\n\n{\n${fieldsJson}\n}\n\nIMPORTANT: Return ONLY the JSON object.`;
 
             const translateResponse = await fetch(
               `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
@@ -277,12 +271,15 @@ export async function getPostsFromArchive(subdomain, env) {
 
 
     const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+
+    const allPosts = [];
 
 
 
-    // Step 2: 시트 읽기
+    // Step 2: 최신_포스팅 시트 읽기
 
-    const response = await fetch(
+    const latestResponse = await fetch(
 
       `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
 
@@ -292,101 +289,179 @@ export async function getPostsFromArchive(subdomain, env) {
 
 
 
-    if (!response.ok) {
+    if (latestResponse.ok) {
 
-      return { posts: [], error: `Sheets API error: ${response.status}` };
+      const latestData = await latestResponse.json();
+
+      const latestRows = latestData.values || [];
+
+
+
+      if (latestRows.length >= 2) {
+
+        const headers = latestRows[0];
+
+        const domainIndex = headers.indexOf('도메인');
+
+        const businessNameIndex = headers.indexOf('상호명');
+
+        const titleIndex = headers.indexOf('제목');
+
+        const createdAtIndex = headers.indexOf('생성일시');
+
+        const languageIndex = headers.indexOf('언어');
+
+        const industryIndex = headers.indexOf('업종');
+
+        const bodyIndex = headers.indexOf('본문');
+
+        const imagesIndex = headers.indexOf('이미지');
+
+
+
+        if (domainIndex !== -1) {
+
+          for (let i = 1; i < latestRows.length; i++) {
+
+            const row = latestRows[i];
+
+            const domain = row[domainIndex] || '';
+
+            const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+
+            const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+
+
+
+            if (normalizedDomain === normalizedSubdomain) {
+
+              allPosts.push({
+
+                subdomain: domain,
+
+                business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
+
+                title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
+
+                created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
+
+                language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
+
+                industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
+
+                body: bodyIndex !== -1 ? (row[bodyIndex] || '') : '',
+
+                images: imagesIndex !== -1 ? (row[imagesIndex] || '') : ''
+
+              });
+
+            }
+
+          }
+
+        }
+
+      }
 
     }
 
 
 
-    const data = await response.json();
+    // Step 3: 저장소 시트 읽기
 
-    const rows = data.values || [];
+    const archiveResponse = await fetch(
 
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
 
+      { headers: { Authorization: `Bearer ${accessToken}` } }
 
-    if (rows.length < 2) {
-
-      return { posts: [], error: 'No data rows in sheet' };
-
-    }
+    );
 
 
 
-    const headers = rows[0];
+    if (archiveResponse.ok) {
 
-    const domainIndex = headers.indexOf('도메인');
+      const archiveData = await archiveResponse.json();
 
-    const businessNameIndex = headers.indexOf('상호명');
-
-    const titleIndex = headers.indexOf('제목');
-
-    const createdAtIndex = headers.indexOf('생성일시');
-
-    const languageIndex = headers.indexOf('언어');
-
-    const industryIndex = headers.indexOf('업종');
-
-    const bodyIndex = headers.indexOf('본문');
-
-    const imagesIndex = headers.indexOf('이미지');
+      const archiveRows = archiveData.values || [];
 
 
 
-    if (domainIndex === -1) {
+      if (archiveRows.length >= 2) {
 
-      console.error('최신 포스팅 시트에 "도메인" 컬럼이 없습니다');
+        const headers = archiveRows[0];
 
-      return { posts: [], error: 'No domain column' };
+        const domainIndex = headers.indexOf('도메인');
 
-    }
+        const businessNameIndex = headers.indexOf('상호명');
 
+        const titleIndex = headers.indexOf('제목');
 
+        const createdAtIndex = headers.indexOf('생성일시');
 
-    const posts = [];
+        const languageIndex = headers.indexOf('언어');
 
+        const industryIndex = headers.indexOf('업종');
 
+        const bodyIndex = headers.indexOf('본문');
 
-    // 첫 번째 행은 헤더이므로 1부터 시작
-
-    for (let i = 1; i < rows.length; i++) {
-
-      const row = rows[i];
-
-      const domain = row[domainIndex] || '';
+        const imagesIndex = headers.indexOf('이미지');
 
 
 
-      // 도메인 매칭 (00001.make-page.com 또는 00001)
+        if (domainIndex !== -1) {
 
-      const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+          for (let i = 1; i < archiveRows.length; i++) {
 
-      const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+            const row = archiveRows[i];
+
+            const domain = row[domainIndex] || '';
+
+            const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+
+            const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
 
 
 
-      if (normalizedDomain === normalizedSubdomain) {
+            if (normalizedDomain === normalizedSubdomain) {
 
-        posts.push({
+              const createdAt = createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '';
 
-          subdomain: domain,
+              
 
-          business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
+              // 중복 방지: 동일 created_at이 최신_포스팅에 없을 때만 추가
 
-          title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
+              const existsInLatest = allPosts.some(p => p.created_at === createdAt);
 
-          created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
+              if (!existsInLatest) {
 
-          language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
+                allPosts.push({
 
-          industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
+                  subdomain: domain,
 
-          body: bodyIndex !== -1 ? (row[bodyIndex] || '') : '',
+                  business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
 
-          images: imagesIndex !== -1 ? (row[imagesIndex] || '') : ''
+                  title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
 
-        });
+                  created_at: createdAt,
+
+                  language: languageIndex !== -1 ? (row[languageIndex] || '') : '',
+
+                  industry: industryIndex !== -1 ? (row[industryIndex] || '') : '',
+
+                  body: bodyIndex !== -1 ? (row[bodyIndex] || '') : '',
+
+                  images: imagesIndex !== -1 ? (row[imagesIndex] || '') : ''
+
+                });
+
+              }
+
+            }
+
+          }
+
+        }
 
       }
 
@@ -396,7 +471,7 @@ export async function getPostsFromArchive(subdomain, env) {
 
     // created_at 기준 내림차순 정렬 (최신순)
 
-    posts.sort((a, b) => {
+    allPosts.sort((a, b) => {
 
       const dateA = new Date(a.created_at);
 
@@ -408,11 +483,11 @@ export async function getPostsFromArchive(subdomain, env) {
 
 
 
-    return { posts, error: null };
+    return { posts: allPosts, error: null };
 
   } catch (error) {
 
-    console.error('Error fetching posts from latest sheet:', error);
+    console.error('Error fetching posts from sheets:', error);
 
     return { posts: [], error: `${error.message} (${error.stack?.substring(0, 100) || 'no stack'})` };
 
@@ -437,4 +512,3 @@ export async function getSheetId(sheetsId, sheetName, accessToken) {
   return sheet ? sheet.properties.sheetId : 0;
 
 }
-
