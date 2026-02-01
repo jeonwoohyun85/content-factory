@@ -356,7 +356,7 @@ export default {
             const createdAt = row[urlIndex] || '';
 
             // 이미지 컬럼이 비어있거나 포스트 URL 형식이 아니면서, 도메인과 생성일시가 있으면
-            const needsRestore = (!images || !images.includes('/post?id=')) && domain && createdAt;
+            const needsRestore = (!images || !images.includes('drive.google.com')) && domain && createdAt;
 
             if (needsRestore) {
               const normalizedDomain = domain.replace('.make-page.com', '');
