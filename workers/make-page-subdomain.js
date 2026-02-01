@@ -15,6 +15,10 @@ import { generatePostingForClient } from './modules/posting.js';
 import { getGoogleAccessTokenForPosting } from './modules/auth.js';
 
 export default {
+  async queue(batch, env) {
+    // 임시 빈 핸들러 (Queue 삭제 후 제거 예정)
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const hostname = url.hostname;
