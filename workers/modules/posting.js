@@ -33,7 +33,7 @@ export async function generatePostingForClient(subdomain, env) {
 
     if (!client) {
 
-      return { success: false, error: 'Client not found', logs };
+      throw new Error('Client not found');
 
     }
 
@@ -73,7 +73,7 @@ export async function generatePostingForClient(subdomain, env) {
 
     if (folders.length === 0) {
 
-      return { success: false, error: 'No folders found (Info/Video excluded)', logs };
+      throw new Error('No folders found (Info/Video excluded)');
 
     }
 
