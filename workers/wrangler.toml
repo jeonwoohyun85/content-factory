@@ -9,25 +9,10 @@ routes = [
   { pattern = "*.make-page.com/*", zone_id = "6336f0fab5cb7b480e1f7b44698aef60" }
 ]
 
-# KV 바인딩 (HTML 캐싱, 크론 중복 방지)
+# KV 바인딩 (HTML 캐싱)
 [[kv_namespaces]]
 binding = "POSTING_KV"
 id = "53f9ec640f8c4d2f889042b127c5c327"
-
-# Cloudflare Cron 비활성화 (GitHub Actions로 대체)
-# [triggers]
-# crons = ["0 0 * * *"]
-
-# Queue 바인딩 (보류 - GitHub Actions 직접 호출로 대체)
-# [[queues.producers]]
-# queue = "posting-queue"
-# binding = "POSTING_QUEUE"
-
-# [[queues.consumers]]
-# queue = "posting-queue"
-# max_batch_size = 1
-# max_batch_timeout = 60
-# max_retries = 0
 
 [vars]
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
