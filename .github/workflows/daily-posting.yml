@@ -8,40 +8,25 @@ on:
 jobs:
   posting:
     runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        include:
+          - subdomain: '00001'
+            name: '상상피아노'
+          - subdomain: '00002'
+            name: '제이공방'
+          - subdomain: '00003'
+            name: '상상피아노 Japan'
+          - subdomain: '00004'
+            name: '제이공방 Thailand'
+      max-parallel: 3  # 동시 최대 3개 실행
+      fail-fast: false  # 하나 실패해도 나머지 계속 실행
+
     steps:
-      - name: Post 00001 (상상피아노)
+      - name: Post ${{ matrix.subdomain }} (${{ matrix.name }})
         run: |
           curl -X POST "https://make-page.com/test-posting" \
             -H "Content-Type: application/json" \
-            -d '{"subdomain":"00001"}' \
+            -d '{"subdomain":"${{ matrix.subdomain }}"}' \
             --max-time 120 \
             --fail-with-body
-        continue-on-error: true
-        
-      - name: Post 00002 (제이공방)
-        run: |
-          curl -X POST "https://make-page.com/test-posting" \
-            -H "Content-Type: application/json" \
-            -d '{"subdomain":"00002"}' \
-            --max-time 120 \
-            --fail-with-body
-        continue-on-error: true
-        
-      - name: Post 00003 (상상피아노 Japan)
-        run: |
-          curl -X POST "https://make-page.com/test-posting" \
-            -H "Content-Type: application/json" \
-            -d '{"subdomain":"00003"}' \
-            --max-time 120 \
-            --fail-with-body
-        continue-on-error: true
-        
-      - name: Post 00004 (제이공방 Thailand)
-        run: |
-          curl -X POST "https://make-page.com/test-posting" \
-            -H "Content-Type: application/json" \
-            -d '{"subdomain":"00004"}' \
-            --max-time 120 \
-            --fail-with-body
-        continue-on-error: true
