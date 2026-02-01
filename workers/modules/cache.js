@@ -16,3 +16,10 @@ export async function setCachedHTML(key, html, env) {
   }
 }
 
+export async function deleteCachedHTML(key, env) {
+  try {
+    await env.POSTING_KV.delete(`html_${key}`);
+  } catch (error) {
+    console.error('Cache delete error:', error);
+  }
+}
