@@ -14,21 +14,20 @@ routes = [
 binding = "POSTING_KV"
 id = "53f9ec640f8c4d2f889042b127c5c327"
 
-# Cloudflare Cron + Queue 시스템 (2026-01-20)
-# Workers Paid 플랜 - Queue 사용 가능
-[triggers]
-crons = ["0 0 * * *"]  # 매일 한국시간 09:00 (UTC 00:00)
+# Cloudflare Cron 비활성화 (GitHub Actions로 대체)
+# [triggers]
+# crons = ["0 0 * * *"]
 
-# Queue 바인딩 (포스팅 실패 시 재시도)
-[[queues.producers]]
-queue = "posting-queue"
-binding = "POSTING_QUEUE"
+# Queue 바인딩 (보류 - GitHub Actions 직접 호출로 대체)
+# [[queues.producers]]
+# queue = "posting-queue"
+# binding = "POSTING_QUEUE"
 
-[[queues.consumers]]
-queue = "posting-queue"
-max_batch_size = 1  # 한 번에 1개씩 처리 (타임아웃 방지)
-max_batch_timeout = 60  # Cloudflare 제한: 최대 60초
-max_retries = 0  # 재시도 비활성화 (API 비용 중복 차감 방지)
+# [[queues.consumers]]
+# queue = "posting-queue"
+# max_batch_size = 1
+# max_batch_timeout = 60
+# max_retries = 0
 
 [vars]
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
