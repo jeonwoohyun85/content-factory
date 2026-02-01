@@ -19,7 +19,7 @@ jobs:
             name: '상상피아노 Japan'
           - subdomain: '00004'
             name: '제이공방 Thailand'
-      max-parallel: 3  # 동시 최대 3개 실행
+      max-parallel: 5  # 동시 최대 5개 실행
       fail-fast: false  # 하나 실패해도 나머지 계속 실행
 
     steps:
