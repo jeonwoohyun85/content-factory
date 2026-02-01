@@ -26,8 +26,8 @@ binding = "POSTING_QUEUE"
 
 [[queues.consumers]]
 queue = "posting-queue"
-max_batch_size = 5
-max_batch_timeout = 120  # 이미지 많은 거래처 대응
+max_batch_size = 1  # 한 번에 1개씩 처리 (타임아웃 방지)
+max_batch_timeout = 60  # Cloudflare 제한: 최대 60초
 max_retries = 0  # 재시도 비활성화 (API 비용 중복 차감 방지)
 
 [vars]
