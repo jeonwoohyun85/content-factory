@@ -974,6 +974,108 @@ export function getNextFolderForPosting(folders, lastFolder) {
 
 }
 
+// 최신_포스팅 시트에서 중복 도메인 제거 (동시성 문제 해결)
+async function removeDuplicatesFromLatestPosting(env, domain, latestSheetId, accessToken) {
+  try {
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+
+    // 최신_포스팅 전체 읽기
+    const response = await fetchWithTimeout(
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
+    );
+
+    if (!response.ok) {
+      console.error('중복 제거: 시트 읽기 실패');
+      return;
+    }
+
+    const data = await response.json();
+    const rows = data.values || [];
+
+    if (rows.length < 2) return;
+
+    const headers = rows[0];
+    const domainIndex = headers.indexOf('도메인');
+    const createdAtIndex = headers.indexOf('생성일시');
+
+    if (domainIndex === -1 || createdAtIndex === -1) {
+      console.error('중복 제거: 필수 컬럼 없음');
+      return;
+    }
+
+    // 정규화된 도메인으로 매칭
+    const normalizedDomain = domain.replace('.make-page.com', '');
+    const matchingRows = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const rowDomain = (rows[i][domainIndex] || '').replace('.make-page.com', '');
+      if (rowDomain === normalizedDomain) {
+        matchingRows.push({
+          index: i + 1,
+          createdAt: rows[i][createdAtIndex] || ''
+        });
+      }
+    }
+
+    // 2개 이상이면 중복
+    if (matchingRows.length <= 1) {
+      console.log('중복 제거: 중복 없음');
+      return;
+    }
+
+    console.log(`중복 제거: ${matchingRows.length}개 행 발견`);
+
+    // 생성일시 기준 내림차순 정렬 (최신이 첫 번째)
+    matchingRows.sort((a, b) => {
+      if (a.createdAt > b.createdAt) return -1;
+      if (a.createdAt < b.createdAt) return 1;
+      return 0;
+    });
+
+    // 첫 번째(최신) 제외하고 나머지 삭제
+    const toDelete = matchingRows.slice(1);
+
+    // 내림차순 정렬 (뒤에서부터 삭제)
+    toDelete.sort((a, b) => b.index - a.index);
+
+    for (const row of toDelete) {
+      const deleteResponse = await fetchWithTimeout(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: latestSheetId,
+                  dimension: 'ROWS',
+                  startIndex: row.index - 1,
+                  endIndex: row.index
+                }
+              }
+            }]
+          })
+        },
+        10000
+      );
+
+      if (!deleteResponse.ok) {
+        console.error(`중복 행 삭제 실패: ${deleteResponse.status}`);
+      }
+    }
+
+    console.log(`중복 제거 완료: ${toDelete.length}개 행 삭제`);
+  } catch (error) {
+    console.error(`중복 제거 에러: ${error.message}`);
+  }
+}
+
 export async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env, archiveHeaders) {
 
   const now = new Date();
@@ -1203,6 +1305,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
       );
 
 
+
       if (!deleteResponse.ok) {
 
         throw new Error(`최신 포스팅 행 삭제 실패: ${deleteResponse.status}`);
@@ -1255,7 +1358,8 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
   }
 
-
+  // 중복 제거 (동시성 문제 해결)
+  await removeDuplicatesFromLatestPosting(env, domain, latestSheetId, accessToken);
 
   // 최신 포스팅 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
 
