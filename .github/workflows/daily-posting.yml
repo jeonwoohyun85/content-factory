@@ -8,6 +8,7 @@ on:
 jobs:
   posting:
     runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
