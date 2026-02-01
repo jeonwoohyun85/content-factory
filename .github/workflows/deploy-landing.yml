@@ -1,0 +1,21 @@
+name: Deploy Landing Page
+
+on:
+  push:
+    paths:
+      - 'landing/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 73506724e3c7dd97bc939983761a90cf
+          command: pages deploy landing --project-name=make-page-landing --branch=main
