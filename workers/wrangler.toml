@@ -33,3 +33,5 @@ max_retries = 0  # 재시도 비활성화 (API 비용 중복 차감 방지)
 [vars]
 SHEETS_ID = "1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU"
 DRIVE_FOLDER_ID = "1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt"
+LATEST_POSTING_SHEET_NAME = "최신_포스팅"
+ARCHIVE_SHEET_NAME = "저장소"
