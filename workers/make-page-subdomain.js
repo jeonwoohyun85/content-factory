@@ -332,30 +332,33 @@ export default {
 
           const headers = rows[0];
           const domainIndex = headers.indexOf('도메인');
+          const urlIndex = headers.indexOf('URL');
           const imagesIndex = headers.indexOf('이미지');
-          const createdAtIndex = headers.indexOf('생성일시');
 
-          if (domainIndex === -1 || imagesIndex === -1 || createdAtIndex === -1) {
+          if (domainIndex === -1 || urlIndex === -1 || imagesIndex === -1) {
             return new Response(JSON.stringify({ 
               success: false, 
-              message: '필수 컬럼(도메인, 이미지, 생성일시) 없음' 
+              message: '필수 컬럼(도메인, URL, 이미지) 없음' 
             }), {
               status: 400,
               headers: { 'Content-Type': 'application/json' }
             });
           }
 
-          // 2. 이미지 컬럼이 비어있는 행 찾기 및 포스트 URL 생성
+          // 2. 이미지 컬럼이 비어있거나 포스트 URL이 없는 행 찾기
           const updates = [];
 
           for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             const domain = row[domainIndex] || '';
             const images = row[imagesIndex] || '';
-            const createdAt = row[createdAtIndex] || '';
+            // 데이터가 한 칸 밀려있으므로 실제 생성일시는 URL 헤더 위치에 있음
+            const createdAt = row[urlIndex] || '';
 
-            // 이미지 컬럼이 비어있고 도메인과 생성일시가 있으면
-            if (!images && domain && createdAt) {
+            // 이미지 컬럼이 비어있거나 포스트 URL 형식이 아니면서, 도메인과 생성일시가 있으면
+            const needsRestore = (!images || !images.includes('/post?id=')) && domain && createdAt;
+
+            if (needsRestore) {
               const normalizedDomain = domain.replace('.make-page.com', '');
               const encodedCreatedAt = encodeURIComponent(createdAt);
               const postUrl = `${normalizedDomain}.make-page.com/post?id=${encodedCreatedAt}`;
