@@ -1016,7 +1016,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '본문': postData.body || '',
 
-    '이미지': `${domain}/post?id=${postId}` // 포스트 URL 저장
+    '이미지': postData.images || ''
 
   };
 
