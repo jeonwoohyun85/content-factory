@@ -11,6 +11,7 @@ import {
   saveToLatestPostingSheet
 } from './posting-helpers.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
+import { deleteCachedHTML } from './cache.js';
 
 export async function generatePostingForClient(subdomain, env) {
 
@@ -139,6 +140,14 @@ export async function generatePostingForClient(subdomain, env) {
     await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, accessToken, env, archiveHeaders);
 
     logs.push('저장소/최신포스팅 시트 저장 완료');
+
+    
+
+    // Step 5: 캐시 무효화 (최신 포스팅 즉시 반영)
+
+    await deleteCachedHTML(normalizedSubdomain, env);
+
+    logs.push('캐시 삭제 완료');
 
 
 
