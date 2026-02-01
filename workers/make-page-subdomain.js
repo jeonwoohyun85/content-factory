@@ -309,6 +309,136 @@ export default {
         }
       }
 
+      // 저장소 시트 URL 복구 (1회성)
+      if (pathname === '/restore-archive-urls' && request.method === 'POST') {
+        try {
+          const accessToken = await getGoogleAccessTokenForPosting(env);
+          const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+
+          // 1. 저장소 시트 읽기
+          const response = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+
+          const data = await response.json();
+          const rows = data.values || [];
+
+          if (rows.length < 2) {
+            return new Response(JSON.stringify({ success: false, message: '데이터 없음' }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          const headers = rows[0];
+          const domainIndex = headers.indexOf('도메인');
+          const urlIndex = headers.indexOf('URL');
+          const createdAtIndex = headers.indexOf('생성일시');
+
+          if (domainIndex === -1 || urlIndex === -1 || createdAtIndex === -1) {
+            return new Response(JSON.stringify({ 
+              success: false, 
+              message: '필수 컬럼(도메인, URL, 생성일시) 없음' 
+            }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          // 2. URL 없는 행 찾기 및 URL 생성
+          const updates = [];
+
+          for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const domain = row[domainIndex] || '';
+            const url_value = row[urlIndex] || '';
+            const createdAt = row[createdAtIndex] || '';
+
+            if (!url_value && domain && createdAt) {
+              const normalizedDomain = domain.replace('.make-page.com', '');
+              const encodedCreatedAt = encodeURIComponent(createdAt);
+              const generatedUrl = `${normalizedDomain}.make-page.com/post?id=${encodedCreatedAt}`;
+
+              updates.push({
+                row: i + 1,
+                url: generatedUrl
+              });
+            }
+          }
+
+          if (updates.length === 0) {
+            return new Response(JSON.stringify({ 
+              success: true, 
+              message: '복구할 URL 없음',
+              updated: 0
+            }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          // 3. 일괄 업데이트
+          const urlColumnLetter = String.fromCharCode(65 + urlIndex);
+          const batchData = updates.map(u => ({
+            range: `${archiveSheetName}!${urlColumnLetter}${u.row}`,
+            values: [[u.url]]
+          }));
+
+          // 100개씩 나눠서 업데이트
+          const batchSize = 100;
+          let totalUpdated = 0;
+
+          for (let i = 0; i < batchData.length; i += batchSize) {
+            const batch = batchData.slice(i, i + batchSize);
+
+            const batchResponse = await fetch(
+              `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values:batchUpdate`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  valueInputOption: 'RAW',
+                  data: batch
+                })
+              }
+            );
+
+            if (batchResponse.ok) {
+              totalUpdated += batch.length;
+            } else {
+              const errorText = await batchResponse.text();
+              console.error(`URL 복구 실패 (배치 ${i / batchSize + 1}):`, errorText);
+            }
+
+            // API 제한 방지
+            if (i + batchSize < batchData.length) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            message: `${totalUpdated}개 URL 복구 완료`,
+            updated: totalUpdated,
+            total: updates.length
+          }), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+        } catch (error) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       // Generate posting (Queue 전송)
       if (pathname === '/generate-posting' && request.method === 'POST') {
         try {
