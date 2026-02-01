@@ -4,11 +4,13 @@ on:
   schedule:
     - cron: '0 15 * * *'  # 매일 15:00 UTC = 00:00 KST (다음날)
   workflow_dispatch:  # 수동 실행 가능
+  push:
+    paths-ignore:
+      - '**'  # push 이벤트 무시
 
 jobs:
   posting:
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
         include:
