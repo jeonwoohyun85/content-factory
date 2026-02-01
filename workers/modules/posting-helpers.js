@@ -1478,7 +1478,21 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
         }
 
-
+        // 행 높이 21로 고정
+        latestFormatRequests.push({
+          updateDimensionProperties: {
+            range: {
+              sheetId: latestSheetId,
+              dimension: 'ROWS',
+              startIndex: latestNewRowIndex,
+              endIndex: latestNewRowIndex + 1
+            },
+            properties: {
+              pixelSize: 21
+            },
+            fields: 'pixelSize'
+          }
+        });
 
         const latestFormatResponse = await fetchWithTimeout(
 
