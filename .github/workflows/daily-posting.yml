@@ -9,7 +9,7 @@ on:
 jobs:
   # push 이벤트 시 빈 job 실행 (성공 표시용)
   check:
-    if: github.event_name == 'push'
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - name: Push event check
@@ -17,7 +17,7 @@ jobs:
 
   # 실제 크론 포스팅 job
   posting:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
