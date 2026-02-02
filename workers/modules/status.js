@@ -9,7 +9,7 @@ export async function generateStatusPage(env) {
 
     // 관리자 시트 읽기
     const adminResponse = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent('관리자')}!A:Q`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'관리자'!A:Q")}`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
       10000
     );
@@ -29,7 +29,7 @@ export async function generateStatusPage(env) {
 
     // 최신 포스팅 시트 읽기
     const latestResponse = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent('최신 포스팅')}!A:K`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'최신 포스팅'!A:K")}`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
       10000
     );
