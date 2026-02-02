@@ -1,8 +1,8 @@
-// Gemini API 번역
+// Claude API 번역
 
 import { TRANSLATION_CACHE, LANGUAGE_TEXTS } from './config.js';
 
-export async function translateWithGemini(language, env) {
+export async function translateWithClaude(language, env) {
 
   const prompt = `Translate the following UI text items to ${language}. Return ONLY a valid JSON object with these exact keys, no markdown formatting, no code blocks:
 
@@ -53,25 +53,35 @@ IMPORTANT: Return ONLY the JSON object, no other text.`;
 
   const response = await fetch(
 
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+    'https://api.anthropic.com/v1/messages',
 
     {
 
       method: 'POST',
 
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+
+        'x-api-key': env.ANTHROPIC_API_KEY,
+
+        'anthropic-version': '2023-06-01',
+
+        'content-type': 'application/json'
+
+      },
 
       body: JSON.stringify({
 
-        contents: [{"parts": [{"text": prompt}]}],
+        model: 'claude-3-5-haiku-20241022',
 
-        generationConfig: {
+        max_tokens: 1024,
 
-          temperature: 0.3,
+        messages: [{
 
-          maxOutputTokens: 8000
+          role: 'user',
 
-        }
+          content: [{ type: 'text', text: prompt }]
+
+        }]
 
       })
 
@@ -83,9 +93,9 @@ IMPORTANT: Return ONLY the JSON object, no other text.`;
 
   const data = await response.json();
 
-  const text = data.candidates[0].content.parts[0].text;
+  const text = data.content[0].text;
 
-  
+
 
   // JSON 추출
 
@@ -97,7 +107,7 @@ IMPORTANT: Return ONLY the JSON object, no other text.`;
 
   }
 
-  
+
 
   // 실패 시 영어 반환
 
@@ -110,15 +120,15 @@ export async function getLanguageTexts(langCode, env) {
   if (TRANSLATION_CACHE[langCode]) {
     return TRANSLATION_CACHE[langCode];
   }
-  
+
   // 2. 하드코딩된 언어
   if (LANGUAGE_TEXTS[langCode]) {
     return LANGUAGE_TEXTS[langCode];
   }
-  
+
   // 3. API 호출 (첫 요청만)
   try {
-    const texts = await translateWithGemini(langCode, env);
+    const texts = await translateWithClaude(langCode, env);
     // 영어 기본값과 병합 (누락된 키 자동 채움)
     const mergedTexts = { ...LANGUAGE_TEXTS.en, ...texts };
     TRANSLATION_CACHE[langCode] = mergedTexts;
