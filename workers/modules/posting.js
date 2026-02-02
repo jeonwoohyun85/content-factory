@@ -155,14 +155,23 @@ export async function generatePostingForClient(subdomain, env) {
 
 
 
+    // 품질 검증 정보 추가
+    const specialCharCount = (postData.title.match(/[^a-zA-Z0-9가-힣\s]/g) || []).length;
+    const specialCharRatio = specialCharCount / postData.title.length;
+
     return {
-
       success: true,
-
       post: postData,
-
-      logs
-
+      logs,
+      validation: {
+        title_length: postData.title.length,
+        body_length: postData.body.length,
+        image_count: images.length,
+        language: client.language,
+        subdomain: normalizedSubdomain,
+        business_name: client.business_name,
+        special_char_ratio: Math.round(specialCharRatio * 100)
+      }
     };
 
 
@@ -187,21 +196,7 @@ export async function generatePostingForClient(subdomain, env) {
       stage = '거래처 조회';
     }
 
-    // ntfy 알림 전송
-    const now = new Date();
-    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    const timestamp = kst.toISOString().replace('T', ' ').substring(0, 19);
-
-    await sendNtfyAlert({
-      status: '❌ 포스팅 실패',
-      subdomain: subdomain,
-      businessName: client?.business_name || '알 수 없음',
-      error: error.message,
-      stage: stage,
-      folder: nextFolder,
-      imageCount: images?.length,
-      timestamp: timestamp
-    });
+    // ntfy 제거됨 - 텔레그램 사용
 
     return {
 
