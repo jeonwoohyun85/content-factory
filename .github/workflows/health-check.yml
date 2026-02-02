@@ -1,0 +1,32 @@
+name: Health Check Cron
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 매 30분마다
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check cron system health
+        run: |
+          echo "Running health check at $(date -u +"%Y-%m-%d %H:%M:%S") UTC"
+
+          # Test posting endpoint (quick test)
+          if ! curl -X POST "https://make-page.com/test-posting" \
+            -H "Content-Type: application/json" \
+            -d '{"subdomain":"00001"}' \
+            --max-time 60 \
+            --fail-with-body; then
+
+            # Send Telegram alert
+            curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\":\"6857038085\",\"text\":\"🔴 헬스체크 실패\n\n시간: $(date -u +"%Y-%m-%d %H:%M:%S") UTC\n문제: 크론 시스템 응답 없음\n조치: 시스템 점검 필요\"}" \
+              --max-time 10
+
+            exit 1
+          fi
+
+          echo "✅ Health check passed"
