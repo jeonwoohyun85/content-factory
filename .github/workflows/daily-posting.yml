@@ -36,16 +36,7 @@ jobs:
     steps:
       - name: Post ${{ matrix.subdomain }} (${{ matrix.name }})
         run: |
-          if ! curl -X POST "https://make-page.com/test-posting" \
+          curl -X POST "https://make-page.com/test-posting" \
             -H "Content-Type: application/json" \
             -d '{"subdomain":"${{ matrix.subdomain }}"}' \
             --max-time 200 \
-            --fail-with-body; then
-            # 실패 시 ntfy 알림
-            curl -X POST "https://ntfy.sh/ContentFactory" \
-              -H "Title: ❌ GitHub Actions 실패" \
-              -H "Priority: high" \
-              -H "Tags: warning" \
-              -d "거래처: ${{ matrix.subdomain }} ${{ matrix.name }}, 시간: $(date -u +"%Y-%m-%d %H:%M:%S") UTC, 에러: GitHub Actions curl 실패, 단계: GitHub Actions Cron"
-            exit 1
-          fi
