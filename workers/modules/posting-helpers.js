@@ -2,6 +2,7 @@
 
 import { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName } from './utils.js';
 import { getGoogleAccessTokenForPosting } from './auth.js';
+import { autoResizeBusinessNameColumns } from './sheets.js';
 import { translateWithCache } from './translation-cache.js';
 
 // 관리자 시트 헤더 고정값 (A~Q열, 17개)
@@ -1851,6 +1852,13 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     console.log('[INFO] 최신 포스팅 저장은 성공, 저장소만 실패 (무시하고 계속)');
 
+  }
+
+  // 상호명 컬럼 너비 자동 조정
+  try {
+    await autoResizeBusinessNameColumns(env);
+  } catch (resizeError) {
+    console.error('[ERROR] 컬럼 너비 조정 실패:', resizeError.message);
   }
 
 
