@@ -42,8 +42,8 @@ jobs:
       - name: Send notification
         env:
           GH_TOKEN: ${{ github.token }}
-          BOT: '8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs'
-          CHAT: '6857038085'
+          BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           JOBS=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs)
 
