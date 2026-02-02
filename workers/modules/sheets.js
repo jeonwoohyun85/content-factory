@@ -194,20 +194,28 @@ export async function getClientFromSheets(clientId, env) {
             const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:\n\n{\n${fieldsJson}\n}\n\nIMPORTANT: Return ONLY the JSON object.`;
 
             const translateResponse = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+              'https://api.anthropic.com/v1/messages',
               {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'x-api-key': env.ANTHROPIC_API_KEY,
+                  'anthropic-version': '2023-06-01',
+                  'content-type': 'application/json'
+                },
                 body: JSON.stringify({
-                  contents: [{"parts": [{"text": prompt}]}],
-                  generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
+                  model: 'claude-3-5-haiku-20241022',
+                  max_tokens: 1024,
+                  messages: [{
+                    role: 'user',
+                    content: [{ type: 'text', text: prompt }]
+                  }]
                 })
               }
             );
 
             if (translateResponse.ok) {
               const data = await translateResponse.json();
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const text = data.content?.[0]?.text || '';
               const jsonMatch = text.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const translations = JSON.parse(jsonMatch[0]);
@@ -215,11 +223,11 @@ export async function getClientFromSheets(clientId, env) {
                 if (translations.address) client.address = translations.address;
                 if (translations.business_hours) client.business_hours = translations.business_hours;
               } else {
-                console.error("[ERROR] No JSON match in Gemini response");
+                console.error("[ERROR] No JSON match in Claude response");
               }
             } else {
               const errorText = await translateResponse.text();
-              console.error("[ERROR] Gemini API failed:", translateResponse.status, errorText.substring(0, 500));
+              console.error("[ERROR] Claude API failed:", translateResponse.status, errorText.substring(0, 500));
             }
           } catch (error) {
             console.error('Translation error:', error);
