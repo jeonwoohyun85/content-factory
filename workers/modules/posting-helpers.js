@@ -1089,13 +1089,9 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '도메인': domain,
 
-    '상호명': ((client.business_name_original || client.business_name || '').split('
-').join(' ').split('').join(' ') || '').trim(),
-]+/).join(' ').trim(),
+    '상호명': String(client.business_name_original || client.business_name || '').replace(new RegExp('[\r\n]+', 'g'), ' ').trim(),
 
-    '제목': ((postData.title || '').split('
-').join(' ').split('').join(' ') || '').trim(),
-]+/).join(' ').trim(),
+    '제목': String(postData.title || '').replace(new RegExp('[\r\n]+', 'g'), ' ').trim(),
 
     'URL': `${domain}/post?id=${postId}`,
 
@@ -1107,9 +1103,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '폴더명': folderName || '',
 
-    '본문': ((postData.body || '').split('
-').join(' ').split('').join(' ') || '').trim(),
-]+/).join(' ').trim(),
+    '본문': String(postData.body || '').replace(new RegExp('[\r\n]+', 'g'), ' ').trim(),
 
     '이미지': postData.images || '',
 
