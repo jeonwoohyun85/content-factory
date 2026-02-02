@@ -32,6 +32,8 @@ jobs:
           IMG_COUNT=$(echo "$RESPONSE" | jq -r '.validation.image_count // 0')
           SPECIAL_RATIO=$(echo "$RESPONSE" | jq -r '.validation.special_char_ratio // 0')
           BUSINESS=$(echo "$RESPONSE" | jq -r '.validation.business_name // "알수없음"')
+          FIRST_IMG_POS=$(echo "$RESPONSE" | jq -r '.validation.first_image_position // 0')
+          IMG_DIST=$(echo "$RESPONSE" | jq -r '.validation.image_distribution // "none"')
 
           ERRORS=""
 
@@ -53,6 +55,14 @@ jobs:
 
           if [ "$SPECIAL_RATIO" -gt 50 ]; then
             ERRORS="${ERRORS}• 특수문자 과다: ${SPECIAL_RATIO}%\n"
+          fi
+
+          if [ "$FIRST_IMG_POS" -gt 40 ]; then
+            ERRORS="${ERRORS}• 첫 이미지 위치: ${FIRST_IMG_POS}% (정상: 40% 이내)\n"
+          fi
+
+          if [ "$IMG_DIST" = "clustered" ]; then
+            ERRORS="${ERRORS}• 이미지 몰림 현상 발견\n"
           fi
 
           if [ -n "$ERRORS" ]; then
