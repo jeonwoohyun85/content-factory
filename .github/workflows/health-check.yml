@@ -2,8 +2,8 @@ name: Health Check Cron
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # 매 30분마다
-  workflow_dispatch:  # 수동 실행 가능
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
 jobs:
   health-check:
@@ -11,21 +11,55 @@ jobs:
     steps:
       - name: Check cron system health
         run: |
-          echo "Running health check at $(date -u +"%Y-%m-%d %H:%M:%S") UTC"
+          echo "Running health check"
 
-          # Test posting endpoint (quick test)
-          if ! curl -X POST "https://make-page.com/test-posting" \
+          RESPONSE=$(curl -X POST "https://make-page.com/test-posting" \
             -H "Content-Type: application/json" \
             -d '{"subdomain":"00001"}' \
-            --max-time 60 \
-            --fail-with-body; then
+            --max-time 60 -s)
 
-            # Send Telegram alert
+          if [ -z "$RESPONSE" ]; then
             curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
               -H "Content-Type: application/json" \
-              -d "{\"chat_id\":\"6857038085\",\"text\":\"🔴 헬스체크 실패\n\n시간: $(date -u +"%Y-%m-%d %H:%M:%S") UTC\n문제: 크론 시스템 응답 없음\n조치: 시스템 점검 필요\"}" \
+              -d '{"chat_id":"6857038085","text":"🔴 헬스체크 실패\n\n문제: 응답 없음"}' \
               --max-time 10
+            exit 1
+          fi
 
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+          TITLE_LEN=$(echo "$RESPONSE" | jq -r '.validation.title_length // 0')
+          BODY_LEN=$(echo "$RESPONSE" | jq -r '.validation.body_length // 0')
+          IMG_COUNT=$(echo "$RESPONSE" | jq -r '.validation.image_count // 0')
+          SPECIAL_RATIO=$(echo "$RESPONSE" | jq -r '.validation.special_char_ratio // 0')
+          BUSINESS=$(echo "$RESPONSE" | jq -r '.validation.business_name // "알수없음"')
+
+          ERRORS=""
+
+          if [ "$SUCCESS" != "true" ]; then
+            ERRORS="${ERRORS}• 포스팅 생성 실패\n"
+          fi
+
+          if [ "$TITLE_LEN" -lt 10 ] || [ "$TITLE_LEN" -gt 100 ]; then
+            ERRORS="${ERRORS}• 제목 길이: ${TITLE_LEN}자 (정상: 10-100)\n"
+          fi
+
+          if [ "$BODY_LEN" -lt 2800 ] || [ "$BODY_LEN" -gt 3200 ]; then
+            ERRORS="${ERRORS}• 본문 길이: ${BODY_LEN}자 (정상: 2800-3200)\n"
+          fi
+
+          if [ "$IMG_COUNT" -lt 1 ]; then
+            ERRORS="${ERRORS}• 이미지 누락: ${IMG_COUNT}개\n"
+          fi
+
+          if [ "$SPECIAL_RATIO" -gt 50 ]; then
+            ERRORS="${ERRORS}• 특수문자 과다: ${SPECIAL_RATIO}%\n"
+          fi
+
+          if [ -n "$ERRORS" ]; then
+            curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\":\"6857038085\",\"text\":\"🔴 포스팅 품질 검증 실패\n\n거래처: ${BUSINESS}\n\n문제:\n${ERRORS}\"}" \
+              --max-time 10
             exit 1
           fi
 
