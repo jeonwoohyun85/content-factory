@@ -35,7 +35,6 @@ jobs:
 
     steps:
       - name: Post ${{ matrix.subdomain }} (${{ matrix.name }})
-        id: posting
         continue-on-error: true
         run: |
           RESPONSE=$(curl -X POST "https://make-page.com/test-posting" \
@@ -61,40 +60,73 @@ jobs:
           echo "Refreshing cache for ${{ matrix.subdomain }}"
           curl -s "https://make-page.com/refresh?subdomain=${{ matrix.subdomain }}"
 
-      - name: Notify result
-        if: always()
+  # 전체 결과 요약 알림
+  notify-summary:
+    needs: posting
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send summary notification
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           export PYTHONIOENCODING=utf-8
+
+          # 현재 run의 모든 jobs 조회
+          gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs > /tmp/jobs.json
+
           python3 << 'EOF'
           import requests
+          import json
           from datetime import datetime, timedelta
 
           bot_token = '8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs'
           chat_id = '6857038085'
 
-          subdomain = '${{ matrix.subdomain }}'
-          name = '${{ matrix.name }}'
-          status = '${{ steps.posting.outcome }}'
+          # GitHub API 결과 파싱
+          with open('/tmp/jobs.json', 'r') as f:
+              jobs_data = json.load(f)
 
           # KST 시간
           kst_now = datetime.utcnow() + timedelta(hours=9)
           timestamp = kst_now.strftime('%Y-%m-%d %H:%M KST')
 
-          if status == 'success':
-              message = f'''✅ 포스팅 성공
+          # posting job들만 필터링
+          results = []
+          failed_count = 0
 
-일시: {timestamp}
+          for job in jobs_data.get('jobs', []):
+              job_name = job.get('name', '')
+              if job_name.startswith('Post '):
+                  conclusion = job.get('conclusion', 'unknown')
+                  # "Post 00001 (상상피아노)" 형식 파싱
+                  parts = job_name.replace('Post ', '').split(' (')
+                  subdomain = parts[0]
+                  name = parts[1].rstrip(')') if len(parts) > 1 else ''
 
-거래처: {subdomain} ({name})'''
+                  if conclusion == 'success':
+                      results.append(f"✅ {subdomain} ({name})")
+                  else:
+                      results.append(f"🔴 {subdomain} ({name})")
+                      failed_count += 1
+
+          # 메시지 생성
+          if failed_count == 0:
+              header = "✅ 일일 포스팅 완료"
           else:
-              message = f'''🔴 포스팅 실패
+              header = f"⚠️ 일일 포스팅 완료 (실패: {failed_count}개)"
+
+          message = f'''{header}
 
 일시: {timestamp}
 
-거래처: {subdomain} ({name})
+결과:
+{chr(10).join(results)}'''
 
-확인 필요'''
+          if failed_count > 0:
+              message += "\n\n⚠️ 확인 필요"
 
+          # 텔레그램 전송
           url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
           requests.post(url, json={'chat_id': chat_id, 'text': message})
           EOF
