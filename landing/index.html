@@ -149,31 +149,25 @@
 
         /* Features Section */
         .features {
-            padding: 100px 24px;
+            padding: 80px 24px 60px;
             background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
         }
 
         .section-title {
             text-align: center;
-            margin-bottom: 64px;
-        }
-
-        .section-title h2 {
-            font-size: 42px;
+            margin-bottom: 40px;
+            font-size: 48px;
             font-weight: 700;
-            margin-bottom: 16px;
-        }
-
-        .section-title p {
-            font-size: 18px;
-            color: #666;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .features-grid {
             max-width: 1200px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 32px;
         }
 
@@ -322,8 +316,12 @@
                 font-size: 18px;
             }
 
-            .section-title h2 {
-                font-size: 32px;
+            .section-title {
+                font-size: 36px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
             }
 
             .stats-grid {
@@ -349,11 +347,8 @@
 
 
     <!-- Features Section -->
-    <section class="features" id="features" style="flex: 1;">
-        <div class="section-title">
-            <h2>왜 Make Page인가요?</h2>
-            <p>성능과 안정성을 동시에 제공하는 웹 솔루션</p>
-        </div>
+    <section class="features" id="features">
+        <div class="section-title">콘텐츠 팩토리</div>
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon">💰</div>
