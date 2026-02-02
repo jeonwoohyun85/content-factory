@@ -13,6 +13,7 @@ import {
 } from './modules/pages.js';
 import { generatePostingForClient } from './modules/posting.js';
 import { getGoogleAccessTokenForPosting } from './modules/auth.js';
+import { generateStatusPage } from './modules/status.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -46,6 +47,11 @@ export default {
         return new Response('kmlsc7f9b1pm7n7x7gq1zdihmzxtkqzr', {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
+      }
+
+      // 크론 상태 페이지
+      if (pathname === '/status') {
+        return generateStatusPage(env);
       }
 
       // Test posting generation (직접 실행, Queue 우회)
