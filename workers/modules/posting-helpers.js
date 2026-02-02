@@ -1089,11 +1089,11 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '도메인': domain,
 
-    '상호명': (client.business_name_original || client.business_name || '').replace(/
-/g, ' '),
+    '상호명': (client.business_name_original || client.business_name || '').split(/[
+]+/).join(' ').trim(),
 
-    '제목': (postData.title || '').replace(/
-/g, ' '),
+    '제목': (postData.title || '').split(/[
+]+/).join(' ').trim(),
 
     'URL': `${domain}/post?id=${postId}`,
 
@@ -1105,8 +1105,8 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '폴더명': folderName || '',
 
-    '본문': (postData.body || '').replace(/
-/g, ' '),
+    '본문': (postData.body || '').split(/[
+]+/).join(' ').trim(),
 
     '이미지': postData.images || '',
 
