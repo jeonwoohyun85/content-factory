@@ -90,9 +90,25 @@
             z-index: 100;
         }
 
-        .accordion {
+        /* Right Accordion - Fixed to right edge */
+        .right-accordion {
+            position: fixed;
+            right: 0;
+            top: 100px;
+            width: 480px;
+            z-index: 100;
+        }
+
+        .left-accordion .accordion {
             background: white;
             border-radius: 0 20px 20px 0;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
+        }
+
+        .right-accordion .accordion {
+            background: white;
+            border-radius: 20px 0 0 20px;
             overflow: hidden;
             box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
         }
@@ -105,7 +121,14 @@
             align-items: center;
             transition: background 0.2s;
             user-select: none;
+        }
+
+        .left-accordion .accordion-header {
             border-left: 6px solid #667eea;
+        }
+
+        .right-accordion .accordion-header {
+            border-right: 6px solid #667eea;
         }
 
         .accordion-header:hover {
@@ -271,13 +294,13 @@
         }
 
         @media (max-width: 1024px) {
-            .left-accordion {
+            .left-accordion, .right-accordion {
                 position: static;
                 width: 100%;
                 margin-bottom: 32px;
             }
 
-            .accordion {
+            .left-accordion .accordion, .right-accordion .accordion {
                 border-radius: 16px;
             }
 
@@ -314,7 +337,7 @@
 
     <!-- Left Accordion - Fixed to left edge -->
     <div class="left-accordion">
-        <div class="accordion">
+        <div class="accordion" id="left-accordion">
             <div class="accordion-header">
                 <div class="accordion-title">왜 콘텐츠 팩토리인가?</div>
                 <div class="accordion-icon">▼</div>
@@ -396,6 +419,136 @@
         </div>
     </div>
 
+    <!-- Right Accordion - Fixed to right edge -->
+    <div class="right-accordion">
+        <div class="accordion" id="right-accordion">
+            <div class="accordion-header">
+                <div class="accordion-title">콘텐츠 팩토리는 어떻게 검색엔진에 노출되는가?</div>
+                <div class="accordion-icon">▼</div>
+            </div>
+            <div class="accordion-content">
+                <div class="accordion-body">
+                    <div class="content-section">
+                        <div class="content-section-title">1. 검색엔진은 '발견'보다 '검증'을 먼저 합니다</div>
+                        <div class="content-section-text">예전에는 구글 같은 검색엔진이 링크를 따라다니며 새로운 웹사이트를 찾았습니다. 그래서 다른 사이트에서 링크를 많이 받지 못한 신규 사이트는 검색엔진이 발견하는 데 시간이 오래 걸렸죠.
+
+하지만 요즘은 다릅니다. 검색엔진이 "이 사이트 진짜 운영하는 거 맞아? 믿을 만해?"를 먼저 확인합니다. 마치 새로 생긴 가게를 사업자등록증으로 먼저 확인하는 것과 비슷합니다.
+
+콘텐츠팩토리는 사이트를 만들 때 자동으로 구글과 빙에 "이 사이트 우리 거 맞습니다"라고 신고합니다. 덕분에 검색엔진이 여러분의 사이트를 정식으로 관찰하고 평가할 수 있는 상태가 됩니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">2. 여러 사이트를 한 번에 관리할 수 있는 구조</div>
+                        <div class="content-section-text">콘텐츠팩토리는 하나의 메인 주소(make-page.com) 아래에 각 거래처 사이트를 만듭니다. 마치 큰 아파트 단지 안에 각 동이 있는 것처럼, 00001.make-page.com, 00002.make-page.com 이런 식으로 구성됩니다.
+
+검색엔진 입장에서 이런 구조는:
+- 같은 시스템에서 관리되는 사이트들이 계속 늘어나는 패턴
+- 일회성이 아니라 계속 운영되는 시스템
+- 시간이 지나면서 전체적인 신뢰도가 쌓이는 구조
+
+다만 각 사이트의 검색 순위는 자동으로 보장되지 않습니다. 각 사이트의 콘텐츠 품질과 방문자 반응에 따라 개별적으로 평가됩니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">3. 검색엔진에 새 글을 빠르게 알리는 방법</div>
+                        <div class="content-section-text">검색엔진은 무작위로 떠도는 정보보다 공식적인 방법으로 전달된 정보를 더 신뢰합니다. 콘텐츠팩토리는 새 글이 올라오면 즉시 검색엔진에 알립니다:
+
+- 구글에 "새 글 올렸어요" 직접 알림
+- 빙(마이크로소프트 검색엔진)에 URL 제출
+- 여러 검색엔진에 동시 알림
+- RSS 피드로 최신 글 50개 자동 목록화
+
+이렇게 하면 검색엔진이 여러분의 글을 더 빨리 발견할 수 있습니다. 다만 발견이 빠르다고 해서 검색 상위에 바로 뜨는 건 아닙니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">4. 검색엔진이 사이트를 제대로 이해하게 만들기</div>
+                        <div class="content-section-text">콘텐츠팩토리는 검색엔진이 "이 사이트가 뭐하는 곳이지?"를 정확히 알 수 있도록 다음 정보를 제공합니다:
+
+사이트맵(전체 페이지 목록)과 함께:
+- 이 페이지는 지역 업체 소개입니다 (상호, 주소, 전화번호, 영업시간)
+- 이 페이지는 블로그 글입니다 (작성일, 작성자, 썸네일 이미지)
+- 현재 페이지가 사이트 구조 어디쯤 있는지 경로 표시
+
+이런 정보 덕분에 구글 검색 결과에 별점, 리뷰 수, 가격 같은 추가 정보가 표시될 가능성이 생깁니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">5. '검색엔진에 등록'과 '검색 상위 노출'은 완전히 다릅니다</div>
+                        <div class="content-section-text">많은 분들이 "사이트가 구글에 등록되면 바로 검색되겠지"라고 생각하는데, 실제로는 여러 단계를 거칩니다:
+
+검색엔진이 사이트 발견 → 페이지 내용 읽기 → 데이터베이스 저장 → 평가 → 검색 순위 결정
+
+콘텐츠팩토리가 해주는 건 이 과정이 막힘없이 진행되도록 환경을 만드는 것입니다:
+- 검색엔진이 자유롭게 사이트를 읽을 수 있게 허용
+- 전체 페이지 목록 제공
+- 중복 페이지 문제 방지
+- 외국어 사이트는 어느 나라/언어용인지 자동으로 표시
+- SNS에 공유될 때 예쁘게 보이도록 설정</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">6. 검색엔진은 사이트를 '패턴'으로 평가합니다</div>
+                        <div class="content-section-text">검색엔진은 글 하나만 보지 않습니다. 대신 시간을 두고 다음을 확인합니다:
+
+- 일관된 주제로 글을 쓰는지
+- 규칙적으로 업데이트하는지
+- 실제 사람들이 와서 글을 읽고 시간을 보내는지
+- 페이지가 빠르게 뜨는지, 버벅거리지 않는지
+- 다른 사이트에서 링크를 받는지 (신뢰 신호)</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">7. 시간이 지나면서 나타나는 변화</div>
+                        <div class="content-section-text">검색엔진 평가는 보통 이런 순서로 진행됩니다:
+
+처음: 검색해도 거의 안 보임 (새 사이트 관찰 기간)
+→ 나중: 아주 구체적인 검색어로 가끔 보임
+→ 더 나중: 콘텐츠가 쌓이면서 노출 빈도 증가
+→ 훨씬 나중: 경쟁 많은 검색어에서도 평가 대상이 됨
+
+이 과정은 보통 최소 몇 달 이상 걸립니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">8. 네이버 검색은 솔직히 어렵습니다</div>
+                        <div class="content-section-text">네이버는 메인 도메인(make-page.com)만 등록 가능하고, 각 거래처 사이트를 개별 등록할 수 없습니다. 그래서 네이버 검색봇이 자연스럽게 찾아오길 기다려야 하며, 구글처럼 "새 글 있어요" 즉시 알림이 불가능합니다.
+
+게다가 네이버는 자기 플랫폼(블로그, 카페, 지식iN)을 우선해서 보여주기 때문에, 외부 웹사이트가 상위에 뜨기는 구조적으로 어렵습니다.
+
+콘텐츠팩토리는 네이버 상위 노출을 약속하지 않습니다. 다만 네이버 검색봇이 사이트를 읽을 수는 있게 해놨고, 오랜 시간 콘텐츠가 쌓이면 일부 구체적인 검색어에서 간헐적으로 보일 수 있습니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">9. 왜 '빠른 성과'를 약속하지 않나요?</div>
+                        <div class="content-section-text">검색엔진 최적화는 광고가 아닙니다. 검색엔진은 새 사이트를 일정 기간 관찰하며 "이거 테스트용인가, 진짜 운영하는 건가?"를 판단합니다.
+
+이 판단에는 충분한 데이터가 필요하고, 보통 이 정도 시간이 걸립니다:
+- 검색엔진이 자주 방문하기 시작: 2주~1개월
+- 주요 페이지가 검색 가능해짐: 1~2개월
+- 구체적 검색어로 노출 시작: 2~3개월
+- 사이트 신뢰도 확립: 6개월~1년
+
+콘텐츠팩토리는 이 과정을 건너뛰게 해주지 않습니다. 대신 이 과정을 안정적으로 통과할 수 있는 환경을 자동으로 만들어줍니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">10. 정리하면</div>
+                        <div class="content-section-text">콘텐츠팩토리는:
+- 새 글 올리면 즉시 구글, 빙, 기타 검색엔진에 알림
+- 전체 페이지 목록과 최신 글 목록 제공
+- 검색엔진이 사이트를 제대로 이해할 수 있도록 정보 제공 (업체 정보, 글 정보)
+- 외국어 사이트는 다양한 언어/지역별로 자동 표시
+- SNS 공유, 중복 페이지 방지 등 기본 설정 완료
+- 여러 사이트를 효율적으로 관리할 수 있는 시스템
+
+검색 상위 노출은 보장이 아니라 결과입니다. 그 결과는 충분한 시간과 꾸준한 콘텐츠, 실제 방문자 반응이 쌓인 후에야 나타납니다.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Section -->
     <section class="main-section">
         <div class="section-title">콘텐츠 팩토리</div>
@@ -450,20 +603,24 @@
     </footer>
 
     <script>
-        const accordion = document.querySelector('.accordion');
-        const header = document.querySelector('.accordion-header');
-        const content = document.querySelector('.accordion-content');
+        // 모든 아코디언 요소 가져오기
+        const accordions = document.querySelectorAll('.accordion');
 
-        header.addEventListener('click', () => {
-            const isActive = accordion.classList.contains('active');
+        accordions.forEach(accordion => {
+            const header = accordion.querySelector('.accordion-header');
+            const content = accordion.querySelector('.accordion-content');
 
-            if (isActive) {
-                accordion.classList.remove('active');
-                content.style.maxHeight = null;
-            } else {
-                accordion.classList.add('active');
-                content.style.maxHeight = content.scrollHeight + 'px';
-            }
+            header.addEventListener('click', () => {
+                const isActive = accordion.classList.contains('active');
+
+                if (isActive) {
+                    accordion.classList.remove('active');
+                    content.style.maxHeight = null;
+                } else {
+                    accordion.classList.add('active');
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                }
+            });
         });
     </script>
 </body>
