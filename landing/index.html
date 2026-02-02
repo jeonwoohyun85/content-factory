@@ -86,26 +86,26 @@
             position: fixed;
             left: 0;
             top: 100px;
-            width: 360px;
+            width: 480px;
             z-index: 100;
         }
 
         .accordion {
             background: white;
-            border-radius: 0 16px 16px 0;
+            border-radius: 0 20px 20px 0;
             overflow: hidden;
             box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
         }
 
         .accordion-header {
-            padding: 24px 28px;
+            padding: 32px 40px;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
             transition: background 0.2s;
             user-select: none;
-            border-left: 5px solid #667eea;
+            border-left: 6px solid #667eea;
         }
 
         .accordion-header:hover {
@@ -113,7 +113,7 @@
         }
 
         .accordion-title {
-            font-size: 19px;
+            font-size: 28px;
             font-weight: 700;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
@@ -122,17 +122,17 @@
         }
 
         .accordion-icon {
-            width: 24px;
-            height: 24px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: transform 0.3s;
             color: #667eea;
-            font-size: 20px;
+            font-size: 28px;
             font-weight: bold;
             flex-shrink: 0;
-            margin-left: 12px;
+            margin-left: 16px;
         }
 
         .accordion.active .accordion-icon {
@@ -146,27 +146,27 @@
         }
 
         .accordion-body {
-            padding: 0 28px 28px 28px;
-            max-height: 650px;
+            padding: 0 40px 40px 40px;
+            max-height: 700px;
             overflow-y: auto;
         }
 
         .accordion-body::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
         }
 
         .accordion-body::-webkit-scrollbar-track {
             background: #f1f1f1;
-            border-radius: 3px;
+            border-radius: 4px;
         }
 
         .accordion-body::-webkit-scrollbar-thumb {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 3px;
+            border-radius: 4px;
         }
 
         .content-section {
-            margin-bottom: 28px;
+            margin-bottom: 32px;
         }
 
         .content-section:last-child {
@@ -174,17 +174,17 @@
         }
 
         .content-section-title {
-            font-size: 14px;
+            font-size: 17px;
             font-weight: 700;
             color: #1a1a1a;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .content-section-text {
             color: #555;
             white-space: pre-line;
-            font-size: 13px;
-            line-height: 1.8;
+            font-size: 15px;
+            line-height: 1.9;
         }
 
         /* Cards Grid - Centered */
