@@ -14,7 +14,16 @@ export async function generateStatusPage(env) {
       10000
     );
 
-    const adminData = await adminResponse.json();
+    if (!adminResponse.ok) {
+      throw new Error(`관리자 시트 읽기 실패: ${adminResponse.status} ${adminResponse.statusText}`);
+    }
+
+    const adminText = await adminResponse.text();
+    if (!adminText || adminText.trim() === '') {
+      throw new Error('관리자 시트 응답이 비어있음');
+    }
+
+    const adminData = JSON.parse(adminText);
     const adminRows = adminData.values || [];
 
     // 최신 포스팅 시트 읽기
@@ -24,7 +33,16 @@ export async function generateStatusPage(env) {
       10000
     );
 
-    const latestData = await latestResponse.json();
+    if (!latestResponse.ok) {
+      throw new Error(`최신 포스팅 시트 읽기 실패: ${latestResponse.status} ${latestResponse.statusText}`);
+    }
+
+    const latestText = await latestResponse.text();
+    if (!latestText || latestText.trim() === '') {
+      throw new Error('최신 포스팅 시트 응답이 비어있음');
+    }
+
+    const latestData = JSON.parse(latestText);
     const latestRows = latestData.values || [];
 
     // 활성 도메인 수집
@@ -248,6 +266,53 @@ export async function generateStatusPage(env) {
     });
 
   } catch (error) {
-    return new Response(`Error: ${error.message}`, { status: 500 });
+    console.error('[ERROR] Status page generation failed:', error);
+    return new Response(`<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오류 - Content Factory</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .error-box {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 600px;
+    }
+    h1 {
+      color: #d32f2f;
+      margin-bottom: 15px;
+    }
+    .error-message {
+      background: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-box">
+    <h1>⚠️ 상태 페이지 로딩 실패</h1>
+    <div class="error-message">${error.message}</div>
+  </div>
+</body>
+</html>`, {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
   }
 }
