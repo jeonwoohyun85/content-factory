@@ -183,8 +183,9 @@
 - Cloudflare Pages:
   - make-page-landing (랜딩페이지)
   - GitHub Actions 자동 배포
-- Gemini API (2.5 Flash 검색, 3.0 Pro 작성)
-- Cloudflare Cron (매일 00:00 KST)
+- Claude API (Haiku 4.5 검색, Sonnet 4.5 작성)
+- Telegram Bot (헬스체크, 품질리포트 알림)
+- Cloudflare Cron (매일 00:01 KST)
 - Cloudflare Queue (posting-queue)
 - Cloudflare KV (POSTING_KV)
 
@@ -231,8 +232,8 @@ https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyId
 ## 폐기된 서비스 (사용 금지)
 - Firebase, Supabase, Cloudinary
 - WordPress, Cloudways, SSH
-- Fly.io, Claude API, OpenAI, Perplexity
-- Sentry, Telegram, Batch API
+- Fly.io, Gemini API, OpenAI, Perplexity
+- Sentry, ntfy, Batch API
 
 ---
 
