@@ -2,8 +2,8 @@
 
 import {
   getClientFromSheetsForPosting,
-  searchWithGeminiForPosting,
-  generatePostWithGeminiForPosting,
+  searchWithClaudeForPosting,
+  generatePostWithClaudeForPosting,
   getFolderImagesForPosting,
   getClientFoldersForPosting,
   getLastUsedFolderForPosting,
@@ -109,21 +109,21 @@ export async function generatePostingForClient(subdomain, env) {
 
 
 
-    // Step 2: 웹 검색 (Gemini 2.5 Flash)
+    // Step 2: 웹 검색 (Claude Haiku 4.5)
 
     logs.push('웹 검색 시작...');
 
-    const trendsData = await searchWithGeminiForPosting(client, env);
+    const trendsData = await searchWithClaudeForPosting(client, env);
 
     logs.push(`웹 검색 완료: ${trendsData.substring(0, 100)}...`);
 
 
 
-    // Step 3: 포스팅 생성 (Gemini 3.0 Pro)
+    // Step 3: 포스팅 생성 (Claude Sonnet 4.5)
 
     logs.push('포스팅 생성 시작...');
 
-    const postData = await generatePostWithGeminiForPosting(client, trendsData, images, env);
+    const postData = await generatePostWithClaudeForPosting(client, trendsData, images, env);
 
     logs.push(`포스팅 생성 완료: ${postData.title}`);
 
