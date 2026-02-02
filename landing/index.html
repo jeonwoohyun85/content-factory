@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Make Page - 비즈니스 성장을 위한 웹 솔루션</title>
+    <title>콘텐츠 팩토리</title>
     <style>
         * {
             margin: 0;
@@ -56,101 +56,19 @@
             align-items: center;
         }
 
-        .nav-links a {
-            color: #666;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
-
-        .nav-links a:hover {
-            color: #667eea;
-        }
-
         .nav-cta {
             padding: 10px 24px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white !important;
             border-radius: 8px;
-        }
-
-        /* Hero Section */
-        .hero {
-            padding: 160px 24px 120px;
-            max-width: 1200px;
-            margin: 0 auto;
-            text-align: center;
-        }
-
-        .hero h1 {
-            font-size: 64px;
-            font-weight: 800;
-            margin-bottom: 24px;
-            letter-spacing: -0.02em;
-            line-height: 1.1;
-        }
-
-        .hero .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero p {
-            font-size: 22px;
-            color: #666;
-            margin-bottom: 48px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary {
-            padding: 16px 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             text-decoration: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 16px;
-            display: inline-block;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.35);
-        }
-
-        .btn-secondary {
-            padding: 16px 40px;
-            background: white;
-            color: #1a1a1a;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 16px;
-            display: inline-block;
-            border: 2px solid #e5e5e5;
-            transition: border-color 0.2s;
-        }
-
-        .btn-secondary:hover {
-            border-color: #667eea;
-        }
-
-        /* Features Section */
-        .features {
-            padding: 80px 24px 60px;
+        /* Main Section */
+        .main-section {
+            padding: 100px 24px 60px;
             background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
+            flex: 1;
         }
 
         .section-title {
@@ -163,9 +81,119 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .features-grid {
+        /* Left Accordion - Fixed to left edge */
+        .left-accordion {
+            position: fixed;
+            left: 0;
+            top: 100px;
+            width: 360px;
+            z-index: 100;
+        }
+
+        .accordion {
+            background: white;
+            border-radius: 0 16px 16px 0;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
+        }
+
+        .accordion-header {
+            padding: 24px 28px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+            user-select: none;
+            border-left: 5px solid #667eea;
+        }
+
+        .accordion-header:hover {
+            background: #f8f9ff;
+        }
+
+        .accordion-title {
+            font-size: 19px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.4;
+        }
+
+        .accordion-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+            color: #667eea;
+            font-size: 20px;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .accordion.active .accordion-icon {
+            transform: rotate(180deg);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .accordion-body {
+            padding: 0 28px 28px 28px;
+            max-height: 650px;
+            overflow-y: auto;
+        }
+
+        .accordion-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .accordion-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .accordion-body::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+        }
+
+        .content-section {
+            margin-bottom: 28px;
+        }
+
+        .content-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .content-section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+
+        .content-section-text {
+            color: #555;
+            white-space: pre-line;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        /* Cards Grid - Centered */
+        .cards-container {
             max-width: 1200px;
             margin: 0 auto;
+        }
+
+        .cards-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 32px;
@@ -207,100 +235,55 @@
             line-height: 1.7;
         }
 
-        /* Stats Section */
-        .stats {
-            padding: 100px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .stats-grid {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 48px;
-            text-align: center;
-        }
-
-        .stat h3 {
-            font-size: 56px;
-            font-weight: 800;
-            margin-bottom: 8px;
-        }
-
-        .stat p {
-            font-size: 18px;
-            opacity: 0.9;
-        }
-
-        /* CTA Section */
-        .cta-section {
-            padding: 120px 24px;
-            text-align: center;
-            background: white;
-        }
-
-        .cta-section h2 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 24px;
-        }
-
-        .cta-section p {
-            font-size: 20px;
-            color: #666;
-            margin-bottom: 40px;
-        }
-
         /* Footer */
         footer {
-            padding: 60px 24px 40px;
+            padding: 40px 24px;
             background: #1a1a1a;
             color: white;
+            margin-top: auto;
         }
 
-        .footer-content {
+        footer > div {
             max-width: 1200px;
             margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 48px;
-            margin-bottom: 40px;
+            text-align: center;
         }
 
-        .footer-logo {
+        .footer-title {
             font-size: 24px;
             font-weight: 700;
             margin-bottom: 16px;
         }
 
-        .footer-section h4 {
-            font-size: 16px;
-            font-weight: 600;
+        .footer-copyright {
+            color: #999;
             margin-bottom: 16px;
-            opacity: 0.9;
         }
 
-        .footer-section a {
-            display: block;
+        .footer-links {
+            color: #999;
+        }
+
+        .footer-links a {
             color: #999;
             text-decoration: none;
-            margin-bottom: 12px;
-            transition: color 0.2s;
+            margin: 0 8px;
         }
 
-        .footer-section a:hover {
-            color: white;
-        }
+        @media (max-width: 1024px) {
+            .left-accordion {
+                position: static;
+                width: 100%;
+                margin-bottom: 32px;
+            }
 
-        .footer-bottom {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
-            color: #999;
+            .accordion {
+                border-radius: 16px;
+            }
+
+            .cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         @media (max-width: 768px) {
@@ -308,28 +291,12 @@
                 display: none;
             }
 
-            .hero h1 {
-                font-size: 40px;
-            }
-
-            .hero p {
-                font-size: 18px;
-            }
-
             .section-title {
                 font-size: 36px;
             }
 
-            .features-grid {
+            .cards-grid {
                 grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                gap: 32px;
-            }
-
-            .cta-section h2 {
-                font-size: 36px;
             }
         }
     </style>
@@ -345,57 +312,159 @@
         </div>
     </nav>
 
+    <!-- Left Accordion - Fixed to left edge -->
+    <div class="left-accordion">
+        <div class="accordion">
+            <div class="accordion-header">
+                <div class="accordion-title">왜 콘텐츠 팩토리인가?</div>
+                <div class="accordion-icon">▼</div>
+            </div>
+            <div class="accordion-content">
+                <div class="accordion-body">
+                    <div class="content-section">
+                        <div class="content-section-title">🏗️ PART 1. 시장의 확장: 세 개의 채널을 동시에 선점하는 전략</div>
+                    </div>
 
-    <!-- Features Section -->
-    <section class="features" id="features" style="flex: 1;">
+                    <div class="content-section">
+                        <div class="content-section-title">1. 세 개의 검색 채널, 하나의 구조</div>
+                        <div class="content-section-text">콘텐츠팩토리는 하나의 작업으로 구글 해외, 구글 국내, 네이버라는 세 가지 검색 채널에 동시에 대응할 수 있는 구조를 만듭니다. 특정 플랫폼 하나에 의존하지 않고, 검색되는 경로 자체를 넓히는 방식입니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">2. 구글 해외 – 역글로벌의 시작점</div>
+                        <div class="content-section-text">해외 이용자들은 한국을 방문하기 전 정보를 구글에서 검색합니다. 구글은 전 세계 검색의 약 90%를 차지하며, 190개국 이상에서 표준 검색엔진으로 사용됩니다. 다국어 검색어로 국내 업장을 찾는 수요는 존재하지만, 이를 장기적으로 대응할 수 있는 구조는 많지 않습니다. 콘텐츠팩토리는 이 글로벌 검색 환경을 전제로 역글로벌(해외 → 국내 유입) 전략으로 접근합니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">3. 구글 국내 – 네이버 밖의 검색 수요</div>
+                        <div class="content-section-text">국내 검색의 중심은 네이버지만, 구글 역시 한국 검색의 약 25~30%를 차지하고 있습니다. 특히 젊은 층, IT 종사자, 해외 경험이 있는 이용자들은 구글을 주요 검색 도구로 사용합니다. 같은 콘텐츠라도 구글에서는 상대적으로 경쟁이 낮은 경우가 많아 효과적인 노출이 가능합니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">4. 글로벌 검색 환경과 국내 검색의 차이</div>
+                        <div class="content-section-text">국내 검색 환경은 자국 플랫폼 중심으로 최적화되어 글로벌 검색 흐름과는 분리된 방향으로 발전해 왔습니다. 반면 글로벌 검색 시장은 구글과 마이크로소프트(Bing)를 중심으로 표준화된 생태계가 형성되어 있습니다. 콘텐츠팩토리는 대부분의 국가에서 표준으로 작동하는 이 글로벌 구조를 기반으로 작동합니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">🛠️ PART 2. 자산의 독립성: 플랫폼에 종속되지 않는 브랜드 보호</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">5. 플랫폼 블로그와 콘텐츠팩토리의 차이</div>
+                        <div class="content-section-text">플랫폼 블로그는 포털 사이트 안에서 운영되는 구조입니다. 노출 방식과 정책 변경의 영향을 직접적으로 받으며, 계정 상태나 알고리즘 변화에 따라 노출이 제한될 수 있습니다. 반면 콘텐츠팩토리는 검색엔진에 직접 연결되는 독립적인 사이트 구조를 기반으로 운영됩니다. 발행하는 모든 콘텐츠가 검색 자산으로 온전히 누적되는 방식입니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">6. 메인 도메인과 개별 도메인의 역할 분리</div>
+                        <div class="content-section-text">콘텐츠팩토리는 하나의 메인 도메인 위에 모든 것을 쌓지 않습니다. 메인 도메인은 검색 신호와 운영 구조를 안정적으로 유지하는 역할을 하고, 각 거래처는 전용 개별 도메인을 통해 검색 유입을 직접 받아 실제 업장 홈페이지나 문의로 연결됩니다. 각 업체는 독립적인 검색 자산을 가지게 됩니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">📈 PART 3. 운영의 메커니즘: 자동으로 쌓이는 지속 가능한 성장</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">7. 콘텐츠팩토리의 역할</div>
+                        <div class="content-section-text">인터넷이라는 방대한 검색 환경에서 업체가 검색엔진에 발견될 수 있는 조건을 만드는 것이 우리의 역할입니다. 검색엔진에 잘 인식되는 표준화된 구조와 템플릿을 기반으로 매일 1회 콘텐츠를 안정적으로 생성하고 배포합니다. 이 콘텐츠들은 거래처 전용 도메인으로 유입을 이끌고, 최종적으로는 실제 업장이나 문의 채널로 연결되는 흐름을 만듭니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">8. 한 번에 많이 올리지 않는 이유</div>
+                        <div class="content-section-text">한 번에 많은 콘텐츠를 올린다고 검색엔진 평가가 좋아지는 것은 아닙니다. 짧은 기간에 대량 생성된 콘텐츠는 비정상적인 발행 패턴으로 인식되어 스팸 신호로 해석될 가능성이 있습니다. 검색엔진은 콘텐츠의 단순한 양보다 지속적인 업데이트와 안정적인 운영 패턴을 더 중요하게 평가합니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">9. 매일 1회, 자동으로 쌓이는 구조</div>
+                        <div class="content-section-text">사진만 업로드하면 콘텐츠 생성, 배포, 업데이트까지 모든 과정이 자동으로 이루어집니다. 한 달이면 30개, 1년이면 365개의 콘텐츠가 검색엔진에 누적됩니다. 콘텐츠팩토리는 꾸준히 쌓이는 구조 자체를 제공하여 강력한 마케팅 자산을 완성합니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">📊 PART 4. 검증과 신뢰: 투명한 성과 확인 및 장기 전략</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">10. 성과를 직접 확인할 수 있는 구조</div>
+                        <div class="content-section-text">콘텐츠를 배포하는 것만으로는 충분하지 않습니다. 실제로 검색 유입이 일어나는지, 어떤 페이지가 관심을 받는지 확인해야 합니다. 콘텐츠팩토리는 각 거래처마다 독립적인 통계 대시보드를 제공합니다. 별도 로그인 없는 공유 링크 방식으로 방문자 수, 유입 경로, 체류 시간 등을 실시간으로 확인할 수 있으며, 이 데이터는 장기 운영의 확실한 판단 근거가 됩니다.</div>
+                    </div>
+
+                    <div class="content-section">
+                        <div class="content-section-title">11. 네이버 – 빠르진 않지만 누적됩니다</div>
+                        <div class="content-section-text">네이버는 자사 플랫폼 콘텐츠가 상위를 차지하는 구조이기 때문에 외부 사이트가 빠르게 상위에 오르기는 쉽지 않습니다. 콘텐츠팩토리는 네이버에 대해 단기 순위가 아닌 장기 누적 노출을 전제로 접근합니다. 성실하게 쌓인 데이터는 결국 국내 검색 시장의 60% 이상을 차지하는 네이버에서도 유의미한 결과로 나타납니다.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Section -->
+    <section class="main-section">
         <div class="section-title">콘텐츠 팩토리</div>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">💰</div>
-                <h3>압도적 가성비</h3>
-                <p>월 5.5만원(VAT 포함)으로 누리는 완전 자동화 운영, 추가 비용 제로</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">✨</div>
-                <h3>자동 콘텐츠 생성</h3>
-                <p>매일 새 글이 자동으로 발행되어 운영 부담이 없습니다</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🌐</div>
-                <h3>개별 도메인 제공</h3>
-                <p>플랫폼 정책 변경이나 계정 정지 걱정 없는 나만의 독립된 공간</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">📊</div>
-                <h3>실시간 유입 분석</h3>
-                <p>Umami 대시보드로 복잡한 설정 없이 방문자 현황을 한눈에 파악합니다</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🤝</div>
-                <h3>파트너 모집 중</h3>
-                <p>함께 수익을 창출하고 성장해 나갈 파트너를 기다립니다</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">📈</div>
-                <h3>검색 친화적 설계</h3>
-                <p>상단 노출에 유리하도록 검색 엔진 알고리즘을 분석하여 구조를 짰습니다</p>
+
+        <div class="cards-container">
+            <div class="cards-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>압도적 가성비</h3>
+                    <p>월 5.5만원(VAT 포함)으로 누리는 완전 자동화 운영, 추가 비용 제로</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">✨</div>
+                    <h3>자동 콘텐츠 생성</h3>
+                    <p>매일 새 글이 자동으로 발행되어 운영 부담이 없습니다</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>개별 도메인 제공</h3>
+                    <p>플랫폼 정책 변경이나 계정 정지 걱정 없는 나만의 독립된 공간</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>실시간 유입 분석</h3>
+                    <p>Umami 대시보드로 복잡한 설정 없이 방문자 현황을 한눈에 파악합니다</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤝</div>
+                    <h3>파트너 모집 중</h3>
+                    <p>함께 수익을 창출하고 성장해 나갈 파트너를 기다립니다</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>검색 친화적 설계</h3>
+                    <p>상단 노출에 유리하도록 검색 엔진 알고리즘을 분석하여 구조를 짰습니다</p>
+                </div>
             </div>
         </div>
     </section>
 
-
-
     <!-- Footer -->
     <footer>
-        <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
-            <div style="font-size: 24px; font-weight: 700; margin-bottom: 16px;">Content Factory</div>
-            <p style="color: #999; margin-bottom: 16px;">&copy; 2026 Content Factory. All rights reserved.</p>
-            <div style="color: #999;">
-                <a href="/privacy" style="color: #999; text-decoration: none; margin: 0 8px;">개인정보처리방침</a>
+        <div>
+            <div class="footer-title">Content Factory</div>
+            <p class="footer-copyright">&copy; 2026 Content Factory. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="/privacy">개인정보처리방침</a>
                 |
-                <a href="/terms" style="color: #999; text-decoration: none; margin: 0 8px;">이용약관</a>
+                <a href="/terms">이용약관</a>
             </div>
         </div>
     </footer>
+
+    <script>
+        const accordion = document.querySelector('.accordion');
+        const header = document.querySelector('.accordion-header');
+        const content = document.querySelector('.accordion-content');
+
+        header.addEventListener('click', () => {
+            const isActive = accordion.classList.contains('active');
+
+            if (isActive) {
+                accordion.classList.remove('active');
+                content.style.maxHeight = null;
+            } else {
+                accordion.classList.add('active');
+                content.style.maxHeight = content.scrollHeight + 'px';
+            }
+        });
+    </script>
 </body>
 </html>
