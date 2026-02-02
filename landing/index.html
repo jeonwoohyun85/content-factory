@@ -314,12 +314,93 @@
                 display: none;
             }
 
-            .section-title {
-                font-size: 36px;
+            .hero h1 {
+                font-size: 40px;
             }
 
-            .cards-grid {
-                grid-template-columns: 1fr;
+            .hero p {
+                font-size: 18px;
+            }
+
+            .section-title {
+                font-size: 32px;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+            }
+
+            .feature-card {
+                padding: 24px 12px;
+            }
+
+            .feature-card h3 {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+
+            .feature-card p {
+                font-size: 13px;
+            }
+
+            .feature-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 24px;
+                margin-bottom: 16px;
+            }
+
+            /* 아코디언 모바일 최적화 */
+            .left-accordion,
+            .right-accordion {
+                position: static;
+                width: 100%;
+                margin: 32px auto;
+                max-width: 100%;
+                padding: 0 16px;
+            }
+
+            .left-accordion .accordion,
+            .right-accordion .accordion {
+                border-radius: 20px;
+                border-left: none;
+                border-right: none;
+                border: 3px solid #667eea;
+            }
+
+            .accordion-header {
+                padding: 20px;
+                font-size: 16px;
+                border-left: none !important;
+                border-right: none !important;
+            }
+
+            .accordion-content {
+                padding: 16px 20px;
+                font-size: 14px;
+            }
+
+            .accordion-content h4 {
+                font-size: 15px;
+                margin-bottom: 8px;
+            }
+
+            .accordion-content p {
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+            .stats-grid {
+                gap: 32px;
+            }
+
+            .cta-section h2 {
+                font-size: 32px;
+            }
+
+            .cta-section p {
+                font-size: 18px;
             }
         }
     </style>
