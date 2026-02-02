@@ -59,13 +59,37 @@ export default {
         try {
           // 크론 하트비트 기록 (가장 먼저)
           await env.POSTING_KV.put('cron_heartbeat', Date.now().toString());
-          
+
           const { subdomain } = await request.json();
+
+          // 날짜별 중복 방지 락 체크
+          const now = new Date();
+          const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+          const dateStr = kstDate.toISOString().split('T')[0]; // YYYY-MM-DD
+          const lockKey = `posting_lock_${subdomain}_${dateStr}`;
+
+          const existingLock = await env.POSTING_KV.get(lockKey);
+          if (existingLock) {
+            return new Response(JSON.stringify({
+              success: false,
+              skipped: true,
+              reason: 'Already posted today',
+              subdomain,
+              date: dateStr,
+              lockTime: existingLock
+            }, null, 2), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          // 락 설정 (포스팅 시작 전)
+          await env.POSTING_KV.put(lockKey, Date.now().toString(), { expirationTtl: 172800 }); // 48시간
+
           const result = await generatePostingForClient(subdomain, env);
 
           // 성공 시 기록
           await env.POSTING_KV.put('cron_last_success', Date.now().toString());
-          
+
           return new Response(JSON.stringify(result, null, 2), {
             headers: { 'Content-Type': 'application/json' }
           });
@@ -76,7 +100,7 @@ export default {
             error: error.message,
             stack: error.stack
           }));
-          
+
           return new Response(JSON.stringify({
             error: error.message,
             stack: error.stack
@@ -433,3 +457,4 @@ export default {
     }
   }
 };
+
