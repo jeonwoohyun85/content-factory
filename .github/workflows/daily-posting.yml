@@ -1,12 +1,23 @@
 name: Daily Posting Cron
 
 on:
+  push:
   schedule:
-    - cron: '1 15 * * *'
-  workflow_dispatch:
+    - cron: '1 15 * * *'  # 매일 15:01 UTC = 00:01 KST (다음날)
+  workflow_dispatch:  # 수동 실행 가능
 
 jobs:
+  # push 이벤트 시 빈 job 실행 (성공 표시용)
+  check:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push event check
+        run: echo "Push event - workflow skipped (cron only)"
+
+  # 실제 크론 포스팅 job
   posting:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,46 +30,17 @@ jobs:
             name: '상상피아노 Japan'
           - subdomain: '00004'
             name: '제이공방 Thailand'
-      max-parallel: 5
-      fail-fast: false
+      max-parallel: 5  # 동시 최대 5개 실행
+      fail-fast: false  # 하나 실패해도 나머지 계속 실행
 
     steps:
       - name: Post ${{ matrix.subdomain }} (${{ matrix.name }})
-        continue-on-error: true
         run: |
           curl -X POST "https://make-page.com/test-posting" \
             -H "Content-Type: application/json" \
             -d '{"subdomain":"${{ matrix.subdomain }}"}' \
             --max-time 200
 
+          # 포스팅 성공 시 즉시 캐시 초기화
           echo "Refreshing cache for ${{ matrix.subdomain }}"
           curl -s "https://make-page.com/refresh?subdomain=${{ matrix.subdomain }}"
-
-  notify:
-    needs: posting
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send notification
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          JOBS=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs)
-
-          TIME=$(date -u +"%Y-%m-%d %H:%M KST" -d "+9 hours")
-
-          R1=$(echo "$JOBS" | jq -r '.jobs[] | select(.name | contains("00001")) | .conclusion')
-          R2=$(echo "$JOBS" | jq -r '.jobs[] | select(.name | contains("00002")) | .conclusion')
-          R3=$(echo "$JOBS" | jq -r '.jobs[] | select(.name | contains("00003")) | .conclusion')
-          R4=$(echo "$JOBS" | jq -r '.jobs[] | select(.name | contains("00004")) | .conclusion')
-
-          MSG="일시: ${TIME}%0A%0A"
-
-          [ "$R1" = "success" ] && MSG="${MSG}✅ 00001 (상상피아노)%0A" || MSG="${MSG}🔴 00001 (상상피아노)%0A"
-          [ "$R2" = "success" ] && MSG="${MSG}✅ 00002 (제이공방)%0A" || MSG="${MSG}🔴 00002 (제이공방)%0A"
-          [ "$R3" = "success" ] && MSG="${MSG}✅ 00003 (상상피아노 Japan)%0A" || MSG="${MSG}🔴 00003 (상상피아노 Japan)%0A"
-          [ "$R4" = "success" ] && MSG="${MSG}✅ 00004 (제이공방 Thailand)" || MSG="${MSG}🔴 00004 (제이공방 Thailand)"
-
-          curl -X POST "https://api.telegram.org/bot${BOT}/sendMessage?chat_id=${CHAT}&text=${MSG}"
