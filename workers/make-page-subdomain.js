@@ -57,13 +57,26 @@ export default {
       // Test posting generation (직접 실행, Queue 우회)
       if (pathname === '/test-posting' && request.method === 'POST') {
         try {
+          // 크론 하트비트 기록 (가장 먼저)
+          await env.POSTING_KV.put('cron_heartbeat', Date.now().toString());
+          
           const { subdomain } = await request.json();
           const result = await generatePostingForClient(subdomain, env);
 
+          // 성공 시 기록
+          await env.POSTING_KV.put('cron_last_success', Date.now().toString());
+          
           return new Response(JSON.stringify(result, null, 2), {
             headers: { 'Content-Type': 'application/json' }
           });
         } catch (error) {
+          // 에러 기록
+          await env.POSTING_KV.put('cron_last_error', JSON.stringify({
+            time: Date.now(),
+            error: error.message,
+            stack: error.stack
+          }));
+          
           return new Response(JSON.stringify({
             error: error.message,
             stack: error.stack
@@ -151,6 +164,13 @@ export default {
             headers: { 'Content-Type': 'application/json' }
           });
         } catch (error) {
+          // 에러 기록
+          await env.POSTING_KV.put('cron_last_error', JSON.stringify({
+            time: Date.now(),
+            error: error.message,
+            stack: error.stack
+          }));
+          
           return new Response(JSON.stringify({
             error: error.message,
             stack: error.stack
@@ -313,6 +333,13 @@ export default {
             headers: { 'Content-Type': 'application/json' }
           });
         } catch (error) {
+          // 에러 기록
+          await env.POSTING_KV.put('cron_last_error', JSON.stringify({
+            time: Date.now(),
+            error: error.message,
+            stack: error.stack
+          }));
+          
           return new Response(JSON.stringify({
             error: error.message,
             stack: error.stack
