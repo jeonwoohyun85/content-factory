@@ -39,4 +39,8 @@ jobs:
           curl -X POST "https://make-page.com/test-posting" \
             -H "Content-Type: application/json" \
             -d '{"subdomain":"${{ matrix.subdomain }}"}' \
-            --max-time 200 \
+            --max-time 200
+
+          # 포스팅 성공 시 즉시 캐시 초기화
+          echo "Refreshing cache for ${{ matrix.subdomain }}"
+          curl -s "https://make-page.com/refresh?subdomain=${{ matrix.subdomain }}"
