@@ -74,3 +74,84 @@ jobs:
           fi
 
           echo "✅ Health check passed"
+
+      - name: Check posting time sync
+        run: |
+          echo "Checking posting time synchronization"
+
+          SHEET_URL="https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/gviz/tq?tqx=out:csv&sheet=%EC%B5%9C%EC%8B%A0%ED%8F%AC%EC%8A%A4%ED%8C%85"
+          SHEET_DATA=$(curl -s "$SHEET_URL")
+
+          # 각 거래처의 최신 포스팅 시간 추출
+          TIME_00001=$(echo "$SHEET_DATA" | grep "00001" | head -1 | cut -d',' -f5 | tr -d '"')
+          TIME_00002=$(echo "$SHEET_DATA" | grep "00002" | head -1 | cut -d',' -f5 | tr -d '"')
+          TIME_00003=$(echo "$SHEET_DATA" | grep "00003" | head -1 | cut -d',' -f5 | tr -d '"')
+          TIME_00004=$(echo "$SHEET_DATA" | grep "00004" | head -1 | cut -d',' -f5 | tr -d '"')
+
+          echo "00001: $TIME_00001"
+          echo "00002: $TIME_00002"
+          echo "00003: $TIME_00003"
+          echo "00004: $TIME_00004"
+
+          # 시간을 timestamp로 변환 (빈 값 체크)
+          if [ -z "$TIME_00001" ] || [ -z "$TIME_00002" ] || [ -z "$TIME_00003" ] || [ -z "$TIME_00004" ]; then
+            curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d '{"chat_id":"6857038085","text":"🔴 포스팅 시간 동기화 실패\n\n문제: 일부 거래처 포스팅 시간 누락"}' \
+              --max-time 10
+            exit 1
+          fi
+
+          TS_00001=$(date -d "$TIME_00001" +%s 2>/dev/null || echo "0")
+          TS_00002=$(date -d "$TIME_00002" +%s 2>/dev/null || echo "0")
+          TS_00003=$(date -d "$TIME_00003" +%s 2>/dev/null || echo "0")
+          TS_00004=$(date -d "$TIME_00004" +%s 2>/dev/null || echo "0")
+
+          # 최신 시간과 가장 오래된 시간 찾기
+          MAX_TS=$TS_00001
+          MIN_TS=$TS_00001
+          OLDEST_CLIENT="00001"
+          NEWEST_CLIENT="00001"
+
+          if [ $TS_00002 -gt $MAX_TS ]; then
+            MAX_TS=$TS_00002
+            NEWEST_CLIENT="00002"
+          fi
+          if [ $TS_00002 -lt $MIN_TS ]; then
+            MIN_TS=$TS_00002
+            OLDEST_CLIENT="00002"
+          fi
+
+          if [ $TS_00003 -gt $MAX_TS ]; then
+            MAX_TS=$TS_00003
+            NEWEST_CLIENT="00003"
+          fi
+          if [ $TS_00003 -lt $MIN_TS ]; then
+            MIN_TS=$TS_00003
+            OLDEST_CLIENT="00003"
+          fi
+
+          if [ $TS_00004 -gt $MAX_TS ]; then
+            MAX_TS=$TS_00004
+            NEWEST_CLIENT="00004"
+          fi
+          if [ $TS_00004 -lt $MIN_TS ]; then
+            MIN_TS=$TS_00004
+            OLDEST_CLIENT="00004"
+          fi
+
+          # 시간차 계산 (초)
+          TIME_DIFF=$((MAX_TS - MIN_TS))
+          TIME_DIFF_MIN=$((TIME_DIFF / 60))
+
+          echo "Time difference: ${TIME_DIFF_MIN} minutes"
+
+          # 30분(1800초) 이상 차이나면 알림
+          if [ $TIME_DIFF -gt 1800 ]; then
+            curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\":\"6857038085\",\"text\":\"⚠️ 포스팅 시간 불일치 감지\n\n시간차: ${TIME_DIFF_MIN}분\n\n최신: ${NEWEST_CLIENT} (${TIME_00001})\n가장 오래됨: ${OLDEST_CLIENT}\n\n확인 필요\"}" \
+              --max-time 10
+          fi
+
+          echo "✅ Time sync check completed"
