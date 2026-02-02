@@ -1012,9 +1012,12 @@ async function removeDuplicatesFromLatestPosting(env, domain, latestSheetId, acc
     console.log(`중복 제거: ${matchingRows.length}개 행 발견`);
 
     // 생성일시 기준 내림차순 정렬 (최신이 첫 번째)
+    // 빈 값은 미래 날짜로 처리하여 최신으로 간주
     matchingRows.sort((a, b) => {
-      if (a.createdAt > b.createdAt) return -1;
-      if (a.createdAt < b.createdAt) return 1;
+      const timeA = a.createdAt || '9999-12-31 23:59:59';
+      const timeB = b.createdAt || '9999-12-31 23:59:59';
+      if (timeA > timeB) return -1;
+      if (timeA < timeB) return 1;
       return 0;
     });
 
