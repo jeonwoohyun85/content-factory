@@ -9,13 +9,14 @@ export async function generateStatusPage(env) {
 
     // 관리자 시트 읽기
     const adminResponse = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'관리자'!A:Q`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent('관리자')}!A:Q`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
       10000
     );
 
     if (!adminResponse.ok) {
-      throw new Error(`관리자 시트 읽기 실패: ${adminResponse.status} ${adminResponse.statusText}`);
+      const errorText = await adminResponse.text();
+      throw new Error(`관리자 시트 읽기 실패: ${adminResponse.status} ${adminResponse.statusText} - ${errorText}`);
     }
 
     const adminText = await adminResponse.text();
@@ -28,13 +29,14 @@ export async function generateStatusPage(env) {
 
     // 최신 포스팅 시트 읽기
     const latestResponse = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'최신 포스팅'!A:K`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent('최신 포스팅')}!A:K`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
       10000
     );
 
     if (!latestResponse.ok) {
-      throw new Error(`최신 포스팅 시트 읽기 실패: ${latestResponse.status} ${latestResponse.statusText}`);
+      const errorText = await latestResponse.text();
+      throw new Error(`최신 포스팅 시트 읽기 실패: ${latestResponse.status} ${latestResponse.statusText} - ${errorText}`);
     }
 
     const latestText = await latestResponse.text();
