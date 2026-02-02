@@ -57,8 +57,9 @@ export async function getClientFromSheetsForPosting(subdomain, env) {
 
     }) || null;
 
-    // 상호명에서 언어 표시 자동 제거
+    // 상호명 원본 보존 (시트 저장용)
     if (client && client.business_name) {
+      client.business_name_original = client.business_name;
       client.business_name = removeLanguageSuffixFromBusinessName(client.business_name);
     }
 
@@ -1111,7 +1112,7 @@ export async function saveToLatestPostingSheet(client, postData, normalizedSubdo
 
     '도메인': domain,
 
-    '상호명': client.business_name,
+    '상호명': client.business_name_original || client.business_name,
 
     '제목': postData.title,
 
