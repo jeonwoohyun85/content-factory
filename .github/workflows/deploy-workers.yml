@@ -27,13 +27,15 @@ jobs:
       #     echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' | npx wrangler secret put GOOGLE_SERVICE_ACCOUNT_JSON --config ../wrangler.toml
       #     echo '${{ secrets.GEMINI_API_KEY }}' | npx wrangler secret put GEMINI_API_KEY --config ../wrangler.toml
       #   env:
-      #     CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      #     CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
 
       - name: 서브도메인 워커 배포 실행
         uses: cloudflare/wrangler-action@v3
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          
           workingDirectory: 'workers'
           command: deploy
