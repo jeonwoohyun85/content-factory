@@ -149,7 +149,7 @@
 
         /* Features Section */
         .features {
-            padding: 100px 24px;
+            padding: 80px 24px 60px;
             background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
         }
 
@@ -173,7 +173,7 @@
             max-width: 1200px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 32px;
         }
 
@@ -326,6 +326,10 @@
                 font-size: 32px;
             }
 
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
             .stats-grid {
                 gap: 32px;
             }
@@ -349,7 +353,7 @@
 
 
     <!-- Features Section -->
-    <section class="features" id="features" style="flex: 1;">
+    <section class="features" id="features">
         <div class="section-title">
             <h2>왜 Make Page인가요?</h2>
             <p>성능과 안정성을 동시에 제공하는 웹 솔루션</p>
