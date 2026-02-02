@@ -1,23 +1,13 @@
 name: Daily Posting Cron
 
 on:
-  push:
   schedule:
     - cron: '1 15 * * *'  # 매일 15:01 UTC = 00:01 KST (다음날)
   workflow_dispatch:  # 수동 실행 가능
 
 jobs:
-  # push 이벤트 시 빈 job 실행 (성공 표시용)
-  check:
-    if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Push event check
-        run: echo "Push event - workflow skipped (cron only)"
-
   # 실제 크론 포스팅 job
   posting:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -63,7 +53,7 @@ jobs:
   # 전체 결과 요약 알림
   notify-summary:
     needs: posting
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Send summary notification
