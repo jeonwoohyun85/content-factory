@@ -382,8 +382,8 @@ export default {
         }
       }
 
-      // 메인 도메인은 404 (랜딩페이지 없음)
-      return new Response('Not Found', { status: 404 });
+      // 메인 도메인의 나머지 경로는 Cloudflare Pages로 전달
+      return env.ASSETS.fetch(request);
     }
 
     // 서브도메인이 5자리 숫자가 아니면 404
