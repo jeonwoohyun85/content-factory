@@ -20,4 +20,4 @@ jobs:
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
         with:
           accountId: 73506724e3c7dd97bc939983761a90cf
-          command: pages deploy landing --project-name=make-page-landing --branch=main
+          command: pages deploy landing --project-name=make-page-landing --production
