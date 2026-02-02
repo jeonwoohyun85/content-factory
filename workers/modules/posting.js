@@ -159,6 +159,35 @@ export async function generatePostingForClient(subdomain, env) {
     const specialCharCount = (postData.title.match(/[^a-zA-Z0-9가-힣\s]/g) || []).length;
     const specialCharRatio = specialCharCount / postData.title.length;
 
+    // 인터리브 검증: 이미지 위치 분석
+    const bodyHtml = postData.body;
+    const bodyLength = bodyHtml.length;
+    const imgRegex = /<img[^>]*>/g;
+    const imgMatches = [...bodyHtml.matchAll(imgRegex)];
+    const imgPositions = imgMatches.map(m => m.index);
+    
+    let firstImagePercent = 0;
+    let lastImagePercent = 0;
+    let imageDistribution = 'none';
+    
+    if (imgPositions.length > 0) {
+      firstImagePercent = Math.round((imgPositions[0] / bodyLength) * 100);
+      lastImagePercent = Math.round((imgPositions[imgPositions.length - 1] / bodyLength) * 100);
+      
+      // 이미지가 골고루 퍼져있는지 (간격이 15% 이상) 확인
+      if (imgPositions.length >= 2) {
+        const gaps = [];
+        for (let i = 0; i < imgPositions.length - 1; i++) {
+          const gap = ((imgPositions[i + 1] - imgPositions[i]) / bodyLength) * 100;
+          gaps.push(gap);
+        }
+        const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+        imageDistribution = avgGap > 15 ? 'interleaved' : 'clustered';
+      } else {
+        imageDistribution = 'single';
+      }
+    }
+
     return {
       success: true,
       post: postData,
@@ -170,7 +199,10 @@ export async function generatePostingForClient(subdomain, env) {
         language: client.language,
         subdomain: normalizedSubdomain,
         business_name: client.business_name,
-        special_char_ratio: Math.round(specialCharRatio * 100)
+        special_char_ratio: Math.round(specialCharRatio * 100),
+        first_image_position: firstImagePercent,
+        last_image_position: lastImagePercent,
+        image_distribution: imageDistribution
       }
     };
 
