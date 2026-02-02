@@ -3,7 +3,7 @@ name: Daily Posting Cron
 on:
   push:
   schedule:
-    - cron: '0 15 * * *'  # 매일 15:00 UTC = 00:00 KST (다음날)
+    - cron: '1 15 * * *'  # 매일 15:01 UTC = 00:01 KST (다음날)
   workflow_dispatch:  # 수동 실행 가능
 
 jobs:
