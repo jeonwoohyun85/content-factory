@@ -64,8 +64,8 @@ export default {
 
           // 날짜별 중복 방지 락 체크
           const now = new Date();
-          const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-          const dateStr = kstDate.toISOString().split('T')[0]; // YYYY-MM-DD
+          const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+          const dateStr = kstNow.toISOString().split('T')[0]; // YYYY-MM-DD
           const lockKey = `posting_lock_${subdomain}_${dateStr}`;
 
           const existingLock = await env.POSTING_KV.get(lockKey);
@@ -82,10 +82,18 @@ export default {
             });
           }
 
-          // 락 설정 (포스팅 시작 전)
-          await env.POSTING_KV.put(lockKey, Date.now().toString(), { expirationTtl: 172800 }); // 48시간
-
           const result = await generatePostingForClient(subdomain, env);
+
+          // 포스팅 성공 시에만 락 설정
+          if (result.success) {
+            // 다음날 00:00 KST까지 남은 시간을 TTL로 계산
+            const tomorrow = new Date(kstNow);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+            const ttlSeconds = Math.floor((tomorrow - kstNow) / 1000);
+
+            await env.POSTING_KV.put(lockKey, Date.now().toString(), { expirationTtl: ttlSeconds });
+          }
 
           // 성공 시 기록
           await env.POSTING_KV.put('cron_last_success', Date.now().toString());
