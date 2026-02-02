@@ -28,7 +28,7 @@ jobs:
       #     echo '${{ secrets.GEMINI_API_KEY }}' | npx wrangler secret put GEMINI_API_KEY --config ../wrangler.toml
       #   env:
       #     CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+      #     CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
 
       - name: 서브도메인 워커 배포 실행
         uses: cloudflare/wrangler-action@v3
