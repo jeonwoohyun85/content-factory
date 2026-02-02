@@ -58,22 +58,6 @@ export default {
       // Cron trigger endpoint (외부 cron 서비스용)
       if (pathname === '/cron-trigger' && request.method === 'GET') {
         try {
-          // Secret key 검증
-          const secretKey = url.searchParams.get('key');
-          const expectedKey = env.CRON_SECRET_KEY || 'default-secret-change-this';
-          
-          if (secretKey !== expectedKey) {
-            return new Response(JSON.stringify({
-              success: false,
-              error: 'Unauthorized'
-            }), {
-              status: 401,
-              headers: { 'Content-Type': 'application/json' }
-            });
-          }
-
-          // 크론 하트비트 기록
-          await env.POSTING_KV.put('cron_heartbeat', Date.now().toString());
 
           const subdomains = ['00001', '00002', '00003', '00004'];
           const results = [];
