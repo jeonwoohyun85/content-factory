@@ -1,23 +1,12 @@
 name: Daily Posting Cron
 
 on:
-  push:
   schedule:
-    - cron: '1 15 * * *'  # 매일 15:01 UTC = 00:01 KST (다음날)
-  workflow_dispatch:  # 수동 실행 가능
+    - cron: '1 15 * * *'
+  workflow_dispatch:
 
 jobs:
-  # push 이벤트 시 빈 job 실행 (성공 표시용)
-  check:
-    if: ${{ github.event_name == 'push' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Push event check
-        run: echo "Push event - workflow skipped (cron only)"
-
-  # 실제 크론 포스팅 job
   posting:
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -30,71 +19,51 @@ jobs:
             name: '상상피아노 Japan'
           - subdomain: '00004'
             name: '제이공방 Thailand'
-      max-parallel: 5  # 동시 최대 5개 실행
-      fail-fast: false  # 하나 실패해도 나머지 계속 실행
+      max-parallel: 5
+      fail-fast: false
 
     steps:
       - name: Post ${{ matrix.subdomain }} (${{ matrix.name }})
-        id: posting
         continue-on-error: true
         run: |
-          RESPONSE=$(curl -X POST "https://make-page.com/test-posting" \
+          curl -X POST "https://make-page.com/test-posting" \
             -H "Content-Type: application/json" \
             -d '{"subdomain":"${{ matrix.subdomain }}"}' \
-            --max-time 200 -w "\n%{http_code}")
+            --max-time 200
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "Error: HTTP $HTTP_CODE"
-            exit 1
-          fi
-
-          SUCCESS=$(echo "$BODY" | jq -r '.success // false')
-          if [ "$SUCCESS" != "true" ]; then
-            echo "Error: Posting failed"
-            exit 1
-          fi
-
-          # 포스팅 성공 시 즉시 캐시 초기화
           echo "Refreshing cache for ${{ matrix.subdomain }}"
           curl -s "https://make-page.com/refresh?subdomain=${{ matrix.subdomain }}"
 
-      - name: Notify result
-        if: always()
+  notify:
+    needs: posting
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          export PYTHONIOENCODING=utf-8
-          python3 << 'EOF'
-          import requests
-          from datetime import datetime, timedelta
+          JOBS=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs)
 
-          bot_token = '8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs'
-          chat_id = '6857038085'
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M" -d "+9 hours")
 
-          subdomain = '${{ matrix.subdomain }}'
-          name = '${{ matrix.name }}'
-          status = '${{ steps.posting.outcome }}'
+          HEADER="✅ 일일 포스팅 완료"
+          RESULTS=""
 
-          # KST 시간
-          kst_now = datetime.utcnow() + timedelta(hours=9)
-          timestamp = kst_now.strftime('%Y-%m-%d %H:%M KST')
+          echo "$JOBS" | jq -r '.jobs[] | select(.name | startswith("Post ")) | "\(.conclusion)|\(.name)"' | while IFS='|' read STATUS NAME; do
+            SUB=$(echo "$NAME" | sed 's/Post \([0-9]*\) .*/\1/')
+            CLIENT=$(echo "$NAME" | sed 's/Post [0-9]* (\(.*\))/\1/')
 
-          if status == 'success':
-              message = f'''✅ 포스팅 성공
+            if [ "$STATUS" = "success" ]; then
+              RESULTS="${RESULTS}✅ ${SUB} (${CLIENT})\n"
+            else
+              RESULTS="${RESULTS}🔴 ${SUB} (${CLIENT})\n"
+              HEADER="⚠️ 일일 포스팅 완료 (일부 실패)"
+            fi
+          done
 
-일시: {timestamp}
+          MESSAGE="${HEADER}\n\n일시: ${TIMESTAMP} KST\n\n결과:\n${RESULTS}"
 
-거래처: {subdomain} ({name})'''
-          else:
-              message = f'''🔴 포스팅 실패
-
-일시: {timestamp}
-
-거래처: {subdomain} ({name})
-
-확인 필요'''
-
-          url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
-          requests.post(url, json={'chat_id': chat_id, 'text': message})
-          EOF
+          curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"6857038085\",\"text\":\"${MESSAGE}\"}"
