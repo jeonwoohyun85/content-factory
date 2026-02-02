@@ -53,6 +53,33 @@
 
 ---
 
+# ⏰ 시간 기준 (절대 규칙)
+
+**모든 시간은 한국 서울(KST, UTC+9) 기준**
+- 크론 실행 시간: KST
+- 로그 타임스탬프: KST
+- 시트 저장 시간: KST
+- 락 키 날짜: KST
+- 사용자 표시 시간: KST
+
+**UTC 사용 금지**
+- GitHub Actions cron은 UTC로 설정하되 주석에 KST 명시
+- 코드 내부 시간 계산은 모두 KST (UTC+9 변환)
+- 절대 UTC 그대로 사용 금지
+
+**예시:**
+```javascript
+// ✅ 올바른 방법
+const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+const dateStr = kstNow.toISOString().split('T')[0]; // YYYY-MM-DD
+
+// ❌ 잘못된 방법
+const utcNow = new Date();
+const dateStr = utcNow.toISOString().split('T')[0]; // UTC 사용
+```
+
+---
+
 # 커뮤니케이션 규칙
 
 ## 코드 표시 금지
