@@ -1,0 +1,64 @@
+name: Daily Quality Report
+
+on:
+  schedule:
+    - cron: '30 15 * * *'  # 매일 15:30 UTC = 00:30 KST (포스팅 직후)
+  workflow_dispatch:
+
+jobs:
+  quality-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate quality report
+        run: |
+          echo "Generating daily quality report"
+
+          # Google Sheets CSV 조회
+          SHEET_URL="https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/gviz/tq?tqx=out:csv&sheet=%EC%B5%9C%EC%8B%A0%20%ED%8F%AC%EC%8A%A4%ED%8C%85"
+
+          SHEET_DATA=$(curl -s "$SHEET_URL")
+
+          # 행 개수 세기 (헤더 제외)
+          LINE_COUNT=$(echo "$SHEET_DATA" | wc -l)
+          DATA_COUNT=$((LINE_COUNT - 1))
+
+          echo "최신 포스팅 시트 데이터: ${DATA_COUNT}개"
+
+          ERRORS=""
+
+          # 검증 1: 최신 포스팅 개수 (거래처 4개 x 3개 = 12개)
+          if [ "$DATA_COUNT" -lt 12 ]; then
+            ERRORS="${ERRORS}• 최신 포스팅 부족: ${DATA_COUNT}개 (정상: 12개)\n"
+          fi
+
+          # 검증 2: 오늘 날짜 포스팅 확인
+          TODAY=$(date -u +"%Y-%m-%d")
+          TODAY_COUNT=$(echo "$SHEET_DATA" | grep -c "$TODAY" || echo "0")
+
+          if [ "$TODAY_COUNT" -lt 4 ]; then
+            ERRORS="${ERRORS}• 오늘 포스팅 부족: ${TODAY_COUNT}개 (정상: 4개)\n"
+          fi
+
+          # 검증 3: 빈 행 확인
+          EMPTY_COUNT=$(echo "$SHEET_DATA" | grep -c ',,,' || echo "0")
+
+          if [ "$EMPTY_COUNT" -gt 0 ]; then
+            ERRORS="${ERRORS}• 빈 데이터 발견: ${EMPTY_COUNT}개\n"
+          fi
+
+          # 결과 텔레그램 전송
+          if [ -n "$ERRORS" ]; then
+            curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\":\"6857038085\",\"text\":\"⚠️ 일일 품질 리포트\n\n날짜: ${TODAY}\n총 포스팅: ${DATA_COUNT}개\n오늘 포스팅: ${TODAY_COUNT}개\n\n문제:\n${ERRORS}\"}" \
+              --max-time 10
+            exit 1
+          fi
+
+          # 정상일 경우 간단한 리포트
+          curl -X POST "https://api.telegram.org/bot8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"6857038085\",\"text\":\"✅ 일일 품질 리포트\n\n날짜: ${TODAY}\n총 포스팅: ${DATA_COUNT}개\n오늘 포스팅: ${TODAY_COUNT}개\n\n모든 검증 통과\"}" \
+            --max-time 10
+
+          echo "✅ Quality report completed"
