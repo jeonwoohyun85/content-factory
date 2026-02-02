@@ -35,12 +35,59 @@ jobs:
 
     steps:
       - name: Post ${{ matrix.subdomain }} (${{ matrix.name }})
+        id: posting
+        continue-on-error: true
         run: |
-          curl -X POST "https://make-page.com/test-posting" \
+          RESPONSE=$(curl -X POST "https://make-page.com/test-posting" \
             -H "Content-Type: application/json" \
             -d '{"subdomain":"${{ matrix.subdomain }}"}' \
-            --max-time 200
+            --max-time 200 -w "\n%{http_code}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          SUCCESS=$(echo "$BODY" | jq -r '.success // false')
+          if [ "$SUCCESS" != "true" ]; then
+            echo "Error: Posting failed"
+            exit 1
+          fi
 
           # 포스팅 성공 시 즉시 캐시 초기화
           echo "Refreshing cache for ${{ matrix.subdomain }}"
           curl -s "https://make-page.com/refresh?subdomain=${{ matrix.subdomain }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          export PYTHONIOENCODING=utf-8
+          python3 << 'EOF'
+          import requests
+          import os
+          from datetime import datetime, timedelta
+
+          bot_token = '8328468112:AAHcfkNgMXPR4hbc4b5g0G3K_oFnQurryqs'
+          chat_id = '6857038085'
+
+          subdomain = '${{ matrix.subdomain }}'
+          name = '${{ matrix.name }}'
+
+          # KST 시간
+          kst_now = datetime.utcnow() + timedelta(hours=9)
+          timestamp = kst_now.strftime('%Y-%m-%d %H:%M KST')
+
+          message = f'''🔴 포스팅 실패
+
+일시: {timestamp}
+
+거래처: {subdomain} ({name})
+
+확인 필요'''
+
+          url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+          requests.post(url, json={'chat_id': chat_id, 'text': message})
+          EOF
