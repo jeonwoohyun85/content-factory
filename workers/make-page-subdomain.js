@@ -54,6 +54,101 @@ export default {
         return generateStatusPage(env);
       }
 
+
+      // Cron trigger endpoint (외부 cron 서비스용)
+      if (pathname === '/cron-trigger' && request.method === 'GET') {
+        try {
+          // Secret key 검증
+          const secretKey = url.searchParams.get('key');
+          const expectedKey = env.CRON_SECRET_KEY || 'default-secret-change-this';
+          
+          if (secretKey !== expectedKey) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Unauthorized'
+            }), {
+              status: 401,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
+          // 크론 하트비트 기록
+          await env.POSTING_KV.put('cron_heartbeat', Date.now().toString());
+
+          const subdomains = ['00001', '00002', '00003', '00004'];
+          const results = [];
+
+          // 4개 거래처 순차 처리
+          for (const subdomain of subdomains) {
+            try {
+              // 날짜별 중복 방지 락 체크
+              const now = new Date();
+              const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+              const dateStr = kstNow.toISOString().split('T')[0];
+              const lockKey = `posting_lock_${subdomain}_${dateStr}`;
+
+              const existingLock = await env.POSTING_KV.get(lockKey);
+              if (existingLock) {
+                results.push({
+                  subdomain,
+                  success: false,
+                  skipped: true,
+                  reason: 'Already posted today'
+                });
+                continue;
+              }
+
+              const result = await generatePostingForClient(subdomain, env);
+
+              if (result.success) {
+                const tomorrow = new Date(kstNow);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0);
+                const ttlSeconds = Math.floor((tomorrow - kstNow) / 1000);
+                await env.POSTING_KV.put(lockKey, Date.now().toString(), { expirationTtl: ttlSeconds });
+              }
+
+              results.push({
+                subdomain,
+                success: result.success,
+                title: result.title
+              });
+
+            } catch (error) {
+              results.push({
+                subdomain,
+                success: false,
+                error: error.message
+              });
+            }
+          }
+
+          await env.POSTING_KV.put('cron_last_success', Date.now().toString());
+
+          return new Response(JSON.stringify({
+            success: true,
+            timestamp: new Date().toISOString(),
+            results
+          }, null, 2), {
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+        } catch (error) {
+          await env.POSTING_KV.put('cron_last_error', JSON.stringify({
+            error: error.message,
+            timestamp: Date.now()
+          }));
+
+          return new Response(JSON.stringify({
+            success: false,
+            error: error.message
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+
       // Test posting generation (직접 실행, Queue 우회)
       if (pathname === '/test-posting' && request.method === 'POST') {
         try {
