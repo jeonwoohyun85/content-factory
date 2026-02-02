@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>콘텐츠 팩토리</title>
+    <title>Make Page - 비즈니스 성장을 위한 웹 솔루션</title>
     <style>
         * {
             margin: 0;
@@ -56,16 +56,26 @@
             align-items: center;
         }
 
+        .nav-links a {
+            color: #666;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #667eea;
+        }
+
         .nav-cta {
             padding: 10px 24px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white !important;
             border-radius: 8px;
-            text-decoration: none;
         }
 
-        /* Main Section */
-        .main-section {
+        /* Features Section */
+        .features {
             padding: 100px 24px 60px;
             background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
             flex: 1;
@@ -81,142 +91,9 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* Left Accordion - Fixed to left edge */
-        .left-accordion {
-            position: fixed;
-            left: 0;
-            top: 100px;
-            width: 480px;
-            z-index: 100;
-        }
-
-        /* Right Accordion - Fixed to right edge */
-        .right-accordion {
-            position: fixed;
-            right: 0;
-            top: 100px;
-            width: 480px;
-            z-index: 100;
-        }
-
-        .left-accordion .accordion {
-            background: white;
-            border-radius: 0 20px 20px 0;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
-        }
-
-        .right-accordion .accordion {
-            background: white;
-            border-radius: 20px 0 0 20px;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
-        }
-
-        .accordion-header {
-            padding: 32px 40px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background 0.2s;
-            user-select: none;
-        }
-
-        .left-accordion .accordion-header {
-            border-left: 6px solid #667eea;
-        }
-
-        .right-accordion .accordion-header {
-            border-right: 6px solid #667eea;
-        }
-
-        .accordion-header:hover {
-            background: #f8f9ff;
-        }
-
-        .accordion-title {
-            font-size: 28px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            line-height: 1.4;
-        }
-
-        .accordion-icon {
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.3s;
-            color: #667eea;
-            font-size: 28px;
-            font-weight: bold;
-            flex-shrink: 0;
-            margin-left: 16px;
-        }
-
-        .accordion.active .accordion-icon {
-            transform: rotate(180deg);
-        }
-
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease;
-        }
-
-        .accordion-body {
-            padding: 0 40px 40px 40px;
-            max-height: 700px;
-            overflow-y: auto;
-        }
-
-        .accordion-body::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .accordion-body::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-
-        .accordion-body::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 4px;
-        }
-
-        .content-section {
-            margin-bottom: 32px;
-        }
-
-        .content-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .content-section-title {
-            font-size: 17px;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 12px;
-        }
-
-        .content-section-text {
-            color: #555;
-            white-space: pre-line;
-            font-size: 15px;
-            line-height: 1.9;
-        }
-
-        /* Cards Grid - Centered */
-        .cards-container {
+        .features-grid {
             max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .cards-grid {
+            margin: 0 auto 60px;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 32px;
@@ -258,212 +135,180 @@
             line-height: 1.7;
         }
 
-        /* Footer */
-        footer {
-            padding: 40px 24px;
-            background: #1a1a1a;
-            color: white;
-            margin-top: auto;
+        /* More Info Section */
+        .more-info-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px 60px;
         }
 
-        footer > div {
+        .info-section {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+            border-left: 6px solid #667eea;
+        }
+
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .info-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .expand-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.25);
+        }
+
+        .expand-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+        }
+
+        .info-preview {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+
+        .info-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .info-content.expanded {
+            max-height: 2000px;
+        }
+
+        .info-content h4 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 20px 0 10px;
+            color: #1a1a1a;
+        }
+
+        .info-content p {
+            color: #555;
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 24px 40px;
+            background: #1a1a1a;
+            color: white;
+        }
+
+        .footer-content {
             max-width: 1200px;
             margin: 0 auto;
             text-align: center;
         }
 
-        .footer-title {
+        .footer-logo {
             font-size: 24px;
             font-weight: 700;
             margin-bottom: 16px;
         }
 
-        .footer-copyright {
-            color: #999;
-            margin-bottom: 16px;
-        }
-
-        .footer-links {
-            color: #999;
-        }
-
-        .footer-links a {
-            color: #999;
-            text-decoration: none;
-            margin: 0 8px;
-        }
-
-        @media (max-width: 1024px) {
-            .left-accordion, .right-accordion {
-                position: static;
-                width: 100%;
-                margin-bottom: 32px;
-            }
-
-            .left-accordion .accordion, .right-accordion .accordion {
-                border-radius: 16px;
-            }
-
-            .cards-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
         @media (max-width: 768px) {
-            * {
-                box-sizing: border-box;
-            }
-
             .nav-links {
                 display: none;
             }
 
-            .hero {
-                padding: 120px 16px 60px;
-            }
-
-            .hero h1 {
-                font-size: 32px;
-            }
-
-            .hero p {
-                font-size: 16px;
-                padding: 0 8px;
-            }
-
             .section-title {
-                font-size: 26px;
-                margin-bottom: 20px;
+                font-size: 28px;
                 padding: 0 16px;
             }
 
-            /* 카드 3개 */
             .features {
-                padding: 60px 0 40px;
+                padding: 100px 8px 40px;
             }
 
             .features-grid {
-                display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 4px;
-                padding: 0 4px;
-                margin: 0;
-                max-width: 100%;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
             }
 
             .feature-card {
-                padding: 10px 4px;
-                margin: 0;
-                min-width: 0;
-                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+                padding: 16px 8px;
             }
 
             .feature-card h3 {
-                font-size: 11px;
-                margin-bottom: 4px;
-                line-height: 1.3;
-            }
-
-            .feature-card p {
-                font-size: 9px;
-                line-height: 1.4;
-            }
-
-            .feature-icon {
-                width: 28px;
-                height: 28px;
-                font-size: 14px;
-                margin-bottom: 6px;
-                border-radius: 8px;
-            }
-
-            /* 아코디언 모바일 */
-            .left-accordion,
-            .right-accordion {
-                position: static;
-                width: 100%;
-                max-width: 100%;
-                margin: 20px 0;
-                padding: 0 16px;
-            }
-
-            .left-accordion .accordion,
-            .right-accordion .accordion {
-                border-radius: 12px;
-                width: 100%;
-            }
-
-            .accordion-header {
-                padding: 14px 16px;
-                font-size: 13px;
-                border-left: 3px solid #667eea;
-                border-right: none;
-            }
-
-            .accordion-content {
-                padding: 0 16px;
-                font-size: 11px;
-                max-height: 0;
-                overflow: hidden;
-                transition: max-height 0.3s ease, padding 0.3s ease;
-            }
-
-            .accordion.active .accordion-content {
-                max-height: 500px;
-                padding: 16px;
-                overflow-y: auto;
-            }
-
-            .accordion-content h4 {
                 font-size: 12px;
                 margin-bottom: 6px;
             }
 
-            .accordion-content p {
+            .feature-card p {
                 font-size: 10px;
-                line-height: 1.5;
+            }
+
+            .feature-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
                 margin-bottom: 10px;
             }
 
-            .stats {
-                padding: 60px 16px;
+            .more-info-container {
+                padding: 0 12px 40px;
             }
 
-            .stats-grid {
-                gap: 28px;
+            .info-section {
+                padding: 20px 16px;
+                margin-bottom: 16px;
             }
 
-            .stat h3 {
-                font-size: 40px;
+            .info-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
             }
 
-            .stat p {
-                font-size: 15px;
-            }
-
-            .cta-section {
-                padding: 60px 16px;
-            }
-
-            .cta-section h2 {
-                font-size: 28px;
-            }
-
-            .cta-section p {
+            .info-title {
                 font-size: 16px;
             }
 
-            .btn-primary,
-            .btn-secondary {
-                padding: 14px 32px;
+            .expand-btn {
+                width: 100%;
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+
+            .info-preview {
+                font-size: 12px;
+            }
+
+            .info-content h4 {
                 font-size: 15px;
             }
 
-            footer {
-                padding: 40px 16px 24px;
+            .info-content p {
+                font-size: 14px;
             }
         }
-        </style>
+    </style>
 </head>
 <body>
     <!-- Navigation -->
@@ -476,255 +321,106 @@
         </div>
     </nav>
 
-    <!-- Left Accordion - Fixed to left edge -->
-    <div class="left-accordion">
-        <div class="accordion" id="left-accordion">
-            <div class="accordion-header">
-                <div class="accordion-title">왜 콘텐츠 팩토리인가?</div>
-                <div class="accordion-icon">▼</div>
-            </div>
-            <div class="accordion-content">
-                <div class="accordion-body">
-                    <div class="content-section">
-                        <div class="content-section-title">🏗️ PART 1. 시장의 확장: 세 개의 채널을 동시에 선점하는 전략</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">1. 세 개의 검색 채널, 하나의 구조</div>
-                        <div class="content-section-text">콘텐츠팩토리는 하나의 작업으로 구글 해외, 구글 국내, 네이버라는 세 가지 검색 채널에 동시에 대응할 수 있는 구조를 만듭니다. 특정 플랫폼 하나에 의존하지 않고, 검색되는 경로 자체를 넓히는 방식입니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">2. 구글 해외 – 역글로벌의 시작점</div>
-                        <div class="content-section-text">해외 이용자들은 한국을 방문하기 전 정보를 구글에서 검색합니다. 구글은 전 세계 검색의 약 90%를 차지하며, 190개국 이상에서 표준 검색엔진으로 사용됩니다. 다국어 검색어로 국내 업장을 찾는 수요는 존재하지만, 이를 장기적으로 대응할 수 있는 구조는 많지 않습니다. 콘텐츠팩토리는 이 글로벌 검색 환경을 전제로 역글로벌(해외 → 국내 유입) 전략으로 접근합니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">3. 구글 국내 – 네이버 밖의 검색 수요</div>
-                        <div class="content-section-text">국내 검색의 중심은 네이버지만, 구글 역시 한국 검색의 약 25~30%를 차지하고 있습니다. 특히 젊은 층, IT 종사자, 해외 경험이 있는 이용자들은 구글을 주요 검색 도구로 사용합니다. 같은 콘텐츠라도 구글에서는 상대적으로 경쟁이 낮은 경우가 많아 효과적인 노출이 가능합니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">4. 글로벌 검색 환경과 국내 검색의 차이</div>
-                        <div class="content-section-text">국내 검색 환경은 자국 플랫폼 중심으로 최적화되어 글로벌 검색 흐름과는 분리된 방향으로 발전해 왔습니다. 반면 글로벌 검색 시장은 구글과 마이크로소프트(Bing)를 중심으로 표준화된 생태계가 형성되어 있습니다. 콘텐츠팩토리는 대부분의 국가에서 표준으로 작동하는 이 글로벌 구조를 기반으로 작동합니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">🛠️ PART 2. 자산의 독립성: 플랫폼에 종속되지 않는 브랜드 보호</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">5. 플랫폼 블로그와 콘텐츠팩토리의 차이</div>
-                        <div class="content-section-text">플랫폼 블로그는 포털 사이트 안에서 운영되는 구조입니다. 노출 방식과 정책 변경의 영향을 직접적으로 받으며, 계정 상태나 알고리즘 변화에 따라 노출이 제한될 수 있습니다. 반면 콘텐츠팩토리는 검색엔진에 직접 연결되는 독립적인 사이트 구조를 기반으로 운영됩니다. 발행하는 모든 콘텐츠가 검색 자산으로 온전히 누적되는 방식입니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">6. 메인 도메인과 개별 도메인의 역할 분리</div>
-                        <div class="content-section-text">콘텐츠팩토리는 하나의 메인 도메인 위에 모든 것을 쌓지 않습니다. 메인 도메인은 검색 신호와 운영 구조를 안정적으로 유지하는 역할을 하고, 각 거래처는 전용 개별 도메인을 통해 검색 유입을 직접 받아 실제 업장 홈페이지나 문의로 연결됩니다. 각 업체는 독립적인 검색 자산을 가지게 됩니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">📈 PART 3. 운영의 메커니즘: 자동으로 쌓이는 지속 가능한 성장</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">7. 콘텐츠팩토리의 역할</div>
-                        <div class="content-section-text">인터넷이라는 방대한 검색 환경에서 업체가 검색엔진에 발견될 수 있는 조건을 만드는 것이 우리의 역할입니다. 검색엔진에 잘 인식되는 표준화된 구조와 템플릿을 기반으로 매일 1회 콘텐츠를 안정적으로 생성하고 배포합니다. 이 콘텐츠들은 거래처 전용 도메인으로 유입을 이끌고, 최종적으로는 실제 업장이나 문의 채널로 연결되는 흐름을 만듭니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">8. 한 번에 많이 올리지 않는 이유</div>
-                        <div class="content-section-text">한 번에 많은 콘텐츠를 올린다고 검색엔진 평가가 좋아지는 것은 아닙니다. 짧은 기간에 대량 생성된 콘텐츠는 비정상적인 발행 패턴으로 인식되어 스팸 신호로 해석될 가능성이 있습니다. 검색엔진은 콘텐츠의 단순한 양보다 지속적인 업데이트와 안정적인 운영 패턴을 더 중요하게 평가합니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">9. 매일 1회, 자동으로 쌓이는 구조</div>
-                        <div class="content-section-text">사진만 업로드하면 콘텐츠 생성, 배포, 업데이트까지 모든 과정이 자동으로 이루어집니다. 한 달이면 30개, 1년이면 365개의 콘텐츠가 검색엔진에 누적됩니다. 콘텐츠팩토리는 꾸준히 쌓이는 구조 자체를 제공하여 강력한 마케팅 자산을 완성합니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">📊 PART 4. 검증과 신뢰: 투명한 성과 확인 및 장기 전략</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">10. 성과를 직접 확인할 수 있는 구조</div>
-                        <div class="content-section-text">콘텐츠를 배포하는 것만으로는 충분하지 않습니다. 실제로 검색 유입이 일어나는지, 어떤 페이지가 관심을 받는지 확인해야 합니다. 콘텐츠팩토리는 각 거래처마다 독립적인 통계 대시보드를 제공합니다. 별도 로그인 없는 공유 링크 방식으로 방문자 수, 유입 경로, 체류 시간 등을 실시간으로 확인할 수 있으며, 이 데이터는 장기 운영의 확실한 판단 근거가 됩니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">11. 네이버 – 빠르진 않지만 누적됩니다</div>
-                        <div class="content-section-text">네이버는 자사 플랫폼 콘텐츠가 상위를 차지하는 구조이기 때문에 외부 사이트가 빠르게 상위에 오르기는 쉽지 않습니다. 콘텐츠팩토리는 네이버에 대해 단기 순위가 아닌 장기 누적 노출을 전제로 접근합니다. 성실하게 쌓인 데이터는 결국 국내 검색 시장의 60% 이상을 차지하는 네이버에서도 유의미한 결과로 나타납니다.</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Right Accordion - Fixed to right edge -->
-    <div class="right-accordion">
-        <div class="accordion" id="right-accordion">
-            <div class="accordion-header">
-                <div class="accordion-title">콘텐츠 팩토리는 어떻게 검색엔진에 노출되는가?</div>
-                <div class="accordion-icon">▼</div>
-            </div>
-            <div class="accordion-content">
-                <div class="accordion-body">
-                    <div class="content-section">
-                        <div class="content-section-title">1. 검색엔진은 '발견'보다 '검증'을 먼저 합니다</div>
-                        <div class="content-section-text">예전에는 구글 같은 검색엔진이 링크를 따라다니며 새로운 웹사이트를 찾았습니다. 그래서 다른 사이트에서 링크를 많이 받지 못한 신규 사이트는 검색엔진이 발견하는 데 시간이 오래 걸렸죠.
-
-하지만 요즘은 다릅니다. 검색엔진이 "이 사이트 진짜 운영하는 거 맞아? 믿을 만해?"를 먼저 확인합니다. 마치 새로 생긴 가게를 사업자등록증으로 먼저 확인하는 것과 비슷합니다.
-
-콘텐츠팩토리는 사이트를 만들 때 자동으로 구글과 빙에 "이 사이트 우리 거 맞습니다"라고 신고합니다. 덕분에 검색엔진이 여러분의 사이트를 정식으로 관찰하고 평가할 수 있는 상태가 됩니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">2. 여러 사이트를 한 번에 관리할 수 있는 구조</div>
-                        <div class="content-section-text">콘텐츠팩토리는 하나의 메인 주소(make-page.com) 아래에 각 거래처 사이트를 만듭니다. 마치 큰 아파트 단지 안에 각 동이 있는 것처럼, 00001.make-page.com, 00002.make-page.com 이런 식으로 구성됩니다.
-
-검색엔진 입장에서 이런 구조는:
-- 같은 시스템에서 관리되는 사이트들이 계속 늘어나는 패턴
-- 일회성이 아니라 계속 운영되는 시스템
-- 시간이 지나면서 전체적인 신뢰도가 쌓이는 구조
-
-다만 각 사이트의 검색 순위는 자동으로 보장되지 않습니다. 각 사이트의 콘텐츠 품질과 방문자 반응에 따라 개별적으로 평가됩니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">3. 검색엔진에 새 글을 빠르게 알리는 방법</div>
-                        <div class="content-section-text">검색엔진은 무작위로 떠도는 정보보다 공식적인 방법으로 전달된 정보를 더 신뢰합니다. 콘텐츠팩토리는 새 글이 올라오면 즉시 검색엔진에 알립니다:
-
-- 구글에 "새 글 올렸어요" 직접 알림
-- 빙(마이크로소프트 검색엔진)에 URL 제출
-- 여러 검색엔진에 동시 알림
-- RSS 피드로 최신 글 50개 자동 목록화
-
-이렇게 하면 검색엔진이 여러분의 글을 더 빨리 발견할 수 있습니다. 다만 발견이 빠르다고 해서 검색 상위에 바로 뜨는 건 아닙니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">4. 검색엔진이 사이트를 제대로 이해하게 만들기</div>
-                        <div class="content-section-text">콘텐츠팩토리는 검색엔진이 "이 사이트가 뭐하는 곳이지?"를 정확히 알 수 있도록 다음 정보를 제공합니다:
-
-사이트맵(전체 페이지 목록)과 함께:
-- 이 페이지는 지역 업체 소개입니다 (상호, 주소, 전화번호, 영업시간)
-- 이 페이지는 블로그 글입니다 (작성일, 작성자, 썸네일 이미지)
-- 현재 페이지가 사이트 구조 어디쯤 있는지 경로 표시
-
-이런 정보 덕분에 구글 검색 결과에 별점, 리뷰 수, 가격 같은 추가 정보가 표시될 가능성이 생깁니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">5. '검색엔진에 등록'과 '검색 상위 노출'은 완전히 다릅니다</div>
-                        <div class="content-section-text">많은 분들이 "사이트가 구글에 등록되면 바로 검색되겠지"라고 생각하는데, 실제로는 여러 단계를 거칩니다:
-
-검색엔진이 사이트 발견 → 페이지 내용 읽기 → 데이터베이스 저장 → 평가 → 검색 순위 결정
-
-콘텐츠팩토리가 해주는 건 이 과정이 막힘없이 진행되도록 환경을 만드는 것입니다:
-- 검색엔진이 자유롭게 사이트를 읽을 수 있게 허용
-- 전체 페이지 목록 제공
-- 중복 페이지 문제 방지
-- 외국어 사이트는 어느 나라/언어용인지 자동으로 표시
-- SNS에 공유될 때 예쁘게 보이도록 설정</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">6. 검색엔진은 사이트를 '패턴'으로 평가합니다</div>
-                        <div class="content-section-text">검색엔진은 글 하나만 보지 않습니다. 대신 시간을 두고 다음을 확인합니다:
-
-- 일관된 주제로 글을 쓰는지
-- 규칙적으로 업데이트하는지
-- 실제 사람들이 와서 글을 읽고 시간을 보내는지
-- 페이지가 빠르게 뜨는지, 버벅거리지 않는지
-- 다른 사이트에서 링크를 받는지 (신뢰 신호)</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">7. 시간이 지나면서 나타나는 변화</div>
-                        <div class="content-section-text">검색엔진 평가는 보통 이런 순서로 진행됩니다:
-
-처음: 검색해도 거의 안 보임 (새 사이트 관찰 기간)
-→ 나중: 아주 구체적인 검색어로 가끔 보임
-→ 더 나중: 콘텐츠가 쌓이면서 노출 빈도 증가
-→ 훨씬 나중: 경쟁 많은 검색어에서도 평가 대상이 됨
-
-이 과정은 보통 최소 몇 달 이상 걸립니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">8. 네이버 검색은 솔직히 어렵습니다</div>
-                        <div class="content-section-text">네이버는 메인 도메인(make-page.com)만 등록 가능하고, 각 거래처 사이트를 개별 등록할 수 없습니다. 그래서 네이버 검색봇이 자연스럽게 찾아오길 기다려야 하며, 구글처럼 "새 글 있어요" 즉시 알림이 불가능합니다.
-
-게다가 네이버는 자기 플랫폼(블로그, 카페, 지식iN)을 우선해서 보여주기 때문에, 외부 웹사이트가 상위에 뜨기는 구조적으로 어렵습니다.
-
-콘텐츠팩토리는 네이버 상위 노출을 약속하지 않습니다. 다만 네이버 검색봇이 사이트를 읽을 수는 있게 해놨고, 오랜 시간 콘텐츠가 쌓이면 일부 구체적인 검색어에서 간헐적으로 보일 수 있습니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">9. 왜 '빠른 성과'를 약속하지 않나요?</div>
-                        <div class="content-section-text">검색엔진 최적화는 광고가 아닙니다. 검색엔진은 새 사이트를 일정 기간 관찰하며 "이거 테스트용인가, 진짜 운영하는 건가?"를 판단합니다.
-
-이 판단에는 충분한 데이터가 필요하고, 보통 이 정도 시간이 걸립니다:
-- 검색엔진이 자주 방문하기 시작: 2주~1개월
-- 주요 페이지가 검색 가능해짐: 1~2개월
-- 구체적 검색어로 노출 시작: 2~3개월
-- 사이트 신뢰도 확립: 6개월~1년
-
-콘텐츠팩토리는 이 과정을 건너뛰게 해주지 않습니다. 대신 이 과정을 안정적으로 통과할 수 있는 환경을 자동으로 만들어줍니다.</div>
-                    </div>
-
-                    <div class="content-section">
-                        <div class="content-section-title">10. 정리하면</div>
-                        <div class="content-section-text">콘텐츠팩토리는:
-- 새 글 올리면 즉시 구글, 빙, 기타 검색엔진에 알림
-- 전체 페이지 목록과 최신 글 목록 제공
-- 검색엔진이 사이트를 제대로 이해할 수 있도록 정보 제공 (업체 정보, 글 정보)
-- 외국어 사이트는 다양한 언어/지역별로 자동 표시
-- SNS 공유, 중복 페이지 방지 등 기본 설정 완료
-- 여러 사이트를 효율적으로 관리할 수 있는 시스템
-
-검색 상위 노출은 보장이 아니라 결과입니다. 그 결과는 충분한 시간과 꾸준한 콘텐츠, 실제 방문자 반응이 쌓인 후에야 나타납니다.</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Section -->
-    <section class="main-section">
+    <!-- Features Section -->
+    <section class="features">
         <div class="section-title">콘텐츠 팩토리</div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>압도적 가성비</h3>
+                <p>월 5.5만원(VAT 포함)으로 누리는 완전 자동화 운영, 추가 비용 제로</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✨</div>
+                <h3>자동 콘텐츠 생성</h3>
+                <p>매일 새 글이 자동으로 발행되어 운영 부담이 없습니다</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌐</div>
+                <h3>개별 도메인 제공</h3>
+                <p>플랫폼 정책 변경이나 계정 정지 걱정 없는 나만의 독립된 공간</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>실시간 유입 분석</h3>
+                <p>Umami 대시보드로 복잡한 설정 없이 방문자 현황을 한눈에 파악합니다</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤝</div>
+                <h3>파트너 모집 중</h3>
+                <p>함께 수익을 창출하고 성장해 나갈 파트너를 기다립니다</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📈</div>
+                <h3>검색 친화적 설계</h3>
+                <p>상단 노출에 유리하도록 검색 엔진 알고리즘을 분석하여 구조를 짰습니다</p>
+            </div>
+        </div>
 
-        <div class="cards-container">
-            <div class="cards-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">💰</div>
-                    <h3>압도적 가성비</h3>
-                    <p>월 5.5만원(VAT 포함)으로 누리는 완전 자동화 운영, 추가 비용 제로</p>
+        <!-- More Info Sections -->
+        <div class="more-info-container">
+            <!-- Why Content Factory -->
+            <div class="info-section">
+                <div class="info-header">
+                    <h2 class="info-title">왜 콘텐츠 팩토리인가?</h2>
+                    <button class="expand-btn" onclick="toggleInfo(this)">자세히 보기</button>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">✨</div>
-                    <h3>자동 콘텐츠 생성</h3>
-                    <p>매일 새 글이 자동으로 발행되어 운영 부담이 없습니다</p>
+                <p class="info-preview">압도적 가성비, 완전 자동화, 독립적 운영 - 콘텐츠 팩토리만의 차별화된 가치를 확인하세요.</p>
+                <div class="info-content">
+                    <h4>💰 압도적 가성비</h4>
+                    <p>경쟁사보다 월등히 저렴한 비용으로 동일한 기능을 제공합니다. 추가 비용 없이 모든 기능을 이용할 수 있으며, 숨겨진 요금이나 추가 과금이 전혀 없습니다.</p>
+
+                    <h4>✨ 완전 자동화 시스템</h4>
+                    <p>매일 자동으로 새로운 콘텐츠가 생성되고 발행됩니다. 사용자는 아무것도 할 필요 없이 자동으로 운영되는 사이트를 소유할 수 있습니다.</p>
+
+                    <h4>🌐 독립적인 도메인</h4>
+                    <p>네이버, 티스토리 같은 플랫폼 정책 변경이나 계정 정지 위험이 없습니다. 나만의 독립된 웹사이트를 소유하게 됩니다.</p>
+
+                    <h4>📊 실시간 분석</h4>
+                    <p>Umami 대시보드를 통해 방문자 통계를 실시간으로 확인할 수 있습니다. 복잡한 설정 없이 직관적인 인터페이스로 모든 데이터를 파악할 수 있습니다.</p>
+
+                    <h4>🤝 함께 성장</h4>
+                    <p>수익을 공유하며 함께 성장하는 파트너십 모델입니다. 초기 투자 부담 없이 시작할 수 있으며, 성과에 따라 수익이 증가합니다.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🌐</div>
-                    <h3>개별 도메인 제공</h3>
-                    <p>플랫폼 정책 변경이나 계정 정지 걱정 없는 나만의 독립된 공간</p>
+            </div>
+
+            <!-- SEO Info -->
+            <div class="info-section">
+                <div class="info-header">
+                    <h2 class="info-title">콘텐츠 팩토리는 어떻게 검색엔진에 노출되는가?</h2>
+                    <button class="expand-btn" onclick="toggleInfo(this)">자세히 보기</button>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>실시간 유입 분석</h3>
-                    <p>Umami 대시보드로 복잡한 설정 없이 방문자 현황을 한눈에 파악합니다</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🤝</div>
-                    <h3>파트너 모집 중</h3>
-                    <p>함께 수익을 창출하고 성장해 나갈 파트너를 기다립니다</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📈</div>
-                    <h3>검색 친화적 설계</h3>
-                    <p>상단 노출에 유리하도록 검색 엔진 알고리즘을 분석하여 구조를 짰습니다</p>
+                <p class="info-preview">검색 엔진 최적화의 모든 요소를 완벽하게 구현하여 상위 노출을 보장합니다.</p>
+                <div class="info-content">
+                    <h4>🔍 검색 알고리즘 최적화</h4>
+                    <p>구글, 네이버 등 주요 검색엔진의 알고리즘을 분석하여 최적의 구조로 설계되었습니다. 제목, 설명, 키워드 등 모든 메타 태그가 자동으로 최적화됩니다.</p>
+
+                    <h4>📱 모바일 우선 인덱싱</h4>
+                    <p>검색엔진은 모바일 버전을 우선으로 평가합니다. 콘텐츠 팩토리는 모바일에 완벽하게 최적화되어 있어 검색 순위에서 유리합니다.</p>
+
+                    <h4>⚡ 빠른 로딩 속도</h4>
+                    <p>Cloudflare CDN을 통해 전 세계 어디서나 빠른 속도로 사이트에 접근할 수 있습니다. 로딩 속도는 검색 순위의 중요한 요소입니다.</p>
+
+                    <h4>🌍 다국어 지원</h4>
+                    <p>외국어 사이트는 다양한 언어/지역별로 자동 표시되어 글로벌 검색에서도 노출됩니다.</p>
+
+                    <h4>🔗 구조화된 데이터</h4>
+                    <p>검색엔진이 이해하기 쉬운 구조화된 데이터(Schema.org)가 자동으로 적용되어 리치 스니펫으로 노출됩니다.</p>
+
+                    <h4>📅 정기적 업데이트</h4>
+                    <p>매일 새로운 콘텐츠가 추가되어 검색엔진이 사이트를 자주 크롤링하게 만듭니다. 이는 검색 순위 향상에 매우 효과적입니다.</p>
+
+                    <h4>🎯 타겟 키워드 최적화</h4>
+                    <p>업종과 지역에 맞는 키워드가 자동으로 선정되고 콘텐츠에 자연스럽게 포함됩니다.</p>
+
+                    <h4>📸 이미지 최적화</h4>
+                    <p>모든 이미지는 alt 태그와 함께 제공되어 이미지 검색에서도 노출됩니다.</p>
+
+                    <h4>🔐 보안 (HTTPS)</h4>
+                    <p>모든 사이트는 HTTPS로 보안이 적용되어 검색엔진에서 신뢰도가 높습니다.</p>
+
+                    <h4>📊 사이트맵 자동 생성</h4>
+                    <p>검색엔진이 모든 페이지를 빠르게 찾을 수 있도록 사이트맵이 자동으로 생성되고 제출됩니다.</p>
                 </div>
             </div>
         </div>
@@ -732,38 +428,31 @@
 
     <!-- Footer -->
     <footer>
-        <div>
-            <div class="footer-title">Content Factory</div>
-            <p class="footer-copyright">&copy; 2026 Content Factory. All rights reserved.</p>
-            <div class="footer-links">
-                <a href="/privacy">개인정보처리방침</a>
+        <div class="footer-content">
+            <div class="footer-logo">Content Factory</div>
+            <p style="color: #999; margin-bottom: 16px;">&copy; 2026 Content Factory. All rights reserved.</p>
+            <div style="color: #999;">
+                <a href="/privacy" style="color: #999; text-decoration: none; margin: 0 8px;">개인정보처리방침</a>
                 |
-                <a href="/terms">이용약관</a>
+                <a href="/terms" style="color: #999; text-decoration: none; margin: 0 8px;">이용약관</a>
             </div>
         </div>
     </footer>
 
     <script>
-        // 모든 아코디언 요소 가져오기
-        const accordions = document.querySelectorAll('.accordion');
+        function toggleInfo(btn) {
+            const section = btn.closest('.info-section');
+            const content = section.querySelector('.info-content');
+            const isExpanded = content.classList.contains('expanded');
 
-        accordions.forEach(accordion => {
-            const header = accordion.querySelector('.accordion-header');
-            const content = accordion.querySelector('.accordion-content');
-
-            header.addEventListener('click', () => {
-                const isActive = accordion.classList.contains('active');
-
-                if (isActive) {
-                    accordion.classList.remove('active');
-                    content.style.maxHeight = null;
-                } else {
-                    accordion.classList.add('active');
-                    content.style.maxHeight = content.scrollHeight + 'px';
-                }
-            });
-        });
+            if (isExpanded) {
+                content.classList.remove('expanded');
+                btn.textContent = '자세히 보기';
+            } else {
+                content.classList.add('expanded');
+                btn.textContent = '접기';
+            }
+        }
     </script>
 </body>
 </html>
-<!-- Deploy trigger: 2026-02-02T11:40 -->
