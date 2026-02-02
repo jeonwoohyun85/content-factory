@@ -77,20 +77,28 @@ export async function getClientFromSheetsForPosting(subdomain, env) {
             const prompt = `Translate the following text to ${langCode}. Return ONLY a valid JSON object with the exact same keys, no markdown:\n\n{\n${fieldsJson}\n}\n\nIMPORTANT: Return ONLY the JSON object.`;
 
             const translateResponse = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+              'https://api.anthropic.com/v1/messages',
               {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'x-api-key': env.ANTHROPIC_API_KEY,
+                  'anthropic-version': '2023-06-01',
+                  'content-type': 'application/json'
+                },
                 body: JSON.stringify({
-                  contents: [{"parts": [{"text": prompt}]}],
-                  generationConfig: { temperature: 0.3, maxOutputTokens: 8000 }
+                  model: 'claude-3-5-haiku-20241022',
+                  max_tokens: 1024,
+                  messages: [{
+                    role: 'user',
+                    content: [{ type: 'text', text: prompt }]
+                  }]
                 })
               }
             );
 
             if (translateResponse.ok) {
               const data = await translateResponse.json();
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              const text = data.content?.[0]?.text || '';
               const jsonMatch = text.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const translations = JSON.parse(jsonMatch[0]);
@@ -118,7 +126,7 @@ export async function getClientFromSheetsForPosting(subdomain, env) {
 
 }
 
-export async function searchWithGeminiForPosting(client, env) {
+export async function searchWithClaudeForPosting(client, env) {
 
   const prompt = `
 
@@ -148,25 +156,35 @@ export async function searchWithGeminiForPosting(client, env) {
 
     const response = await fetchWithTimeout(
 
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${env.GEMINI_API_KEY}`,
+      'https://api.anthropic.com/v1/messages',
 
       {
 
         method: 'POST',
 
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+
+          'x-api-key': env.ANTHROPIC_API_KEY,
+
+          'anthropic-version': '2023-06-01',
+
+          'content-type': 'application/json'
+
+        },
 
         body: JSON.stringify({
 
-          contents: [{"parts": [{"text": prompt}]}],
+          model: 'claude-3-5-haiku-20241022',
 
-          generationConfig: {
+          max_tokens: 1024,
 
-            temperature: 0.7,
+          messages: [{
 
-            maxOutputTokens: 600
+            role: 'user',
 
-          }
+            content: [{ type: 'text', text: prompt }]
+
+          }]
 
         })
 
@@ -180,7 +198,9 @@ export async function searchWithGeminiForPosting(client, env) {
 
     if (!response.ok) {
 
-      throw new Error(`Gemini API HTTP error: ${response.status}`);
+      const errorText = await response.text();
+
+      throw new Error(`Claude API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
 
     }
 
@@ -194,49 +214,33 @@ export async function searchWithGeminiForPosting(client, env) {
 
     if (data.error) {
 
-      throw new Error(`Gemini API error: ${data.error.message}`);
+      throw new Error(`Claude API error: ${data.error.message}`);
 
     }
 
 
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+    if (!data.content || !data.content[0] || !data.content[0].text) {
 
-      throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
+      throw new Error(`Unexpected Claude API response structure: ${JSON.stringify(data)}`);
 
     }
 
 
 
-    return data.candidates[0].content.parts[0].text;
+    return data.content[0].text;
 
   } catch (error) {
 
-    console.error(`searchWithGeminiForPosting 에러: ${error.message}`);
+    console.error(`searchWithClaudeForPosting 에러: ${error.message}`);
 
-    // 폴백: 기본 키워드 반환
-    const fallbackText = `
-최신 트렌드:
-${client.industry || client.business_name} 분야의 최신 트렌드와 소비자 관심사를 반영한 콘텐츠입니다.
-
-검색 키워드:
-1. ${client.industry || client.business_name}
-2. 추천
-3. 인기
-4. 후기
-5. 정보
-
-소비자 관심사:
-품질, 가격, 서비스, 편의성에 대한 관심이 높습니다.
-`;
-    console.log('Gemini API 실패 - 기본 트렌드 텍스트 사용');
-    return fallbackText;
+    throw error;
 
   }
 
 }
 
-export async function generatePostWithGeminiForPosting(client, trendsData, images, env) {
+export async function generatePostWithClaudeForPosting(client, trendsData, images, env) {
 
   const hasImages = images.length > 0;
 
@@ -394,17 +398,21 @@ ${trendsData}
 
 
 
-  const parts = [{ text: prompt }];
+  const content = [{ type: 'text', text: prompt }];
 
 
 
   for (const image of images) {
 
-    parts.push({
+    content.push({
 
-      inline_data: {
+      type: 'image',
 
-        mime_type: image.mimeType,
+      source: {
+
+        type: 'base64',
+
+        media_type: image.mimeType,
 
         data: image.data
 
@@ -420,25 +428,35 @@ ${trendsData}
 
     const response = await fetchWithTimeout(
 
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${env.GEMINI_API_KEY}`,
+      'https://api.anthropic.com/v1/messages',
 
       {
 
         method: 'POST',
 
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+
+          'x-api-key': env.ANTHROPIC_API_KEY,
+
+          'anthropic-version': '2023-06-01',
+
+          'content-type': 'application/json'
+
+        },
 
         body: JSON.stringify({
 
-          contents: [{"parts": parts}],
+          model: 'claude-sonnet-4-5-20250929',
 
-          generationConfig: {
+          max_tokens: 4096,
 
-            temperature: 0.8,
+          messages: [{
 
-            maxOutputTokens: 8000
+            role: 'user',
 
-          }
+            content: content
+
+          }]
 
         })
 
@@ -456,7 +474,7 @@ ${trendsData}
 
       const errorText = await response.text();
 
-      throw new Error(`Gemini API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+      throw new Error(`Claude API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
 
     }
 
@@ -470,21 +488,21 @@ ${trendsData}
 
     if (data.error) {
 
-      throw new Error(`Gemini API error: ${data.error.message}`);
+      throw new Error(`Claude API error: ${data.error.message}`);
 
     }
 
 
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+    if (!data.content || !data.content[0] || !data.content[0].text) {
 
-      throw new Error(`Unexpected Gemini API response structure: ${JSON.stringify(data)}`);
+      throw new Error(`Unexpected Claude API response structure: ${JSON.stringify(data)}`);
 
     }
 
 
 
-    const text = data.candidates[0].content.parts[0].text;
+    const text = data.content[0].text;
 
 
 
@@ -498,21 +516,13 @@ ${trendsData}
 
 
 
-    throw new Error('Failed to parse Gemini response');
+    throw new Error('Failed to parse Claude response');
 
   } catch (error) {
 
-    console.error(`generatePostWithGeminiForPosting 에러: ${error.message}`);
+    console.error(`generatePostWithClaudeForPosting 에러: ${error.message}`);
 
-    // 폴백: 기본 포스트 반환
-    const fallbackTitle = `${client.business_name} - ${client.description || client.industry}`;
-    const fallbackBody = `${client.business_name}을(를) 소개합니다.\n\n${client.description || client.industry} 분야에서 고객 여러분께 최상의 서비스를 제공하고 있습니다.\n\n${trendsData.substring(0, 300)}\n\n언제든지 방문해 주시면 친절하게 안내해 드리겠습니다.\n\n고객 만족을 위해 항상 최선을 다하고 있습니다.\n\n많은 관심과 방문 부탁드립니다.\n\n더 자세한 정보는 문의 주시기 바랍니다.\n\n감사합니다.`;
-
-    console.log('Gemini API 실패 - 기본 포스트 반환');
-    return {
-      title: fallbackTitle,
-      body: fallbackBody
-    };
+    throw error;
 
   }
 
