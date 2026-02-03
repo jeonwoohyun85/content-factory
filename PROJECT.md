@@ -175,24 +175,7 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: Firebase Hosting 전환 ⚠️ 50%
-
-**목표:** Cloudflare Pages → Firebase Hosting 이전
-
-**완료:**
-- ✅ firebase.json 설정
-- ✅ .firebaserc 프로젝트 연결 (content-factory-1770105623)
-- ✅ landing/ public 디렉토리 지정
-- ✅ Cache-Control 헤더 설정
-- ✅ SPA 라우팅 설정
-
-- ✅ Cloudflare Workers 완전 폐기 (workers/ 폴더)
-- ✅ deploy-workers.yml 워크플로우 제거
-- ✅ Cloudflare 의존성 완전 제거
-
-**완료일:** 2026-02-04
-
----
+### Phase 2: Firebase Hosting 전환 ✅ 90%**목표:** Cloudflare Pages → Firebase Hosting 이전**완료:**- ✅ firebase.json 설정- ✅ .firebaserc 프로젝트 연결 (content-factory-1770105623)- ✅ landing/ public 디렉토리 지정- ✅ Cache-Control 헤더 설정- ✅ SPA 라우팅 설정- ✅ Firebase Hosting 자동 배포 워크플로우 추가- ✅ 실제 배포 성공 (2026-02-03)- ✅ Cloudflare Secrets 삭제**남은 작업:**- ⏳ 커스텀 도메인 연결 확인 (make-page.com)- ⏳ Cloudflare Pages 완전 제거 확인---
 
 ### Phase 3: 문서 및 정리 ⏳ 0%
 
