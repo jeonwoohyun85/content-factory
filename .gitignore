@@ -1,7 +1,39 @@
+# Dependencies
 node_modules/
-.wrangler/
+package-lock.json
+
+# Environment variables
 .env
-.dev.vars
-service-account.json
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
 *.log
-.umami-credentials.txt
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Local temporary files
+posting-*.js
+sheets-*.js
+check-*.js
+*-current.js
+*-broken.js
+*-test.js
+preview/
