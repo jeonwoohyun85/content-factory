@@ -166,8 +166,7 @@ Cloud Monitoring 알림
   - /test-posting (단일 테스트)
   - /refresh (캐시 삭제)
   - /{subdomain} (거래처 페이지)
-
-- ✅ Cloudflare Workers 완전 폐기 (workers/ 폴더)
+- ✅ Cloudflare Workers 완전 폐기 (workers/ 폴더 삭제)
 - ✅ deploy-workers.yml 워크플로우 제거
 - ✅ Cloudflare 의존성 완전 제거
 
@@ -175,7 +174,25 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: Firebase Hosting 전환 ✅ 100%
+### Phase 2: Firebase Hosting 전환 ⚠️ 50%
+
+**목표:** Cloudflare Pages → Firebase Hosting 이전
+
+**완료:**
+- ✅ firebase.json 설정
+- ✅ .firebaserc 프로젝트 연결 (content-factory-1770105623)
+- ✅ landing/ public 디렉토리 지정
+- ✅ Cache-Control 헤더 설정
+- ✅ SPA 라우팅 설정
+- ✅ Firebase Hosting 자동 배포 워크플로우 추가
+- ✅ 실제 배포 실행 (2026-02-03)
+
+**남은 작업:**
+- ❌ 커스텀 도메인 연결 (make-page.com → Firebase Hosting)
+- ❌ DNS 전환 (Cloudflare → Firebase)
+- ❌ Cloudflare Pages 제거
+
+---
 
 ### Phase 3: 문서 및 정리 ⏳ 0%
 
@@ -186,9 +203,7 @@ Cloud Monitoring 알림
 - ❌ 로컬 CLAUDE.md ↔ 글로벌 CLAUDE.md 동기화
 - ❌ 시스템 현황 섹션 자동 업데이트 (Google Cloud 기준)
 - ❌ 배포 히스토리 정리 (2026-02-03 이후)
-- ❌ workers/ 폴더 완전 삭제
-- ❌ wrangler.toml 삭제
-- ❌ GitHub Actions 워크플로우 정리 (deploy-workers.yml 제거)
+- ❌ functions/worker-main.js 레거시 파일 삭제
 
 ---
 
@@ -211,7 +226,8 @@ Cloud Monitoring 알림
 
 ---
 
-**현재 우선순위:** Phase 1 완료 (Cloud Functions 전환)
+**현재 우선순위:** Phase 2 완료 (Firebase Hosting DNS 전환)
+
 
 
 ## 포스팅 생성 규칙
