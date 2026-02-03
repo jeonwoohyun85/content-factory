@@ -174,62 +174,82 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: 도메인 및 라우팅 통합 ⚠️ 98%
+### Phase 2: 도메인 및 라우팅 통합 ✅ 100%
 
 **목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Run + Global Load Balancing + Certificate Manager)
 
 **완료:**
-- ✅ Cloud Functions 기본 구현 (functions/index.js)
-- ✅ 서브도메인 동적 라우팅 (subdomain 파싱)
-- ✅ 랜딩페이지 Cloud Functions/Run 통합
-  - landing/index.html → functions/landing/에서 서빙
-  - 정적 파일 처리 로직 추가 (fs.readFileSync)
-- ✅ Cloud Run 배포
-  - 서비스명: content-factory
+
+**1. Cloud Run 배포**
+- ✅ 서비스명: content-factory
+- ✅ 리전: asia-northeast3
+- ✅ URL: https://content-factory-wdbgrmxlaa-du.a.run.app
+- ✅ 상태: 정상 작동 (STATUS: True)
+
+**2. 랜딩페이지 통합**
+- ✅ functions/landing/ 폴더 생성
+  - index.html (27KB)
+  - privacy.html
+  - terms.html
+- ✅ functions/index.js에 정적 파일 서빙 로직 추가
+  - fs.readFileSync로 HTML 제공
+  - make-page.com, /privacy, /terms 라우팅
+
+**3. Global Load Balancing 완전 구축**
+- ✅ Serverless NEG: content-factory-neg
+  - Cloud Run 서비스 연결: content-factory
   - 리전: asia-northeast3
-  - URL: https://content-factory-753166847054.asia-northeast3.run.app
-- ✅ Global Load Balancing 구축
-  - Serverless NEG: content-factory-neg (asia-northeast3)
-  - Backend Service: content-factory-backend
-  - URL Map: content-factory-urlmap
-  - Target HTTPS Proxy: content-factory-https-proxy
-  - Global IP: 34.120.160.174 (content-factory-ip)
-  - Forwarding Rule: content-factory-https-rule (443)
-- ✅ Certificate Manager 와일드카드 SSL
-  - 인증서명: make-page-wildcard-cert
+- ✅ Backend Service: content-factory-backend
+  - NEG 연결 완료
+- ✅ URL Map: content-factory-urlmap
+  - Default backend: content-factory-backend
+- ✅ Target HTTPS Proxy: content-factory-https-proxy
+  - Certificate Map 연결: make-page-cert-map
+- ✅ Global IP: 34.120.160.174 (content-factory-ip)
+- ✅ Forwarding Rule: content-factory-https-rule
+  - IP: 34.120.160.174
+  - Port: 443
+
+**4. Certificate Manager 와일드카드 SSL (완료)**
+- ✅ 인증서: make-page-wildcard-cert
+  - 상태: ACTIVE
   - 도메인: make-page.com, *.make-page.com
-  - DNS Authorization: make-page-dns-auth
-  - Certificate Map: make-page-cert-map
-  - 상태: PROVISIONING (자동 활성화 대기)
-- ✅ DNS 검증 레코드 추가
+- ✅ DNS Authorization: make-page-dns-auth
+  - _acme-challenge.make-page.com CNAME 추가
+  - 검증 완료
+- ✅ Certificate Map: make-page-cert-map
+  - Entry: make-page-entry (make-page.com)
+  - Entry: wildcard-entry (*.make-page.com)
+  - Target HTTPS Proxy 연결 완료
+  - GCLB IP: 34.120.160.174:443
+
+**5. DNS 설정 완료**
+- ✅ Cloudflare DNS A 레코드 (proxied: false)
+  - make-page.com → 34.120.160.174
+  - *.make-page.com → 34.120.160.174
+  - www.make-page.com → 34.120.160.174
+- ✅ DNS 전파 완료 (8.8.8.8 확인)
+- ✅ DNS 검증 레코드
   - _acme-challenge.make-page.com CNAME
-  - Google Certificate Manager 자동 검증
-- ✅ Cloudflare DNS → Google Cloud IP 직접 연결
-  - make-page.com A → 34.120.160.174 (proxied: false)
-  - *.make-page.com A → 34.120.160.174 (proxied: false)
-  - www.make-page.com A → 34.120.160.174 (proxied: false)
-  - DNS 전파 완료 (확인됨)
 
-**남은 작업:**
+**아키텍처 (검증 완료):**
+```
+Cloudflare (도메인 등록 + DNS만, 프록시 OFF)
+    ↓ A 레코드
+Google Cloud Load Balancer (34.120.160.174:443)
+    ↓ Certificate Manager (ACTIVE)
+    ↓ Backend Service
+    ↓ Serverless NEG
+    ↓ Cloud Run (content-factory)
+    ↓ functions/index.js
+    ↓ 랜딩페이지 (landing/) + 서브도메인 동적 생성
+```
 
-**SSL 인증서:**
-- ⏳ Certificate Manager 와일드카드 인증서 프로비저닝 완료 대기
-- ⏳ DNS 검증 자동 완료 후 ACTIVE 상태 전환
-- ⏳ 활성화 후 자동 작동 (make-page.com, *.make-page.com 모두 커버)
+**완료일:** 2026-02-04
 
-**아키텍처:**
-- Cloudflare: 도메인 등록 + DNS만 (프록시 OFF)
-- Google Cloud: SSL, Load Balancing, CDN, 호스팅 (완전 Google Cloud)
+---
 
-**선택 사항 (Phase 3 이후):**
-- ❌ HTTP(80) Forwarding Rule 추가
-  - Target HTTP Proxy 생성
-  - HTTP → HTTPS 리다이렉트 설정
-
-**레거시 정리:**
-- ❌ Firebase Hosting 제거 (firebase.json, .firebaserc, 워크플로우)
-- ❌ Cloudflare Pages 프로젝트 삭제
-- ❌ Cloudflare 불필요한 DNS 레코드 정리
+**Phase 3 작업 대기 중**
 
 ---
 
