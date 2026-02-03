@@ -35,7 +35,7 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
   const accessToken = await client.getAccessToken();
 
   const projectId = process.env.GCP_PROJECT || 'content-factory-1770105623';
-  const location = 'asia-northeast3';
+  const location = 'us-central1';
   const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
 
   const response = await fetchWithTimeout(
