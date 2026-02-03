@@ -418,13 +418,13 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 - **필터**: `subscription = '활성'`
 
----
 
-## 데이터 저장
 
-### 저장소 시트 (전체 보관)
 
-- **모든 포스팅 영구 보관**
+
+
+
+
 
 - **행 높이**: 21px
 
@@ -440,61 +440,6 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 - **트랜잭션**: 최신포스팅 성공 → 저장소 저장
 
-### 저장 데이터
-
-```
-
-도메인, 상호명, 제목, URL, 생성일시, 언어, 업종, 폴더명, 본문, 이미지
-
-```
-
----
-
-## 예외 처리
-
-- **이미지 없음**: 텍스트만 8~10문단 생성
-
-- **폴더 없음**: "No folders found" 에러, 중단
-
-- **최신포스팅 실패**: 전체 중단
-
-- **저장소 실패**: 로그만, 계속 진행
-
-- **관리자 업데이트 실패**: 로그만
-
----
-
-## 주요 기능
-
-### 자동 포스팅 ✅
-
-**워크플로우**: Cron(09:00) → Queue(병렬5) → Gemini API → Sheets 업데이트
-
-**설명**: 매일 09:00 자동으로 거래처별 블로그 포스팅 생성
-
-**핵심 함수**: scheduled(), queue()
-
-**사용 컴포넌트**: Cron Trigger, Queue, Gemini 2.5 Flash, Gemini 3.0 Pro, Google Sheets, Google Drive
-
-### 거래처 페이지 ✅
-
-**워크플로우**: Request → Sheets 조회 → 동적 페이지 생성
-
-**설명**: *.make-page.com 서브도메인으로 거래처 정보 페이지 제공
-
-**핵심 함수**: fetch()
-
-**사용 컴포넌트**: Cloudflare Workers, Google Sheets, Google Drive
-
-### 포스팅 관리 ✅
-
-**워크플로우**: API 요청 → Sheets 조회/삭제
-
-**설명**: 포스팅 목록 조회 및 삭제 (비밀번호 인증)
-
-**핵심 함수**: fetch()
-
-**사용 컴포넌트**: API Endpoint, Google Sheets
 
 ### 통계 (Umami) ✅
 
