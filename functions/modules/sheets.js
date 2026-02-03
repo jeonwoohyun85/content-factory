@@ -1,6 +1,6 @@
 // Google Sheets CRUD
 
-const { fetchWithTimeout, parseCSV, parseCSVLine, normalizeClient, normalizeLanguage, getColumnLetter, removeLanguageSuffixFromBusinessName } = require('./utils.js');
+const { fetchWithTimeout, parseCSV, parseCSVLine, normalizeClient, normalizeLanguage, getColumnLetter, removeLanguageSuffixFromBusinessName, normalizeSubdomain } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 const { translateWithCache } = require('./translation-cache.js');
 
@@ -39,7 +39,7 @@ async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
     let targetRowIndex = -1;
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      const rowDomain = (row[domainIndex] || '').replace('.make-page.com', '').replace('/', '');
+      const rowDomain = normalizeSubdomain(row[domainIndex] || '');
       if (rowDomain === subdomain) {
         targetRowIndex = i + 1;
         break;
@@ -148,7 +148,7 @@ async function getClientFromSheets(clientId, env) {
 
       if (normalizedSubdomain.includes('.make-page.com')) {
 
-        normalizedSubdomain = normalizedSubdomain.replace('.make-page.com', '').replace('/', '');
+        normalizedSubdomain = normalizeSubdomain(normalizedSubdomain);
 
       }
 
@@ -193,7 +193,7 @@ async function getClientFromSheets(clientId, env) {
 
         if (fieldsToTranslate.length > 0) {
           try {
-            const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+            const subdomain = normalizeSubdomain(client.subdomain);
             const translations = await translateWithCache(fieldsToTranslate, langCode, subdomain, env);
 
             if (translations.business_name) client.business_name = translations.business_name;
@@ -301,9 +301,9 @@ async function getPostsFromArchive(subdomain, env) {
 
             const domain = row[domainIndex] || '';
 
-            const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+            const normalizedDomain = normalizeSubdomain(domain);
 
-            const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+            const normalizedSubdomain = normalizeSubdomain(domain);
 
 
 
@@ -391,9 +391,9 @@ async function getPostsFromArchive(subdomain, env) {
 
             const domain = row[domainIndex] || '';
 
-            const normalizedDomain = domain.replace('.make-page.com', '').replace('/', '');
+            const normalizedDomain = normalizeSubdomain(domain);
 
-            const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+            const normalizedSubdomain = normalizeSubdomain(domain);
 
 
 

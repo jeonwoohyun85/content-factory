@@ -1,7 +1,7 @@
 // 포스팅 자동화 헬퍼 함수
 
 const { GoogleAuth } = require('google-auth-library');
-const { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName } = require('./utils.js');
+const { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName, normalizeSubdomain } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 const { autoResizeBusinessNameColumns } = require('./sheets.js');
 const { translateWithCache } = require('./translation-cache.js');
@@ -97,7 +97,7 @@ async function getClientFromSheetsForPosting(subdomain, env) {
 
     const client = clients.find(c => {
 
-      let normalized = (c.subdomain || '').replace('.make-page.com', '').replace('/', '');
+      let normalized = normalizeSubdomain(c.subdomain);
 
       return normalized === subdomain && c.subscription === '활성';
 
@@ -745,7 +745,7 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
 
 
-    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+    const normalizedSubdomain = normalizeSubdomain(subdomain);
 
     const domain = `${normalizedSubdomain}.make-page.com`;
 
@@ -875,11 +875,11 @@ async function removeDuplicatesFromLatestPosting(env, domain, latestSheetId, acc
     }
 
     // 정규화된 도메인으로 매칭
-    const normalizedDomain = domain.replace('.make-page.com', '');
+    const normalizedDomain = normalizeSubdomain(domain);
     const matchingRows = [];
 
     for (let i = 1; i < rows.length; i++) {
-      const rowDomain = (rows[i][domainIndex] || '').replace('.make-page.com', '');
+      const rowDomain = normalizeSubdomain(rows[i][domainIndex] || '');
       if (rowDomain === normalizedDomain) {
         matchingRows.push({
           index: i + 1,
@@ -1106,9 +1106,9 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
     // 도메인 정규화 비교
 
-        const normalizedStoredDomain = rows[i][domainIndex]?.replace('.make-page.com', '') || '';
+        const normalizedStoredDomain = normalizeSubdomain(rows[i][domainIndex]) || '';
 
-        const normalizedSearchDomain = domain.replace('.make-page.com', '');
+        const normalizedSearchDomain = normalizeSubdomain(domain);
 
 
 
