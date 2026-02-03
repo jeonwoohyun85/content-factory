@@ -298,7 +298,8 @@ Google Cloud Load Balancer (34.120.160.174:443)
   - 알림: Telegram으로 즉시 전송
 - ✅ Cloud Logging → BigQuery 내보내기
   - Dataset: logs (asia-northeast3)
-  - Sink: error-logs-bigquery (severity>=ERROR)
+  - Sink 1: error-logs-bigquery (severity>=ERROR)
+  - Sink 2: scheduler-logs-bigquery (크론 감시)
   - IAM 권한 부여 완료
 - ✅ Cloud Monitoring Uptime Check
   - 이름: make-page-uptime
@@ -306,8 +307,17 @@ Google Cloud Load Balancer (34.120.160.174:443)
   - 간격: 1분
   - Timeout: 10초
   - 리전: asia-pacific
+- ✅ Cloud Trace (성능 모니터링)
+  - 함수 실행 시간 추적
+  - API 응답 시간 분석
+  - 병목 지점 파악
+- ✅ Cloud Billing Budget (비용 알림)
+  - 월간 예산: $50 USD
+  - 알림 임계값: 90%
+  - 이메일 알림 활성화
 - ⏸️ Cloud Monitoring 대시보드 (웹 콘솔 권장)
   - 링크: https://console.cloud.google.com/monitoring/dashboards?project=content-factory-1770105623
+  - 시각화: 실행 횟수, 에러 추이, 응답 시간, 크론 성공률
 
 **Cloudflare 정리:**
 - ✅ Cloudflare Pages 제거
