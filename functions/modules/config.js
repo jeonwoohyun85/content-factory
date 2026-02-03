@@ -250,4 +250,9 @@ const LANGUAGE_TEXTS = {
   }
 };
 
-module.exports = { getFromCache,addToCache };
+module.exports = {
+  TRANSLATION_CACHE,
+  LANGUAGE_TEXTS,
+  getFromCache,
+  addToCache
+};
