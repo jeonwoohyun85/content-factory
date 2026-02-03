@@ -1,6 +1,8 @@
 const functions = require('@google-cloud/functions-framework');
 const { Firestore } = require('@google-cloud/firestore');
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+const fs = require('fs');
+const path = require('path');
 
 const firestore = new Firestore({
   projectId: process.env.GCP_PROJECT || 'content-factory-1770105623'
@@ -68,8 +70,18 @@ functions.http('main', async (req, res) => {
       return res.json({ success: true });
     }
 
-    if (subdomain === 'make-page') {
-      return res.redirect(301, 'https://make-page.com');
+    // 랜딩페이지 (make-page.com)
+    if (subdomain === 'make-page' || host === 'make-page.com') {
+      let htmlFile = 'index.html';
+      if (pathname === '/privacy') htmlFile = 'privacy.html';
+      else if (pathname === '/terms') htmlFile = 'terms.html';
+
+      const htmlPath = path.join(__dirname, 'landing', htmlFile);
+      const html = fs.readFileSync(htmlPath, 'utf-8');
+
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.set('Cache-Control', 'public, max-age=3600');
+      return res.send(html);
     }
 
     const cachedHTML = await cache.getCachedHTML(subdomain, env);
