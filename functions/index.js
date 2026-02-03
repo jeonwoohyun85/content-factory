@@ -10,7 +10,7 @@ let secretsCache = {};
 
 async function loadSecrets() {
   if (Object.keys(secretsCache).length > 0) return secretsCache;
-  const secretNames = ['GEMINI_API_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
+  const secretNames = ['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
   const projectId = process.env.GCP_PROJECT || 'content-factory-1770105623';
   for (const name of secretNames) {
     try {
@@ -30,6 +30,7 @@ async function createEnv() {
   return {
     POSTING_KV: firestore,
     GEMINI_API_KEY: secretsCache.GEMINI_API_KEY,
+    ANTHROPIC_API_KEY: secretsCache.ANTHROPIC_API_KEY,
     SHEETS_ID: '1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU'
   };
 }
