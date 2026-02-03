@@ -57,6 +57,87 @@
 
 ---
 
+
+---
+
+## 🏗️ 완전 Google Cloud 아키텍처 (전환 목표)
+
+### 중심: 모든 것이 Google Cloud
+
+**핵심 원칙**: GitHub는 코드 저장소로만, 나머지 전부 Google Cloud
+
+### 아키텍처 구성
+
+**1. 코드 저장소 (GitHub)**
+- 역할: Git 버전 관리, 코드 보관
+- 기능: 푸시 시 Cloud Build 트리거
+- 폐기: GitHub Actions, GitHub Secrets
+
+**2. 빌드/배포 (Cloud Build)**
+- GitHub 연동: 푸시 자동 감지
+- Secret Manager 연동: API 키 자동 주입
+- 배포 대상: Cloud Functions, Firebase Hosting
+
+**3. 실행 환경**
+- Cloud Functions: Worker 로직 (포스팅, API)
+- GAS (Google Apps Script): Sheets 연동, 보조 작업
+- Cloud Scheduler: 크론 (매일 00:01 KST)
+
+**4. 데이터 저장**
+- Google Sheets: 거래처 DB (기존 유지)
+- Google Drive: 사진 저장 (기존 유지)
+- Firestore: KV 대체 (락, 캐시, 상태)
+
+**5. 보안/관리**
+- Secret Manager: 모든 API 키 (Gemini, Telegram 등)
+- IAM: 권한 관리
+- Cloud Logging: 로그 중앙화
+
+**6. 모니터링**
+- Cloud Monitoring: 내부 감시 (Functions, Scheduler, Firestore)
+- Error Reporting: 에러 자동 수집
+- UptimeRobot: 외부 감시 (서비스 접근 가능 여부)
+
+**7. 프론트엔드**
+- Firebase Hosting: 랜딩페이지 (make-page.com)
+- Cloud CDN: 글로벌 배포
+
+### 배포 흐름
+
+```
+개발자 코드 푸시 (GitHub)
+        ↓
+Cloud Build 자동 감지
+        ↓
+Secret Manager에서 API 키 가져옴
+        ↓
+Cloud Functions 배포 / Firebase Hosting 배포
+        ↓
+Cloud Monitoring 알림
+```
+
+### GitHub 의존성 최소화
+
+**유지:**
+- ✅ 코드 저장소 (Git)
+- ✅ 버전 관리
+- ✅ 푸시 트리거 (Cloud Build 연동)
+
+**폐기:**
+- ❌ GitHub Actions (→ Cloud Build)
+- ❌ GitHub Secrets (→ Secret Manager)
+- ❌ GitHub 특정 기능
+
+### 완전 Google Cloud 장점
+
+1. **통합 생태계**: 모든 서비스가 Google Cloud 내부
+2. **내부 통신**: 빠른 속도 (외부 API 호출 불필요)
+3. **통합 모니터링**: Cloud Monitoring 한 곳에서 전체 감시
+4. **통합 로그**: Cloud Logging 한 곳에서 확인
+5. **IAM 통합**: 권한 관리 단순화
+6. **비용 최적화**: 내부 통신 무료
+
+
 ## 🔄 Google Cloud 전환 계획
 
 ### 1단계: 환경 준비
