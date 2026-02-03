@@ -248,5 +248,6 @@ const LANGUAGE_TEXTS = {
     galleryImage: '畫廊圖片'
 
   }
+};
 
 module.exports = { getFromCache,addToCache };
