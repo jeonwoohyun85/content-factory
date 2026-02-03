@@ -51,29 +51,48 @@
 - 설정 파일 로컬 편집
 - 프로덕션 코드 로컬 저장
 
-## 작업 방향성: 완전 클라우드 기반
+## 작업 방향성: 클라우드 우선, 필요시 로컬
 
-**원칙: GitHub = 단일 진실 원천**
-- 모든 수정은 GitHub API 직접 사용
-- 로컬 git 거치지 않음
-- 배포도 GitHub 기반 자동화
+**원칙: 가급적 클라우드 기반, 자동화/속도 향상 시 로컬 허용**
+- **기본**: GitHub: 코드 저장소 (단일 진실 원천)
+- **배포**: Cloud Build: 자동 배포 (GitHub 푸시 감지)
+- **실행**: Cloud Functions: 서버리스 실행
+- **데이터**: Firestore/Sheets: 클라우드 데이터
+- **자동화**: 로컬 스크립트 허용 (Service Account 인증)
+
+**로컬 사용 허용 조건:**
+- ✅ 작업 속도 향상 (Sheets 조회, 빠른 테스트)
+- ✅ 자동화 개선 (Claude 권한 집중)
+- ✅ 스파게티 코드 방지 가능
+- ✅ GitHub API 실패 시 로컬 git 폴백
+- ❌ 클라우드로 가능한데 굳이 로컬 사용 금지
 
 **워크플로우**
 ```
-확인 → 로컬 읽기 전용
-수정 → GitHub API 직접
-배포 → GitHub Actions 자동
+개발 → 로컬 테스트 (functions-framework)
+수정 → 로컬 git (add/commit/push) 또는 GitHub API
+배포 → Cloud Build 자동 (GitHub 푸시 감지)
+실행 → Cloud Functions (클라우드에서만)
+자동화 → scripts/*.js (로컬 Service Account)
 ```
 
 **금지**
-- ❌ 로컬 git add/commit/push
-- ❌ 로컬 wrangler deploy
-- ❌ 로컬과 GitHub 혼용
+- ❌ 로컬 gcloud deploy (Cloud Build 사용)
+- ❌ 프로덕션 직접 수정
+- ❌ 스파게티 코드 발생 가능성 있는 로컬 작업
 
 ## 핵심 규칙
 **"이 파일이 다시 쓰이는가?"**
-- YES → GitHub API
+- YES → GitHub (API 또는 로컬 git)
 - NO → 로컬 OK
+
+**"자동화에 도움이 되는가?"**
+- YES → 로컬 허용 (scripts/*.js)
+- NO → 클라우드 우선
+
+**"GitHub API가 실패하는가?"**
+- YES → 로컬 git 사용
+- NO → GitHub API 우선
 
 ---
 
