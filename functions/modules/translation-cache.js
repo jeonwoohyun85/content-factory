@@ -1,4 +1,4 @@
-// 번역 Firestore 캐싱
+// 번역 Firestore 캐싱 (Gemini 2.5 Flash)
 
 async function translateWithCache(fields, targetLanguage, subdomain, env) {
   const cacheKey = `translation:${subdomain}:${targetLanguage}`;
@@ -15,40 +15,46 @@ async function translateWithCache(fields, targetLanguage, subdomain, env) {
 
     console.log(`[Translation Cache] MISS: ${cacheKey}`);
 
-    // 2. 캐시 없음 - Claude API 호출
+    // 2. 캐시 없음 - Gemini 2.5 Flash API 호출
     const fieldsJson = fields.map(f => `  "${f.key}": ${JSON.stringify(f.value)}`).join(',\n');
     const prompt = `Translate the following text to ${targetLanguage}. Return ONLY a valid JSON object with the exact same keys, no markdown:\n\n{\n${fieldsJson}\n}\n\nIMPORTANT: Return ONLY the JSON object.`;
 
     const response = await fetch(
-      'https://api.anthropic.com/v1/messages',
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
           'content-type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          messages: [{
-            role: 'user',
-            content: [{ type: 'text', text: prompt }]
-          }]
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            maxOutputTokens: 1024,
+            temperature: 0.3
+          }
         })
       }
     );
 
     if (!response.ok) {
-      throw new Error(`Claude API failed: ${response.status}`);
+      throw new Error(`Gemini API failed: ${response.status}`);
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || '';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text) {
+      throw new Error('No text in Gemini response');
+    }
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
 
     if (!jsonMatch) {
-      throw new Error('No JSON in Claude response');
+      throw new Error('No JSON in Gemini response');
     }
 
     const translations = JSON.parse(jsonMatch[0]);
