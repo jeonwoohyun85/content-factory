@@ -1,9 +1,9 @@
-// Google OAuth using google-auth-library
+// Google OAuth using Application Default Credentials
 const { GoogleAuth } = require('google-auth-library');
 
 async function getGoogleAccessTokenForPosting(env) {
+  // Use Application Default Credentials (Cloud Functions Service Account)
   const auth = new GoogleAuth({
-    credentials: JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON),
     scopes: [
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/drive.readonly'
