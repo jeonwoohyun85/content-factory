@@ -174,23 +174,41 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: Firebase Hosting 전환 ⚠️ 50%
+### Phase 2: 도메인 및 라우팅 통합 ⚠️ 30%
 
-**목표:** Cloudflare Pages → Firebase Hosting 이전
+**목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Functions 통합)
 
 **완료:**
-- ✅ firebase.json 설정
-- ✅ .firebaserc 프로젝트 연결 (content-factory-1770105623)
-- ✅ landing/ public 디렉토리 지정
-- ✅ Cache-Control 헤더 설정
-- ✅ SPA 라우팅 설정
-- ✅ Firebase Hosting 자동 배포 워크플로우 추가
-- ✅ 실제 배포 실행 (2026-02-03)
+- ✅ Cloud Functions 기본 구현 (functions/index.js)
+- ✅ 서브도메인 동적 라우팅 (subdomain 파싱)
+- ✅ landing/ 폴더 구조
+- ✅ Firebase Hosting 테스트 배포 (삭제 예정)
 
 **남은 작업:**
-- ❌ 커스텀 도메인 연결 (make-page.com → Firebase Hosting)
-- ❌ DNS 전환 (Cloudflare → Firebase)
-- ❌ Cloudflare Pages 제거
+
+**Cloud Functions 통합:**
+- ❌ 랜딩페이지 Cloud Functions로 이동
+  - landing/index.html → functions/에서 서빙
+  - 정적 파일 처리 로직 추가
+
+**Cloud DNS 설정:**
+- ❌ Cloud DNS Zone 생성 (make-page.com)
+- ❌ A 레코드 설정
+  - make-page.com → Load Balancer IP
+  - *.make-page.com → Load Balancer IP (와일드카드)
+
+**Cloud Load Balancing:**
+- ❌ Load Balancer 생성
+- ❌ 호스트 기반 라우팅 설정
+  - make-page.com → Cloud Functions (랜딩)
+  - *.make-page.com → Cloud Functions (서브도메인)
+- ❌ Google-managed SSL 인증서 자동 적용 (와일드카드 포함)
+- ❌ Cloud CDN 연동
+
+**Cloudflare 정리:**
+- ❌ Cloudflare 네임서버 변경 (Cloud DNS로)
+- ❌ Firebase Hosting 제거 (firebase.json, .firebaserc, 워크플로우)
+- ❌ Cloudflare Pages 프로젝트 삭제
 
 ---
 
