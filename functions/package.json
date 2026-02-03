@@ -1,0 +1,18 @@
+{
+  "name": "content-factory-functions",
+  "version": "1.0.0",
+  "description": "Content Factory Cloud Functions",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "start": "functions-framework --target=main",
+    "deploy": "gcloud functions deploy content-factory --runtime nodejs20 --trigger-http --allow-unauthenticated --region=asia-northeast3 --entry-point=main --source=."
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.3.0",
+    "@google-cloud/firestore": "^7.1.0",
+    "@google-cloud/secret-manager": "^5.0.1"
+  }
+}
