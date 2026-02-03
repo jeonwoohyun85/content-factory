@@ -64,14 +64,15 @@
 
 ### 중심: 모든 것이 Google Cloud
 
-**핵심 원칙**: GitHub는 코드 저장소로만, 나머지 전부 Google Cloud
+**핵심 원칙**: 완전 Google Cloud (GitHub 제거)
 
 ### 아키텍처 구성
 
-**1. 코드 저장소 (GitHub)**
-- 역할: Git 버전 관리, 코드 보관
-- 기능: 푸시 시 Cloud Build 트리거
-- 폐기: GitHub Actions, GitHub Secrets
+**1. 코드 저장소 (Cloud Source Repositories)**
+- Google Cloud의 Git 저장소
+- Cloud Build 네이티브 연동
+- 1인 개발 최적화 (협업 기능 불필요)
+- 완전 Google 통합
 
 **2. 빌드/배포 (Cloud Build)**
 - GitHub 연동: 푸시 자동 감지
@@ -105,7 +106,7 @@
 ### 배포 흐름
 
 ```
-개발자 코드 푸시 (GitHub)
+개발자 코드 푸시 (Cloud Source Repositories)
         ↓
 Cloud Build 자동 감지
         ↓
@@ -116,17 +117,24 @@ Cloud Functions 배포 / Firebase Hosting 배포
 Cloud Monitoring 알림
 ```
 
-### GitHub 의존성 최소화
+### GitHub 완전 제거
 
-**유지:**
-- ✅ 코드 저장소 (Git)
-- ✅ 버전 관리
-- ✅ 푸시 트리거 (Cloud Build 연동)
+**Cloud Source Repositories로 대체:**
+- ✅ Git 저장소 (Google Cloud)
+- ✅ Cloud Build 네이티브 연동
+- ✅ IAM 통합 권한 관리
+- ✅ Cloud Console에서 코드 확인
 
-**폐기:**
-- ❌ GitHub Actions (→ Cloud Build)
-- ❌ GitHub Secrets (→ Secret Manager)
-- ❌ GitHub 특정 기능
+**GitHub 완전 폐기:**
+- ❌ GitHub 저장소
+- ❌ GitHub Actions
+- ❌ GitHub Secrets
+- ❌ 모든 GitHub 의존성 제거
+
+**전환 이유 (1인 개발):**
+- 협업 기능 불필요
+- 관리 포인트 1개로 통합
+- 완전 Google 생태계
 
 ### 완전 Google Cloud 장점
 
