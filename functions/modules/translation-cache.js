@@ -1,16 +1,16 @@
-// 번역 KV 캐싱
+// 번역 Firestore 캐싱
 
 async function translateWithCache(fields, targetLanguage, subdomain, env) {
-  // KV 캐시 키 생성
   const cacheKey = `translation:${subdomain}:${targetLanguage}`;
 
   try {
-    // 1. KV에서 캐시 확인
-    const cached = await env.POSTING_KV.get(cacheKey, 'json');
+    // 1. Firestore에서 캐시 확인
+    const docRef = env.POSTING_KV.collection('translation-cache').doc(cacheKey);
+    const doc = await docRef.get();
 
-    if (cached) {
+    if (doc.exists) {
       console.log(`[Translation Cache] HIT: ${cacheKey}`);
-      return cached;
+      return doc.data().translations;
     }
 
     console.log(`[Translation Cache] MISS: ${cacheKey}`);
@@ -53,15 +53,19 @@ async function translateWithCache(fields, targetLanguage, subdomain, env) {
 
     const translations = JSON.parse(jsonMatch[0]);
 
-    // 3. KV에 저장 (TTL 없음 - 영구 저장)
-    await env.POSTING_KV.put(cacheKey, JSON.stringify(translations));
+    // 3. Firestore에 저장
+    await docRef.set({
+      translations,
+      createdAt: Date.now(),
+      subdomain,
+      targetLanguage
+    });
     console.log(`[Translation Cache] SAVED: ${cacheKey}`);
 
     return translations;
 
   } catch (error) {
     console.error(`[Translation Cache] ERROR: ${error.message}`);
-    // 에러 시 빈 객체 반환 (원본 유지)
     return {};
   }
 }
