@@ -1,4 +1,4 @@
-name: Google Cloud Functions 자동 배포
+name: Cloud Functions 배포 (Cloud Build)
 
 on:
   push:
@@ -6,12 +6,13 @@ on:
       - main
     paths:
       - 'functions/**'
+      - 'cloudbuild.yaml'
   workflow_dispatch:
 
 jobs:
-  deploy:
+  trigger-build:
     runs-on: ubuntu-latest
-    name: Cloud Functions 배포
+    name: Cloud Build 트리거
     steps:
       - uses: actions/checkout@v4
 
@@ -20,21 +21,8 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Cloud SDK 설정
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Cloud Functions 배포
+      - name: Cloud Build 실행
         run: |
-          gcloud functions deploy content-factory \
-            --gen2 \
-            --runtime=nodejs20 \
-            --region=asia-northeast3 \
-            --source=functions \
-            --entry-point=main \
-            --trigger-http \
-            --allow-unauthenticated \
-            --max-instances=10 \
-            --memory=512MB \
-            --timeout=540s \
-            --project=content-factory-1770105623 \
-            --quiet
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --project=content-factory-1770105623
