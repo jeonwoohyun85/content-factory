@@ -1,0 +1,19 @@
+steps:
+  # Cloud Functions 배포
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - gcloud
+      - functions
+      - deploy
+      - content-factory
+      - --gen2
+      - --runtime=nodejs20
+      - --region=asia-northeast3
+      - --source=functions
+      - --entry-point=main
+      - --trigger-http
+      - --allow-unauthenticated
+      - --max-instances=10
+      - --memory=512MB
+      - --timeout=540s
+    timeout: 600s
