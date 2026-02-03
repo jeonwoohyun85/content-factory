@@ -49,32 +49,6 @@ functions.http('main', async (req, res) => {
     const pathname = req.path;
 
 
-    // Health Check 엔드포인트
-    if (pathname === '/health') {
-      try {
-        await firestore.collection('_health').doc('check').set({ timestamp: new Date() }, { merge: true });
-        const sheets = require('./modules/sheets.js');
-
-        return res.status(200).json({
-          status: 'healthy',
-          service: 'content-factory',
-          timestamp: new Date().toISOString(),
-          checks: {
-            firestore: 'ok',
-            secrets: env.GEMINI_API_KEY ? 'ok' : 'missing',
-            runtime: 'ok'
-          }
-        });
-      } catch (error) {
-        return res.status(503).json({
-          status: 'unhealthy',
-          service: 'content-factory',
-          timestamp: new Date().toISOString(),
-          error: error.message
-        });
-      }
-    }
-
     // Cron 및 테스트 엔드포인트 (subdomain 무관)
     if (pathname === '/cron-trigger') {
       const results = [];
