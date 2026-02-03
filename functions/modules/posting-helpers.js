@@ -1002,10 +1002,14 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
   // 1. 최신 포스팅 탭 먼저 처리 (트랜잭션 방식 - 실패 시 저장소 저장 안함)
+  const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`;
+  console.log(`Sheets API 호출 - Sheet: ${latestSheetName}, SHEETS_ID: ${env.SHEETS_ID}`);
+  console.log(`Full URL: ${sheetsUrl}`);
+  console.log(`Access token length: ${accessToken?.length || 0}`);
 
   const getResponse = await fetchWithTimeout(
 
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+    sheetsUrl,
 
     { headers: { Authorization: `Bearer ${accessToken}` } },
 
