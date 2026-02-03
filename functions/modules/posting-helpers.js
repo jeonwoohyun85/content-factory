@@ -693,7 +693,7 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
     const response = await fetchWithTimeout(
 
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + archiveSheetName + "'!A:Z")`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + archiveSheetName + "'!A:Z")}`,
 
       { headers: { Authorization: `Bearer ${accessToken}` } },
 
