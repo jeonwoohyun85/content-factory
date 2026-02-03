@@ -174,9 +174,9 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: 도메인 및 라우팅 통합 ⚠️ 95%
+### Phase 2: 도메인 및 라우팅 통합 ⚠️ 98%
 
-**목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Run + Global Load Balancing)
+**목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Run + Global Load Balancing + Certificate Manager)
 
 **완료:**
 - ✅ Cloud Functions 기본 구현 (functions/index.js)
@@ -188,9 +188,6 @@ Cloud Monitoring 알림
   - 서비스명: content-factory
   - 리전: asia-northeast3
   - URL: https://content-factory-753166847054.asia-northeast3.run.app
-- ✅ Cloud DNS 설정
-  - Zone: make-page-com
-  - Nameservers: ns-cloud-a1/a2/a3/a4.googledomains.com
 - ✅ Global Load Balancing 구축
   - Serverless NEG: content-factory-neg (asia-northeast3)
   - Backend Service: content-factory-backend
@@ -198,34 +195,41 @@ Cloud Monitoring 알림
   - Target HTTPS Proxy: content-factory-https-proxy
   - Global IP: 34.120.160.174 (content-factory-ip)
   - Forwarding Rule: content-factory-https-rule (443)
-- ✅ SSL 인증서 요청 (make-page.com)
-  - 인증서명: make-page-ssl
-  - 상태: PROVISIONING
-- ✅ Cloudflare DNS → Google Cloud IP 자동 전환
+- ✅ Certificate Manager 와일드카드 SSL
+  - 인증서명: make-page-wildcard-cert
+  - 도메인: make-page.com, *.make-page.com
+  - DNS Authorization: make-page-dns-auth
+  - Certificate Map: make-page-cert-map
+  - 상태: PROVISIONING (자동 활성화 대기)
+- ✅ DNS 검증 레코드 추가
+  - _acme-challenge.make-page.com CNAME
+  - Google Certificate Manager 자동 검증
+- ✅ Cloudflare DNS → Google Cloud IP 직접 연결
   - make-page.com A → 34.120.160.174 (proxied: false)
   - *.make-page.com A → 34.120.160.174 (proxied: false)
   - www.make-page.com A → 34.120.160.174 (proxied: false)
-  - DNS 전파 완료 (nslookup 확인)
+  - DNS 전파 완료 (확인됨)
 
 **남은 작업:**
 
 **SSL 인증서:**
-- ⏳ make-page.com 인증서 프로비저닝 완료 대기 (15분~1시간)
-- ⏳ 인증서 활성화 후 자동 작동
+- ⏳ Certificate Manager 와일드카드 인증서 프로비저닝 완료 대기
+- ⏳ DNS 검증 자동 완료 후 ACTIVE 상태 전환
+- ⏳ 활성화 후 자동 작동 (make-page.com, *.make-page.com 모두 커버)
+
+**아키텍처:**
+- Cloudflare: 도메인 등록 + DNS만 (프록시 OFF)
+- Google Cloud: SSL, Load Balancing, CDN, 호스팅 (완전 Google Cloud)
 
 **선택 사항 (Phase 3 이후):**
-- ❌ 와일드카드 SSL 인증서 추가 (*.make-page.com)
-  - Certificate Manager 사용 필요 (Google-managed SSL은 와일드카드 미지원)
 - ❌ HTTP(80) Forwarding Rule 추가
   - Target HTTP Proxy 생성
   - HTTP → HTTPS 리다이렉트 설정
-- ❌ Cloudflare 네임서버 변경 (선택)
-  - 현재: Cloudflare DNS 유지 + Google Cloud IP 연결
-  - 나중: Cloud DNS로 완전 이전 가능
 
 **레거시 정리:**
 - ❌ Firebase Hosting 제거 (firebase.json, .firebaserc, 워크플로우)
 - ❌ Cloudflare Pages 프로젝트 삭제
+- ❌ Cloudflare 불필요한 DNS 레코드 정리
 
 ---
 
