@@ -1016,7 +1016,8 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
   if (!getResponse.ok) {
-
+    const errorText = await getResponse.text();
+    console.error(`최신 포스팅 시트 읽기 실패 - Status: ${getResponse.status}, Response: ${errorText}`);
     throw new Error(`최신 포스팅 시트 읽기 실패: ${getResponse.status}`);
 
   }
