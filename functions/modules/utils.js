@@ -527,42 +527,11 @@ function removeLanguageSuffixFromBusinessName(businessName) {
   return businessName;
 }
 
-// ntfy 알림 전송
-async function sendNtfyAlert({
-  status,        // '❌ 포스팅 실패', '✅ 포스팅 성공' 등
-  subdomain,
-  businessName,
-  error,
-  stage,         // '거래처 조회', '이미지 다운로드', '포스팅 생성' 등
-  folder,
-  imageCount,
-  timestamp
-}) {
-  try {
-    const parts = [
-      `거래처: ${subdomain} ${businessName || ''}`.trim(),
-      `시간: ${timestamp || new Date().toISOString().replace('T', ' ').substring(0, 19)}`
-    ];
 
-    if (error) parts.push(`에러: ${error}`);
-    if (stage) parts.push(`단계: ${stage}`);
-    if (folder) parts.push(`폴더: ${folder}`);
-    if (imageCount !== undefined) parts.push(`이미지: ${imageCount}개`);
 
-    const message = parts.join('\n');
-
-    await fetch('https://ntfy.sh/ContentFactory', {
-      method: 'POST',
-      body: message,
-      headers: {
-        'Title': status,
-        'Priority': status.includes('❌') ? 'high' : 'default',
-        'Tags': status.includes('❌') ? 'warning' : 'white_check_mark'
-      }
-    });
-  } catch (err) {
-    console.error('ntfy 알림 전송 실패:', err.message);
-  }
+// 서브도메인 정규화 (중복 코드 통합)
+function normalizeSubdomain(subdomain) {
+  if (!subdomain) return '';
+  return subdomain.replace('.make-page.com', '').replace('/', '').trim();
 }
-
-module.exports = { fetchWithTimeout, escapeHtml, normalizeLanguage, parseCSV, parseCSVLine, normalizeClient, formatKoreanTime, getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown, getColumnLetter, normalizeFolderName, removeLanguageSuffixFromBusinessName, sendNtfyAlert };
+module.exports = { fetchWithTimeout, escapeHtml, normalizeLanguage, parseCSV, parseCSVLine, normalizeClient, normalizeSubdomain, formatKoreanTime, getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown, getColumnLetter, normalizeFolderName, removeLanguageSuffixFromBusinessName };
