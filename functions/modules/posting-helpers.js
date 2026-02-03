@@ -693,7 +693,7 @@ async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
     const response = await fetchWithTimeout(
 
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + archiveSheetName + "'!A:Z")`,
 
       { headers: { Authorization: `Bearer ${accessToken}` } },
 
@@ -850,7 +850,7 @@ async function removeDuplicatesFromLatestPosting(env, domain, latestSheetId, acc
 
     // 최신_포스팅 전체 읽기
     const response = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
       10000
     );
@@ -1002,7 +1002,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
   // 1. 최신 포스팅 탭 먼저 처리 (트랜잭션 방식 - 실패 시 저장소 저장 안함)
-  const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z`;
+  const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")`;
   console.log(`Sheets API 호출 - Sheet: ${latestSheetName}, SHEETS_ID: ${env.SHEETS_ID}`);
   console.log(`Full URL: ${sheetsUrl}`);
   console.log(`Access token length: ${accessToken?.length || 0}`);
@@ -1204,7 +1204,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   const latestAppendResponse = await fetchWithTimeout(
 
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(latestSheetName)}!A:Z:append?valueInputOption=RAW`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z"):append?valueInputOption=RAW`,
 
     {
 
@@ -1423,7 +1423,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   const archiveAppendResponse = await fetchWithTimeout(
 
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z:append?valueInputOption=USER_ENTERED`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + archiveSheetName + "'!A:Z"):append?valueInputOption=USER_ENTERED`,
 
     {
 
