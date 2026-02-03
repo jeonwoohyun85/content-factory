@@ -81,7 +81,6 @@
 
 **3. 실행 환경**
 - Cloud Functions: Worker 로직 (포스팅, API)
-- GAS (Google Apps Script): Sheets 연동, 보조 작업
 - Cloud Scheduler: 크론 (매일 00:01 KST)
 
 **4. 데이터 저장**
@@ -253,23 +252,26 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
-### Phase 3: Google 생태계 완성 ⚠️ 10%
+### Phase 3: Google 생태계 완성 ⚠️ 15%
 
 **목표:** 100% Google Cloud 생태계
 
 **완료:**
-- ✅ Google Apps Script (GAS) 추가
-  - 경로: gas/Code.gs
-  - Sheets/Drive 직접 접근 헬퍼 함수
-  - KST 시간 유틸리티
-  - 설치 가이드: gas/README.md
+- ✅ Service Account 기반 로컬 자동화
+  - Service Account: 753166847054-compute@developer.gserviceaccount.com
+  - 키 파일: C:\Users\A1-M4\.config\gcloud\content-factory-sa-key.json
+  - Sheets Helper: scripts/sheets-helper.js
+  - 활성 거래처 조회, 행 추가, 셀 업데이트, 시트 클리어 등
+  - KST 시간 유틸리티 (getKSTNow, getKSTDateString, getKSTTimeString)
 
 **작업 목록:**
 
-**Google Apps Script:**
-- ✅ GAS 프로젝트 코드 작성
-- ❌ Sheets에 Apps Script 설치 (수동)
-- ❌ 권한 승인 및 테스트
+**Service Account 설정:**
+- ✅ Service Account 키 생성
+- ✅ scripts/sheets-helper.js 작성
+- ✅ .gitignore 보안 설정
+- ❌ Sheets 공유 (Service Account에 편집자 권한)
+- ❌ 테스트 및 검증
 
 **자동 배포:**
 - ❌ Cloud Build Trigger 설정
