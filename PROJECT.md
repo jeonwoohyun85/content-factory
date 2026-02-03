@@ -668,109 +668,19 @@ Cron 중복 실행 방지를 위해 날짜별 락 키를 적용하고 KV 락 TTL
 
 ---
 
-## 런칭 전 필수 작업 (보류)
+## 주요 아키텍처
 
-1. **에러 로깅**: Slack 또는 Sheets
+**데이터 저장**
+- Google Sheets: 거래처 DB (관리자, 최신포스팅, 저장소, 배포일지)
+- Google Drive: 이미지 저장
+- Firestore: 캐시, 상태 관리
 
-2. **정확도 검증**: 1개월 모니터링
+**다국어 지원**
+- Gemini 2.5 Flash API 동적 번역
+- business_name, address, business_hours 자동 번역
 
-3. **비용 최적화**: RPM/토큰 관리
-
-4. **관리자 페이지**: 비밀번호 통합 관리
-
----
-
-## 아키텍처 결정
-
-### 1. Firebase → Supabase → Google Sheets
-
-- **폐기 이유**: Firebase 유료 플랜 불필요, Supabase 무료 플랜 제약
-
-- **선택 이유**: Google Sheets 무료, 무제한 읽기, CSV 직접 접근 가능
-
-- **적용일**: 2026-01-26
-
-### 2. 모든 포스팅 보관 (Retention Policy 제거)
-
-- **기존**: 1개만 유지 → 최신 2개 유지
-
-- **변경**: 모든 포스팅 영구 보관
-
-- **이유**: 데이터 축적 필요, 삭제 로직 버그 빈번
-
-- **적용일**: 2026-01-27
-
-### 3. 저장소 + 최신포스팅 3개 탭 구조
-
-- **기존**: Posts 단일 시트
-
-- **변경**: 관리자, 저장소, 최신포스팅 분리
-
-- **이유**: 전체 보관 + 빠른 조회 동시 지원
-
-- **적용일**: 2026-01-28
-
-### 4. Workers Unbound 모드
-
-- **기존**: Standard (CPU 10ms)
-
-- **변경**: Unbound (CPU 30초)
-
-- **이유**: Gemini API 응답 대기 시간 필요
-
-- **적용일**: 2026-01-29
-
-### 5. Umami Cloud 전환
-
-- **시도**: D1 기반 자체 구현, Plausible
-
-- **최종**: Umami Cloud (SaaS)
-
-- **이유**: 운영 부담 제거, 무료 플랜 충분
-
-- **적용일**: 2026-01-30
-
-### 6. 다국어 번역 시스템 (Gemini API)
-
-- **기존**: 하드코딩 언어만 지원 (ko, en, ja, zh-CN, zh-TW)
-
-- **변경**: Gemini 2.5 Flash API 동적 번역
-
-- **이유**: Google Sheets '언어' 컬럼에 임의 언어 입력 시 자동 번역
-
-- **적용일**: 2026-01-31
-
-- **핵심**: business_name, address, business_hours 필드 번역, maxOutputTokens 8000
-
----
-
-## 폐기 이력
-
-### Workers
-
-- `posting-generator.js`: make-page-subdomain에 통합 (2026-01-27)
-
-- `drive-to-sheets.js`: 불필요 (2026-01-28)
-
-### 시트
-
-- `Posts`: 저장소+최신포스팅 구조로 대체 (2026-01-28)
-
-### 워크플로우
-
-- `.github/workflows/update-project-md.yml`: 수동 관리로 회귀 (2026-01-31)
-
-### 기능
-
-- **Retention Policy**: 모든 포스팅 보관으로 변경 (2026-01-27)
-
-- **통계ID 컬럼**: 바로가기 컬럼에 수동 등록으로 변경 (2026-01-31)
-
-- **D1 Analytics**: Umami Cloud로 전환 (2026-01-30)
-
-- **Plausible**: Umami Cloud로 전환 (2026-01-30)
-
-- **캐싱 기능**: 코드 복잡도로 인해 실패, 롤백 (2026-01-31)
+**통계**
+- Umami Cloud (방문 통계)
 
 ---
 

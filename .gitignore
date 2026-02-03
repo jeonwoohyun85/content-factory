@@ -42,6 +42,11 @@ check-sheet-format.js
 *-test.js
 preview/
 
+# Service Account keys (로컬 전용)
+*-sa-key.json
+service-account*.json
+credentials*.json
+
 # Allow production files
 !functions/modules/posting-helpers.js
 !functions/modules/sheets.js
