@@ -1,6 +1,6 @@
 // KV 캐시 함수
 
-export async function getCachedHTML(key, env) {
+async function getCachedHTML(key, env) {
   try {
     return await env.POSTING_KV.get(`html_${key}`);
   } catch (error) {
@@ -8,7 +8,7 @@ export async function getCachedHTML(key, env) {
   }
 }
 
-export async function setCachedHTML(key, html, env) {
+async function setCachedHTML(key, html, env) {
   try {
     await env.POSTING_KV.put(`html_${key}`, html, { expirationTtl: 86400 });
   } catch (error) {
@@ -16,7 +16,7 @@ export async function setCachedHTML(key, html, env) {
   }
 }
 
-export async function deleteCachedHTML(key, env) {
+async function deleteCachedHTML(key, env) {
   try {
     await env.POSTING_KV.delete(`html_${key}`);
   } catch (error) {
