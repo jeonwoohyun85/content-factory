@@ -46,24 +46,29 @@ functions.http('main', async (req, res) => {
     const subdomain = host.split('.')[0];
     const pathname = req.path;
 
-    if (subdomain === 'make-page') {
-      if (pathname === '/cron-trigger') {
-        const results = [];
-        for (const sub of ['00001', '00002', '00003', '00004']) {
-          const result = await posting.generatePostingForClient(sub, env);
-          results.push({ subdomain: sub, success: result.success });
-        }
-        return res.json({ success: true, results });
-      }
-      if (pathname === '/test-posting') {
-        const sub = req.body?.subdomain || req.query.subdomain;
+
+    // Cron 및 테스트 엔드포인트 (subdomain 무관)
+    if (pathname === '/cron-trigger') {
+      const results = [];
+      for (const sub of ['00001', '00002', '00003', '00004']) {
         const result = await posting.generatePostingForClient(sub, env);
-        return res.json(result);
+        results.push({ subdomain: sub, success: result.success });
       }
-      if (pathname === '/refresh') {
-        await cache.deleteCachedHTML(req.query.subdomain, env);
-        return res.json({ success: true });
-      }
+      return res.json({ success: true, results });
+    }
+
+    if (pathname === '/test-posting') {
+      const sub = req.body?.subdomain || req.query.subdomain;
+      const result = await posting.generatePostingForClient(sub, env);
+      return res.json(result);
+    }
+
+    if (pathname === '/refresh') {
+      await cache.deleteCachedHTML(req.query.subdomain, env);
+      return res.json({ success: true });
+    }
+
+    if (subdomain === 'make-page') {
       return res.redirect(301, 'https://make-page.com');
     }
 
