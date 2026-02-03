@@ -362,9 +362,13 @@ ${trendsData}
     console.log("JSON match:", jsonMatch ? "Found" : "Not found");
 
     if (jsonMatch) {
-
-      return JSON.parse(jsonMatch[0]);
-
+      try {
+        return JSON.parse(jsonMatch[0]);
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError.message);
+        console.error("Matched JSON:", jsonMatch[0].substring(0, 1000));
+        throw new Error(`JSON parse failed: ${parseError.message}`);
+      }
     }
 
 
