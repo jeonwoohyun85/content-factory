@@ -17,3 +17,6 @@ steps:
       - --memory=512MB
       - --timeout=540s
     timeout: 600s
+
+options:
+  logging: CLOUD_LOGGING_ONLY
