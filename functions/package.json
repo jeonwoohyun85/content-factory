@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Content Factory Cloud Functions",
   "main": "index.js",
-  "type": "commonjs",
   "engines": {
     "node": "20"
   },
