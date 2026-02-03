@@ -1,6 +1,6 @@
 // Claude API 번역
 
-import { TRANSLATION_CACHE, LANGUAGE_TEXTS } from './config.js';
+const { TRANSLATION_CACHE, LANGUAGE_TEXTS } = require('./config.js');
 
 async function translateWithClaude(language, env) {
 

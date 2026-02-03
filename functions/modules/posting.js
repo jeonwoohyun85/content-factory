@@ -10,9 +10,9 @@ import {
   getNextFolderForPosting,
   saveToLatestPostingSheet
 } from './posting-helpers.js';
-import { getGoogleAccessTokenForPosting } from './auth.js';
-import { deleteCachedHTML } from './cache.js';
-import { sendNtfyAlert } from './utils.js';
+const { getGoogleAccessTokenForPosting } = require('./auth.js');
+const { deleteCachedHTML } = require('./cache.js');
+const { sendNtfyAlert } = require('./utils.js');
 
 async function generatePostingForClient(subdomain, env) {
 

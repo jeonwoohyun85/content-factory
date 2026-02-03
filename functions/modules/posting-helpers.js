@@ -1,9 +1,9 @@
 // 포스팅 자동화 헬퍼 함수
 
-import { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName } from './utils.js';
-import { getGoogleAccessTokenForPosting } from './auth.js';
-import { autoResizeBusinessNameColumns } from './sheets.js';
-import { translateWithCache } from './translation-cache.js';
+const { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName } = require('./utils.js');
+const { getGoogleAccessTokenForPosting } = require('./auth.js');
+const { autoResizeBusinessNameColumns } = require('./sheets.js');
+const { translateWithCache } = require('./translation-cache.js');
 
 // 관리자 시트 헤더 고정값 (A~Q열, 17개)
 const ADMIN_HEADERS_FALLBACK = [

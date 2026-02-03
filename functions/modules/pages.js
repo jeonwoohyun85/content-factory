@@ -1,10 +1,10 @@
 // HTML 페이지 생성
 
-import { escapeHtml, normalizeLanguage, getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown, fetchWithTimeout, parseCSV, normalizeClient, formatKoreanTime } from './utils.js';
-import { getLanguageTexts } from './translation.js';
-import { UMAMI_WEBSITE_ID } from './config.js';
-import { getPostsFromArchive, getClientFromSheets, getSheetId } from './sheets.js';
-import { getGoogleAccessTokenForPosting } from './auth.js';
+const { escapeHtml, normalizeLanguage, getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown, fetchWithTimeout, parseCSV, normalizeClient, formatKoreanTime } = require('./utils.js');
+const { getLanguageTexts } = require('./translation.js');
+const { UMAMI_WEBSITE_ID } = require('./config.js');
+const { getPostsFromArchive, getClientFromSheets, getSheetId } = require('./sheets.js');
+const { getGoogleAccessTokenForPosting } = require('./auth.js');
 
 async function generatePostPage(client, post, env) {
 

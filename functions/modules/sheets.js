@@ -1,8 +1,8 @@
 // Google Sheets CRUD
 
-import { fetchWithTimeout, parseCSV, parseCSVLine, normalizeClient, normalizeLanguage, getColumnLetter, removeLanguageSuffixFromBusinessName } from './utils.js';
-import { getGoogleAccessTokenForPosting } from './auth.js';
-import { translateWithCache } from './translation-cache.js';
+const { fetchWithTimeout, parseCSV, parseCSVLine, normalizeClient, normalizeLanguage, getColumnLetter, removeLanguageSuffixFromBusinessName } = require('./utils.js');
+const { getGoogleAccessTokenForPosting } = require('./auth.js');
+const { translateWithCache } = require('./translation-cache.js');
 
 async function updateUmamiToSheet(subdomain, websiteId, shareId, env) {
   try {
