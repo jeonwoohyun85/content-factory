@@ -252,7 +252,7 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
-### Phase 3: Google 생태계 완성 ✅ 95%
+### Phase 3: Google 생태계 완성 ✅ 100%
 
 **목표:** 100% Google Cloud 생태계
 
@@ -290,18 +290,24 @@ Google Cloud Load Balancer (34.120.160.174:443)
   - ✅ 테스트 배포 성공
 
 **모니터링 시스템:**
-- ✅ Telegram Notification Channel 생성
+- ✅ Telegram Notification Channel
   - Channel ID: 2702147679231969097
+- ✅ Alert Policy (ERROR 로그 → Telegram 알림)
+  - Policy ID: 5630959630329801439
+  - 조건: Cloud Functions ERROR 로그 발생 시
+  - 알림: Telegram으로 즉시 전송
 - ✅ Cloud Logging → BigQuery 내보내기
   - Dataset: logs (asia-northeast3)
   - Sink: error-logs-bigquery (severity>=ERROR)
   - IAM 권한 부여 완료
-- ⏸️ Alert Policy 수동 설정 (웹 콘솔)
-  - 링크: https://console.cloud.google.com/monitoring/alerting?project=content-factory-1770105623
-- ⏸️ Cloud Monitoring 대시보드 (웹 콘솔)
+- ✅ Cloud Monitoring Uptime Check
+  - 이름: make-page-uptime
+  - URL: https://make-page.com/
+  - 간격: 1분
+  - Timeout: 10초
+  - 리전: asia-pacific
+- ⏸️ Cloud Monitoring 대시보드 (웹 콘솔 권장)
   - 링크: https://console.cloud.google.com/monitoring/dashboards?project=content-factory-1770105623
-- ⏸️ UptimeRobot 외부 감시 (수동 가입)
-  - 링크: https://uptimerobot.com
 
 **Cloudflare 정리:**
 - ✅ Cloudflare Pages 제거
