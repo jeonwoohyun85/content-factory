@@ -13,7 +13,6 @@ import {
 } from './modules/pages.js';
 import { generatePostingForClient } from './modules/posting.js';
 import { getGoogleAccessTokenForPosting } from './modules/auth.js';
-import { generateStatusPage } from './modules/status.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -50,8 +49,6 @@ export default {
       }
 
       // 크론 상태 페이지
-      if (pathname === '/status') {
-        return generateStatusPage(env);
       }
 
 
@@ -137,7 +134,6 @@ export default {
       if (pathname === '/test-posting' && request.method === 'POST') {
         try {
           // 크론 하트비트 기록 (가장 먼저)
-          await env.POSTING_KV.put('cron_heartbeat', Date.now().toString());
 
           const { subdomain } = await request.json();
 
