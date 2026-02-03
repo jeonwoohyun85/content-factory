@@ -2098,3 +2098,4 @@ async function deletePost(subdomain, createdAt, password, env) {
 
 }
 
+module.exports = { generateClientPage, generatePostPage, deletePost };

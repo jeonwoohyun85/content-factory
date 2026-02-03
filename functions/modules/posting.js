@@ -243,3 +243,4 @@ async function generatePostingForClient(subdomain, env) {
   }
 
 }
+module.exports = { generatePostingForClient };
