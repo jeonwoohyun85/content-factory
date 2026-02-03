@@ -151,7 +151,7 @@ Cloud Monitoring 알림
 
 ## 🗺️ Google Cloud 전환 로드맵
 
-### Phase 1: Cloud Functions 전환 ✅ 80%
+### Phase 1: Cloud Functions 전환 ✅ 100%
 
 **목표:** Cloudflare Workers → Cloud Functions 완전 이전
 
@@ -167,14 +167,11 @@ Cloud Monitoring 알림
   - /refresh (캐시 삭제)
   - /{subdomain} (거래처 페이지)
 
-**진행 중:**
-- ⏳ 모든 엔드포인트 Cloud Functions로 이전
-- ⏳ 도메인 라우팅 전환
+- ✅ Cloudflare Workers 완전 폐기 (workers/ 폴더)
+- ✅ deploy-workers.yml 워크플로우 제거
+- ✅ Cloudflare 의존성 완전 제거
 
-**남은 작업:**
-- ❌ Cloudflare Workers 완전 폐기
-- ❌ workers/ 폴더 삭제
-- ❌ Cloudflare Cron/Queue 제거
+**완료일:** 2026-02-04
 
 ---
 
@@ -189,11 +186,11 @@ Cloud Monitoring 알림
 - ✅ Cache-Control 헤더 설정
 - ✅ SPA 라우팅 설정
 
-**남은 작업:**
-- ❌ Firebase Hosting 자동 배포 워크플로우 추가
-- ❌ 실제 배포 실행
-- ❌ 커스텀 도메인 연결 (make-page.com)
-- ❌ Cloudflare Pages 제거
+- ✅ Cloudflare Workers 완전 폐기 (workers/ 폴더)
+- ✅ deploy-workers.yml 워크플로우 제거
+- ✅ Cloudflare 의존성 완전 제거
+
+**완료일:** 2026-02-04
 
 ---
 
