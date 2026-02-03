@@ -174,41 +174,54 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: 도메인 및 라우팅 통합 ⚠️ 30%
+### Phase 2: 도메인 및 라우팅 통합 ⚠️ 80%
 
-**목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Functions 통합)
+**목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Run + Global Load Balancing)
 
 **완료:**
 - ✅ Cloud Functions 기본 구현 (functions/index.js)
 - ✅ 서브도메인 동적 라우팅 (subdomain 파싱)
-- ✅ landing/ 폴더 구조
-- ✅ Firebase Hosting 테스트 배포 (삭제 예정)
+- ✅ 랜딩페이지 Cloud Functions/Run 통합
+  - landing/index.html → functions/landing/에서 서빙
+  - 정적 파일 처리 로직 추가 (fs.readFileSync)
+- ✅ Cloud Run 배포
+  - 서비스명: content-factory
+  - 리전: asia-northeast3
+  - URL: https://content-factory-753166847054.asia-northeast3.run.app
+- ✅ Cloud DNS 설정
+  - Zone: make-page-com
+  - Nameservers: ns-cloud-a1/a2/a3/a4.googledomains.com
+- ✅ A 레코드 설정 (와일드카드)
+  - make-page.com → 34.120.160.174
+  - *.make-page.com → 34.120.160.174
+- ✅ Global Load Balancing 구축
+  - Serverless NEG: content-factory-neg (asia-northeast3)
+  - Backend Service: content-factory-backend
+  - URL Map: content-factory-urlmap
+  - Target HTTPS Proxy: content-factory-https-proxy
+  - Global IP: 34.120.160.174 (content-factory-ip)
+  - Forwarding Rule: content-factory-https-rule (443)
+- ✅ SSL 인증서 요청 (make-page.com)
+  - 인증서명: make-page-ssl
+  - 상태: PROVISIONING
 
 **남은 작업:**
 
-**Cloud Functions 통합:**
-- ❌ 랜딩페이지 Cloud Functions로 이동
-  - landing/index.html → functions/에서 서빙
-  - 정적 파일 처리 로직 추가
+**SSL 인증서:**
+- ⏳ make-page.com 인증서 프로비저닝 완료 대기
+- ❌ 와일드카드 SSL 인증서 추가 (*.make-page.com)
+  - Certificate Manager 사용 필요 (Google-managed SSL은 와일드카드 미지원)
 
-**Cloud DNS 설정:**
-- ❌ Cloud DNS Zone 생성 (make-page.com)
-- ❌ A 레코드 설정
-  - make-page.com → Load Balancer IP
-  - *.make-page.com → Load Balancer IP (와일드카드)
+**DNS 전환:**
+- ❌ Cloudflare 네임서버 변경 (수동 작업 필요)
+  - 기존: coen.ns.cloudflare.com, norah.ns.cloudflare.com
+  - 신규: ns-cloud-a1/a2/a3/a4.googledomains.com
+  - Cloudflare Dashboard 또는 도메인 등록 기관에서 수동 변경
 
-**Cloud Load Balancing:**
-- ❌ Load Balancer 생성
-- ❌ 호스트 기반 라우팅 설정
-  - make-page.com → Cloud Functions (랜딩)
-  - *.make-page.com → Cloud Functions (서브도메인)
-- ❌ Google-managed SSL 인증서 자동 적용 (와일드카드 포함)
-- ❌ Cloud CDN 연동
-
-**Cloudflare 정리:**
-- ❌ Cloudflare 네임서버 변경 (Cloud DNS로)
+**레거시 정리:**
 - ❌ Firebase Hosting 제거 (firebase.json, .firebaserc, 워크플로우)
 - ❌ Cloudflare Pages 프로젝트 삭제
+- ❌ Cloudflare DNS 레코드 정리
 
 ---
 
