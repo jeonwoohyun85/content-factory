@@ -203,7 +203,7 @@ Cloud Monitoring 알림
 - ❌ 로컬 CLAUDE.md ↔ 글로벌 CLAUDE.md 동기화
 - ❌ 시스템 현황 섹션 자동 업데이트 (Google Cloud 기준)
 - ❌ 배포 히스토리 정리 (2026-02-03 이후)
-- ❌ functions/worker-main.js 레거시 파일 삭제
+- ✅ functions/worker-main.js 레거시 파일 삭제
 
 ---
 
@@ -212,10 +212,22 @@ Cloud Monitoring 알림
 **목표:** 100% Google Cloud 생태계
 
 **작업 목록:**
-- ❌ Cloud CDN 연동 (Firebase Hosting)
+
+**모니터링 시스템:**
 - ❌ Cloud Monitoring 대시보드 구축
-- ❌ Error Reporting 알림 설정
+- ❌ Error Reporting 알림 설정 (Telegram 연동)
 - ❌ Cloud Logging 필터 및 검색
+- ❌ UptimeRobot 연동 (외부 감시)
+  - make-page.com 헬스체크
+  - Cloud Functions 엔드포인트 감시
+
+**Cloudflare 정리:**
+- ❌ Cloudflare Pages 제거
+- ❌ 도메인/DNS만 유지
+- ❌ 불필요한 레코드 정리
+
+**최적화:**
+- ❌ Cloud CDN 연동 (Firebase Hosting)
 - ❌ BigQuery 로그 분석 (선택)
 - ❌ GitHub Actions → Cloud Build 100% 전환
 - ❌ Vertex AI Gemini 전환 검토 (현재 Google AI Studio 사용)
