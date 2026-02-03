@@ -354,6 +354,7 @@ ${trendsData}
 
 
 
+    console.log("Gemini response:", result.substring(0, 500));
     const jsonMatch = result.match(/\{[\s\S]*\}/);
 
     if (jsonMatch) {
