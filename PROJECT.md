@@ -54,6 +54,45 @@
 
 7. '크론', '상태' 컬럼 업데이트
 
+
+---
+
+## 🔄 Google Cloud 전환 계획
+
+### 1단계: 환경 준비
+1. Google Cloud 프로젝트 생성
+2. API 활성화 (Functions, Firestore, Scheduler, Logging, Monitoring)
+3. Secret Manager에 API 키 등록 (Gemini, Telegram)
+4. IAM 권한 설정
+
+### 2단계: 데이터 저장소
+5. Firestore 생성 (KV 대체)
+6. 락/캐시 스키마 설계
+
+### 3단계: 코드 작성
+7. Cloud Functions 작성 (Worker 로직 이전)
+8. GAS 작성 (Sheets 연동 + 보조)
+9. 로컬/테스트 환경에서 검증
+
+### 4단계: 모니터링 구축
+10. Cloud Logging 설정
+11. Cloud Monitoring 알림 (Telegram 연동)
+12. Error Reporting 활성화
+13. UptimeRobot 설정
+
+### 5단계: 크론 전환
+14. Cloud Scheduler 생성
+15. 수동 테스트 실행
+16. 자동 크론 활성화
+17. cron-job.org 비활성화
+
+### 6단계: 배포 자동화
+18. Cloud Build 설정 (GitHub 연동)
+
+### 7단계: 프론트 이전 (선택)
+19. Firebase Hosting (랜딩)
+20. DNS 전환
+
 ---
 
 ## 포스팅 생성 규칙
