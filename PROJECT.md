@@ -266,11 +266,28 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
-### Phase 4: Google 생태계 완성 ⏳ 0%
+### Phase 4: Google 생태계 완성 ⚠️ 10%
 
 **목표:** 100% Google Cloud 생태계
 
+**완료:**
+- ✅ Google Apps Script (GAS) 추가
+  - 경로: gas/Code.gs
+  - Sheets/Drive 직접 접근 헬퍼 함수
+  - KST 시간 유틸리티
+  - 설치 가이드: gas/README.md
+
 **작업 목록:**
+
+**Google Apps Script:**
+- ✅ GAS 프로젝트 코드 작성
+- ❌ Sheets에 Apps Script 설치 (수동)
+- ❌ 권한 승인 및 테스트
+
+**자동 배포:**
+- ❌ Cloud Build Trigger 설정
+  - GitHub 푸시 → 자동 배포
+  - 현재: 수동 배포만 가능
 
 **모니터링 시스템:**
 - ❌ Cloud Monitoring 대시보드 구축
@@ -278,18 +295,15 @@ Google Cloud Load Balancer (34.120.160.174:443)
 - ❌ Cloud Logging 필터 및 검색
 - ❌ UptimeRobot 연동 (외부 감시)
   - make-page.com 헬스체크
-  - Cloud Functions 엔드포인트 감시
+  - Cloud Run 엔드포인트 감시
 
 **Cloudflare 정리:**
 - ❌ Cloudflare Pages 제거
-- ❌ 도메인/DNS만 유지
-- ❌ 불필요한 레코드 정리
+- ❌ 불필요한 DNS 레코드 정리
 
-**최적화:**
-- ❌ Cloud CDN 연동 (Firebase Hosting)
-- ❌ BigQuery 로그 분석 (선택)
-- ❌ GitHub Actions → Cloud Build 100% 전환
-- ❌ Vertex AI Gemini 전환 검토 (현재 Google AI Studio 사용)
+**최적화 (선택):**
+- ❌ BigQuery 로그 분석
+- ❌ Vertex AI Gemini 전환 검토
 
 **완료 기준:**
 - GitHub 사용: 5% (코드 저장소만)
