@@ -357,7 +357,9 @@ ${trendsData}
     console.log("Gemini response:", result.substring(0, 500));
     // Remove markdown code blocks
     let cleanResult = result.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    console.log("Clean result:", cleanResult.substring(0, 500));
     const jsonMatch = cleanResult.match(/\{[\s\S]*\}/);
+    console.log("JSON match:", jsonMatch ? "Found" : "Not found");
 
     if (jsonMatch) {
 
