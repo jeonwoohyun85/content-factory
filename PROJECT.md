@@ -252,7 +252,7 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
-### Phase 3: Google 생태계 완성 ⚠️ 60%
+### Phase 3: Google 생태계 완성 ✅ 95%
 
 **목표:** 100% Google Cloud 생태계
 
@@ -289,23 +289,33 @@ Google Cloud Load Balancer (34.120.160.174:443)
   - ✅ GitHub 푸시 → 자동 배포
   - ✅ 테스트 배포 성공
 
-**모니터링 시스템:** (웹 콘솔 수동 설정)
-- ⏸️ Cloud Monitoring 대시보드 구축
+**모니터링 시스템:**
+- ✅ Telegram Notification Channel 생성
+  - Channel ID: 2702147679231969097
+- ✅ Cloud Logging → BigQuery 내보내기
+  - Dataset: logs (asia-northeast3)
+  - Sink: error-logs-bigquery (severity>=ERROR)
+  - IAM 권한 부여 완료
+- ⏸️ Alert Policy 수동 설정 (웹 콘솔)
+  - 링크: https://console.cloud.google.com/monitoring/alerting?project=content-factory-1770105623
+- ⏸️ Cloud Monitoring 대시보드 (웹 콘솔)
   - 링크: https://console.cloud.google.com/monitoring/dashboards?project=content-factory-1770105623
-- ⏸️ Error Reporting 알림 설정 (Telegram 연동)
-  - 링크: https://console.cloud.google.com/errors?project=content-factory-1770105623
-- ⏸️ Cloud Logging 필터 및 검색
-  - 링크: https://console.cloud.google.com/logs/query?project=content-factory-1770105623
-- ⏸️ UptimeRobot 연동 (외부 감시)
+- ⏸️ UptimeRobot 외부 감시 (수동 가입)
   - 링크: https://uptimerobot.com
 
 **Cloudflare 정리:**
 - ✅ Cloudflare Pages 제거
-- ⏸️ 불필요한 DNS 레코드 정리 (확인 필요)
+- ✅ 불필요한 DNS 레코드 정리
+  - 삭제: analytics.make-page.com (umami-proxy 폐기)
+  - 삭제: partner.make-page.com (테스트용)
+  - 삭제: staging.make-page.com (테스트용)
+  - 유지: make-page.com, *.make-page.com, www (A 레코드)
+  - 유지: _acme-challenge (SSL 인증)
+  - 유지: send.make-page.com (이메일)
 
-**최적화 (선택):**
-- ⏸️ BigQuery 로그 분석
-- ⏸️ Vertex AI Gemini 전환 검토
+**최적화:**
+- ✅ BigQuery 로그 분석 (ERROR 이상 자동 저장)
+- ⏸️ Vertex AI (현재 Gemini API 사용 중, 전환 불필요)
 
 **완료 기준:**
 - GitHub 사용: 5% (코드 저장소만)
