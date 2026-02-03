@@ -65,3 +65,5 @@ async function translateWithCache(fields, targetLanguage, subdomain, env) {
     return {};
   }
 }
+
+module.exports = { translateWithCache };
