@@ -588,4 +588,4 @@ async function autoResizeBusinessNameColumns(env) {
     return false;
   }
 }
-module.exports = { getClientFromSheets, getClientFromSheetsForPosting, getPostsFromArchive };
+module.exports = { getClientFromSheets, getPostsFromArchive };
