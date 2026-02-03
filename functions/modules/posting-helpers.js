@@ -1,5 +1,6 @@
 // 포스팅 자동화 헬퍼 함수
 
+const { GoogleAuth } = require('google-auth-library');
 const { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 const { autoResizeBusinessNameColumns } = require('./sheets.js');
@@ -24,6 +25,49 @@ const ARCHIVE_HEADERS_FALLBACK = [
 
 // 포스팅당 최대 이미지 개수
 const MAX_IMAGES_PER_POSTING = 10;
+
+// Vertex AI Gemini API 헬퍼 함수
+async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7) {
+  const auth = new GoogleAuth({
+    scopes: ['https://www.googleapis.com/auth/cloud-platform']
+  });
+  const client = await auth.getClient();
+  const accessToken = await client.getAccessToken();
+
+  const projectId = process.env.GCP_PROJECT || 'content-factory-1770105623';
+  const location = 'asia-northeast3';
+  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+
+  const response = await fetchWithTimeout(
+    endpoint,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          temperature: temperature
+        }
+      })
+    },
+    120000
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Vertex AI Gemini failed: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
 
 async function getClientFromSheetsForPosting(subdomain, env) {
 
@@ -132,81 +176,9 @@ async function searchWithClaudeForPosting(client, env) {
 
   try {
 
-    const response = await fetchWithTimeout(
+    const result = await callVertexGemini(prompt, 'gemini-2.5-flash', 1024);
 
-      'https://api.anthropic.com/v1/messages',
-
-      {
-
-        method: 'POST',
-
-        headers: {
-
-          'x-api-key': env.ANTHROPIC_API_KEY,
-
-          'anthropic-version': '2023-06-01',
-
-          'content-type': 'application/json'
-
-        },
-
-        body: JSON.stringify({
-
-          model: 'claude-haiku-4-5-20251001',
-
-          max_tokens: 1024,
-
-          messages: [{
-
-            role: 'user',
-
-            content: [{ type: 'text', text: prompt }]
-
-          }]
-
-        })
-
-      },
-
-      120000
-
-    );
-
-
-
-    if (!response.ok) {
-
-      const errorText = await response.text();
-
-      throw new Error(`Claude API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
-
-    }
-
-
-
-    const data = await response.json();
-
-
-
-    // 에러 처리
-
-    if (data.error) {
-
-      throw new Error(`Claude API error: ${data.error.message}`);
-
-    }
-
-
-
-    if (!data.content || !data.content[0] || !data.content[0].text) {
-
-      throw new Error(`Unexpected Claude API response structure: ${JSON.stringify(data)}`);
-
-    }
-
-
-
-    return data.content[0].text;
+    return result;
 
   } catch (error) {
 
@@ -376,115 +348,13 @@ ${trendsData}
 
 
 
-  const content = [{ type: 'text', text: prompt }];
-
-
-
-  for (const image of images) {
-
-    content.push({
-
-      type: 'image',
-
-      source: {
-
-        type: 'base64',
-
-        media_type: image.mimeType,
-
-        data: image.data
-
-      }
-
-    });
-
-  }
-
-
-
   try {
 
-    const response = await fetchWithTimeout(
-
-      'https://api.anthropic.com/v1/messages',
-
-      {
-
-        method: 'POST',
-
-        headers: {
-
-          'x-api-key': env.ANTHROPIC_API_KEY,
-
-          'anthropic-version': '2023-06-01',
-
-          'content-type': 'application/json'
-
-        },
-
-        body: JSON.stringify({
-
-          model: 'claude-sonnet-4-5-20250929',
-
-          max_tokens: 4096,
-
-          messages: [{
-
-            role: 'user',
-
-            content: content
-
-          }]
-
-        })
-
-      },
-
-      120000
-
-    );
+    const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 4096);
 
 
 
-    // HTTP 응답 상태 확인
-
-    if (!response.ok) {
-
-      const errorText = await response.text();
-
-      throw new Error(`Claude API HTTP ${response.status}: ${errorText.substring(0, 200)}`);
-
-    }
-
-
-
-    const data = await response.json();
-
-
-
-    // 에러 처리
-
-    if (data.error) {
-
-      throw new Error(`Claude API error: ${data.error.message}`);
-
-    }
-
-
-
-    if (!data.content || !data.content[0] || !data.content[0].text) {
-
-      throw new Error(`Unexpected Claude API response structure: ${JSON.stringify(data)}`);
-
-    }
-
-
-
-    const text = data.content[0].text;
-
-
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
 
     if (jsonMatch) {
 
@@ -494,7 +364,7 @@ ${trendsData}
 
 
 
-    throw new Error('Failed to parse Claude response');
+    throw new Error('Failed to parse Gemini response');
 
   } catch (error) {
 
@@ -1228,7 +1098,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
         const normalizedSearchDomain = domain.replace('.make-page.com', '');
 
-        
+
 
         if (normalizedStoredDomain === normalizedSearchDomain) {
 
@@ -1871,7 +1741,6 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   } catch (resizeError) {
     console.error('[ERROR] 컬럼 너비 조정 실패:', resizeError.message);
   }
-
 
 
 
