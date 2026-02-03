@@ -1057,9 +1057,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   const spreadsheetResponse = await fetchWithTimeout(
 
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,
-  sheetId),
-  data.columnMetadata.pixelSize)`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
 
     { headers: { Authorization: `Bearer ${accessToken}` } },
 
