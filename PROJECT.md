@@ -252,7 +252,7 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
-### Phase 3: Google 생태계 완성 ⚠️ 15%
+### Phase 3: Google 생태계 완성 ⚠️ 60%
 
 **목표:** 100% Google Cloud 생태계
 
@@ -263,6 +263,17 @@ Google Cloud Load Balancer (34.120.160.174:443)
   - Sheets Helper: scripts/sheets-helper.js
   - 활성 거래처 조회, 행 추가, 셀 업데이트, 시트 클리어 등
   - KST 시간 유틸리티 (getKSTNow, getKSTDateString, getKSTTimeString)
+  - 배포일지 시트 생성 및 테스트 완료
+
+- ✅ Cloud Build 자동 배포
+  - Trigger 이름: deploy-cloud-functions
+  - GitHub 연동: jeonwoohyun85/content-factory (main 브랜치)
+  - 빌드 파일: cloudbuild.yaml
+  - 리전: asia-east1
+  - 첫 배포 성공: 2026-02-04 (2분 41초 소요)
+
+- ✅ Cloudflare Pages 정리
+  - make-page-landing 프로젝트 제거됨 (이미 없음)
 
 **작업 목록:**
 
@@ -270,29 +281,31 @@ Google Cloud Load Balancer (34.120.160.174:443)
 - ✅ Service Account 키 생성
 - ✅ scripts/sheets-helper.js 작성
 - ✅ .gitignore 보안 설정
-- ❌ Sheets 공유 (Service Account에 편집자 권한)
-- ❌ 테스트 및 검증
+- ✅ Sheets 공유 (Service Account에 편집자 권한)
+- ✅ 테스트 및 검증
 
 **자동 배포:**
-- ❌ Cloud Build Trigger 설정
-  - GitHub 푸시 → 자동 배포
-  - 현재: 수동 배포만 가능
+- ✅ Cloud Build Trigger 설정
+  - ✅ GitHub 푸시 → 자동 배포
+  - ✅ 테스트 배포 성공
 
-**모니터링 시스템:**
-- ❌ Cloud Monitoring 대시보드 구축
-- ❌ Error Reporting 알림 설정 (Telegram 연동)
-- ❌ Cloud Logging 필터 및 검색
-- ❌ UptimeRobot 연동 (외부 감시)
-  - make-page.com 헬스체크
-  - Cloud Run 엔드포인트 감시
+**모니터링 시스템:** (웹 콘솔 수동 설정)
+- ⏸️ Cloud Monitoring 대시보드 구축
+  - 링크: https://console.cloud.google.com/monitoring/dashboards?project=content-factory-1770105623
+- ⏸️ Error Reporting 알림 설정 (Telegram 연동)
+  - 링크: https://console.cloud.google.com/errors?project=content-factory-1770105623
+- ⏸️ Cloud Logging 필터 및 검색
+  - 링크: https://console.cloud.google.com/logs/query?project=content-factory-1770105623
+- ⏸️ UptimeRobot 연동 (외부 감시)
+  - 링크: https://uptimerobot.com
 
 **Cloudflare 정리:**
-- ❌ Cloudflare Pages 제거
-- ❌ 불필요한 DNS 레코드 정리
+- ✅ Cloudflare Pages 제거
+- ⏸️ 불필요한 DNS 레코드 정리 (확인 필요)
 
 **최적화 (선택):**
-- ❌ BigQuery 로그 분석
-- ❌ Vertex AI Gemini 전환 검토
+- ⏸️ BigQuery 로그 분석
+- ⏸️ Vertex AI Gemini 전환 검토
 
 **완료 기준:**
 - GitHub 사용: 5% (코드 저장소만)
