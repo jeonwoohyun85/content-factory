@@ -565,4 +565,4 @@ async function sendNtfyAlert({
   }
 }
 
-module.exports = { fetchWithTimeout, parseCSV, normalizeClient, sendNtfyAlert };
+module.exports = { fetchWithTimeout, escapeHtml, normalizeLanguage, parseCSV, parseCSVLine, normalizeClient, formatKoreanTime, getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown, getColumnLetter, normalizeFolderName, removeLanguageSuffixFromBusinessName, sendNtfyAlert };

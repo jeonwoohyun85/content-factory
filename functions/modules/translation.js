@@ -139,4 +139,4 @@ async function getLanguageTexts(langCode, env) {
     return LANGUAGE_TEXTS.en;
   }
 }
-
+module.exports = { translateWithClaude,getLanguageTexts };

@@ -249,4 +249,4 @@ const LANGUAGE_TEXTS = {
 
   }
 
-};
+module.exports = { getFromCache,addToCache };

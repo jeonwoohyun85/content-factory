@@ -1867,4 +1867,4 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
 
-}
+module.exports = { getClientFromSheetsForPosting,searchWithClaudeForPosting,generatePostWithClaudeForPosting,getFolderImagesForPosting,getClientFoldersForPosting,getLastUsedFolderForPosting,getNextFolderForPosting,removeDuplicatesFromLatestPosting,saveToLatestPostingSheet };
