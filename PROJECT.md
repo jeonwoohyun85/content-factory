@@ -64,15 +64,15 @@
 
 ### 중심: 모든 것이 Google Cloud
 
-**핵심 원칙**: 완전 Google Cloud (GitHub 제거)
+**핵심 원칙**: 95% Google Cloud + 5% GitHub (저장소만)
 
 ### 아키텍처 구성
 
-**1. 코드 저장소 (Cloud Source Repositories)**
-- Google Cloud의 Git 저장소
-- Cloud Build 네이티브 연동
-- 1인 개발 최적화 (협업 기능 불필요)
-- 완전 Google 통합
+**1. 코드 저장소 (GitHub - 최소 사용)**
+- 역할: Git 저장소로만 사용 (코드 보관)
+- Cloud Build 푸시 트리거 (감지 용도)
+- GitHub 기능 5%만 사용 (저장소 + 버전 관리)
+- 나머지 95%는 Google Cloud
 
 **2. 빌드/배포 (Cloud Build)**
 - GitHub 연동: 푸시 자동 감지
@@ -106,7 +106,7 @@
 ### 배포 흐름
 
 ```
-개발자 코드 푸시 (Cloud Source Repositories)
+개발자 코드 푸시 (GitHub - 저장만)
         ↓
 Cloud Build 자동 감지
         ↓
@@ -117,24 +117,27 @@ Cloud Functions 배포 / Firebase Hosting 배포
 Cloud Monitoring 알림
 ```
 
-### GitHub 완전 제거
+### GitHub 최소 사용 (5%)
 
-**Cloud Source Repositories로 대체:**
-- ✅ Git 저장소 (Google Cloud)
-- ✅ Cloud Build 네이티브 연동
-- ✅ IAM 통합 권한 관리
-- ✅ Cloud Console에서 코드 확인
+**GitHub 사용 범위:**
+- ✅ Git 저장소 (코드 보관)
+- ✅ 버전 관리 (commit, push, pull)
+- ✅ Cloud Build 트리거 (푸시 감지)
 
-**GitHub 완전 폐기:**
-- ❌ GitHub 저장소
-- ❌ GitHub Actions
-- ❌ GitHub Secrets
-- ❌ 모든 GitHub 의존성 제거
+**GitHub 폐기:**
+- ❌ GitHub Actions → Cloud Build
+- ❌ GitHub Secrets → Secret Manager
+- ❌ GitHub Pages → Firebase Hosting
+- ❌ Workflows, Issues, Projects 등
 
-**전환 이유 (1인 개발):**
-- 협업 기능 불필요
-- 관리 포인트 1개로 통합
-- 완전 Google 생태계
+**비율:**
+- GitHub: 5% (저장소만)
+- Google Cloud: 95% (빌드, 배포, 실행, 모니터링)
+
+**전환 이유:**
+- Cloud Source Repositories 사용 불가 (계정 제한)
+- GitHub를 "파일 업로드 장소"로만 활용
+- 모든 로직/배포/관리는 Google Cloud
 
 ### 완전 Google Cloud 장점
 
