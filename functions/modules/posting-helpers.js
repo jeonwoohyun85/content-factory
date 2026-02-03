@@ -518,7 +518,8 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
 
   const businessFolderResponse = await fetch(
 
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,
+  name)`,
 
     { headers: { Authorization: `Bearer ${accessToken}` } }
 
@@ -550,7 +551,8 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
 
   const targetFolderResponse = await fetch(
 
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(targetFolderQuery)}&fields=files(id,name)`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(targetFolderQuery)}&fields=files(id,
+  name)`,
 
     { headers: { Authorization: `Bearer ${accessToken}` } }
 
@@ -586,7 +588,9 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
 
   const filesResponse = await fetch(
 
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(filesQuery)}&fields=files(id,name,mimeType)&pageSize=100`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(filesQuery)}&fields=files(id,
+  name,
+  mimeType)&pageSize=100`,
 
     { headers: { Authorization: `Bearer ${accessToken}` } }
 
@@ -724,7 +728,8 @@ async function getClientFoldersForPosting(folderName, subdomain, accessToken, en
 
   const businessFolderResponse = await fetch(
 
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,name)`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(businessFolderQuery)}&fields=files(id,
+  name)`,
 
     { headers: { Authorization: `Bearer ${accessToken}` } }
 
@@ -760,7 +765,8 @@ async function getClientFoldersForPosting(folderName, subdomain, accessToken, en
 
   const subFoldersResponse = await fetch(
 
-    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(subFoldersQuery)}&fields=files(id,name)&orderBy=name`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(subFoldersQuery)}&fields=files(id,
+  name)&orderBy=name`,
 
     { headers: { Authorization: `Bearer ${accessToken}` } }
 
@@ -1172,7 +1178,9 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   const spreadsheetResponse = await fetchWithTimeout(
 
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,
+  sheetId),
+  data.columnMetadata.pixelSize)`,
 
     { headers: { Authorization: `Bearer ${accessToken}` } },
 
@@ -1867,4 +1875,16 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
 
-module.exports = { getClientFromSheetsForPosting,searchWithClaudeForPosting,generatePostWithClaudeForPosting,getFolderImagesForPosting,getClientFoldersForPosting,getLastUsedFolderForPosting,getNextFolderForPosting,removeDuplicatesFromLatestPosting,saveToLatestPostingSheet };
+}
+
+module.exports = {
+  getClientFromSheetsForPosting,
+  searchWithClaudeForPosting,
+  generatePostWithClaudeForPosting,
+  getFolderImagesForPosting,
+  getClientFoldersForPosting,
+  getLastUsedFolderForPosting,
+  getNextFolderForPosting,
+  removeDuplicatesFromLatestPosting,
+  saveToLatestPostingSheet
+};
