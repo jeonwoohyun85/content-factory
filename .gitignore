@@ -30,10 +30,18 @@ firestore-debug.log
 ui-debug.log
 
 # Local temporary files
-posting-*.js
-sheets-*.js
-check-*.js
+posting-broken.js
+posting-current.js
+posting-fixed-final.js
+posting-helpers-fix.js
+posting-v2.js
+sheets-current.js
+check-sheet-format.js
 *-current.js
 *-broken.js
 *-test.js
 preview/
+
+# Allow production files
+!functions/modules/posting-helpers.js
+!functions/modules/sheets.js
