@@ -290,12 +290,19 @@ Google Cloud Load Balancer (34.120.160.174:443)
   - ✅ 테스트 배포 성공
 
 **모니터링 시스템:**
-- ✅ Telegram Notification Channel
-  - Channel ID: 2702147679231969097
+- ✅ Telegram 알림 (Cloud Function)
+  - Pub/Sub Topic: monitoring-alerts
+  - Cloud Function: alert-to-telegram (Gen2, Node.js 20)
+  - 리전: asia-northeast3
+  - 트리거: Pub/Sub (monitoring-alerts)
+  - 환경변수: Secret Manager 연동 (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+- ✅ Pub/Sub Notification Channel
+  - Channel ID: 18141842621408590641
+  - Topic: projects/content-factory-1770105623/topics/monitoring-alerts
 - ✅ Alert Policy (ERROR 로그 → Telegram 알림)
   - Policy ID: 5630959630329801439
   - 조건: Cloud Functions ERROR 로그 발생 시
-  - 알림: Telegram으로 즉시 전송
+  - 알림: Pub/Sub → Cloud Function → Telegram
 - ✅ Cloud Logging → BigQuery 내보내기
   - Dataset: logs (asia-northeast3)
   - Sink 1: error-logs-bigquery (severity>=ERROR)
