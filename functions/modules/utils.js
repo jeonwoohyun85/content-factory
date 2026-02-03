@@ -564,3 +564,5 @@ async function sendNtfyAlert({
     console.error('ntfy 알림 전송 실패:', err.message);
   }
 }
+
+module.exports = { fetchWithTimeout, parseCSV, normalizeClient, sendNtfyAlert };

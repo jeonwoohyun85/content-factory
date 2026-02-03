@@ -146,3 +146,4 @@ async function getGoogleAccessTokenForPosting(env) {
 
 }
 
+module.exports = { getGoogleAccessTokenForPosting };
