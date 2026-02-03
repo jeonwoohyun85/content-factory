@@ -6,7 +6,7 @@
 
 **최근 작업**: docs: 시스템 상태 자동 동기화 스크립트 추가
 
-**다음 단계**: 에러 로깅 추가 (Slack 또는 Sheets)
+**다음 단계**: Google Cloud 생태계로 전환 (Cloudflare → Google Cloud 완전 이전)
 
 ---
 
