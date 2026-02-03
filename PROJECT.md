@@ -174,7 +174,7 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: 도메인 및 라우팅 통합 ⚠️ 80%
+### Phase 2: 도메인 및 라우팅 통합 ⚠️ 95%
 
 **목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Run + Global Load Balancing)
 
@@ -191,9 +191,6 @@ Cloud Monitoring 알림
 - ✅ Cloud DNS 설정
   - Zone: make-page-com
   - Nameservers: ns-cloud-a1/a2/a3/a4.googledomains.com
-- ✅ A 레코드 설정 (와일드카드)
-  - make-page.com → 34.120.160.174
-  - *.make-page.com → 34.120.160.174
 - ✅ Global Load Balancing 구축
   - Serverless NEG: content-factory-neg (asia-northeast3)
   - Backend Service: content-factory-backend
@@ -204,24 +201,31 @@ Cloud Monitoring 알림
 - ✅ SSL 인증서 요청 (make-page.com)
   - 인증서명: make-page-ssl
   - 상태: PROVISIONING
+- ✅ Cloudflare DNS → Google Cloud IP 자동 전환
+  - make-page.com A → 34.120.160.174 (proxied: false)
+  - *.make-page.com A → 34.120.160.174 (proxied: false)
+  - www.make-page.com A → 34.120.160.174 (proxied: false)
+  - DNS 전파 완료 (nslookup 확인)
 
 **남은 작업:**
 
 **SSL 인증서:**
-- ⏳ make-page.com 인증서 프로비저닝 완료 대기
+- ⏳ make-page.com 인증서 프로비저닝 완료 대기 (15분~1시간)
+- ⏳ 인증서 활성화 후 자동 작동
+
+**선택 사항 (Phase 3 이후):**
 - ❌ 와일드카드 SSL 인증서 추가 (*.make-page.com)
   - Certificate Manager 사용 필요 (Google-managed SSL은 와일드카드 미지원)
-
-**DNS 전환:**
-- ❌ Cloudflare 네임서버 변경 (수동 작업 필요)
-  - 기존: coen.ns.cloudflare.com, norah.ns.cloudflare.com
-  - 신규: ns-cloud-a1/a2/a3/a4.googledomains.com
-  - Cloudflare Dashboard 또는 도메인 등록 기관에서 수동 변경
+- ❌ HTTP(80) Forwarding Rule 추가
+  - Target HTTP Proxy 생성
+  - HTTP → HTTPS 리다이렉트 설정
+- ❌ Cloudflare 네임서버 변경 (선택)
+  - 현재: Cloudflare DNS 유지 + Google Cloud IP 연결
+  - 나중: Cloud DNS로 완전 이전 가능
 
 **레거시 정리:**
 - ❌ Firebase Hosting 제거 (firebase.json, .firebaserc, 워크플로우)
 - ❌ Cloudflare Pages 프로젝트 삭제
-- ❌ Cloudflare DNS 레코드 정리
 
 ---
 
