@@ -2,6 +2,7 @@
 
 const { getClientFromSheetsForPosting, searchWithClaudeForPosting, generatePostWithClaudeForPosting, getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting, removeDuplicatesFromLatestPosting, saveToLatestPostingSheet } = require('./posting-helpers.js');
 const { sendNtfyAlert } = require('./utils.js');
+const { getGoogleAccessTokenForPosting } = require('./auth.js');
 
 async function generatePostingForClient(subdomain, env) {
 
