@@ -1,7 +1,7 @@
 // 포스팅 자동화 메인 오케스트레이션
 
 const { getClientFromSheetsForPosting, searchWithClaudeForPosting, generatePostWithClaudeForPosting, getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting, removeDuplicatesFromLatestPosting, saveToLatestPostingSheet } = require('./posting-helpers.js');
-const { sendNtfyAlert } = require('./utils.js');
+const { normalizeSubdomain } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 
 async function generatePostingForClient(subdomain, env) {
