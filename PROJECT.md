@@ -149,6 +149,91 @@ Cloud Monitoring 알림
 6. **비용 최적화**: 내부 통신 무료
 
 
+## 🗺️ Google Cloud 전환 로드맵
+
+### Phase 1: Cloud Functions 전환 ✅ 80%
+
+**목표:** Cloudflare Workers → Cloud Functions 완전 이전
+
+**완료:**
+- ✅ functions/ 폴더 구조 생성
+- ✅ Firestore 연동 (KV 대체)
+- ✅ Secret Manager 연동 (GEMINI_API_KEY, TELEGRAM_BOT_TOKEN 등)
+- ✅ Cloud Build 자동 배포 설정 (cloudbuild.yaml)
+- ✅ Cloud Scheduler 크론 (매일 00:01 KST)
+- ✅ 기본 엔드포인트 구현
+  - /cron-trigger (전체 거래처 포스팅)
+  - /test-posting (단일 테스트)
+  - /refresh (캐시 삭제)
+  - /{subdomain} (거래처 페이지)
+
+**진행 중:**
+- ⏳ 모든 엔드포인트 Cloud Functions로 이전
+- ⏳ 도메인 라우팅 전환
+
+**남은 작업:**
+- ❌ Cloudflare Workers 완전 폐기
+- ❌ workers/ 폴더 삭제
+- ❌ Cloudflare Cron/Queue 제거
+
+---
+
+### Phase 2: Firebase Hosting 전환 ⚠️ 50%
+
+**목표:** Cloudflare Pages → Firebase Hosting 이전
+
+**완료:**
+- ✅ firebase.json 설정
+- ✅ .firebaserc 프로젝트 연결 (content-factory-1770105623)
+- ✅ landing/ public 디렉토리 지정
+- ✅ Cache-Control 헤더 설정
+- ✅ SPA 라우팅 설정
+
+**남은 작업:**
+- ❌ Firebase Hosting 자동 배포 워크플로우 추가
+- ❌ 실제 배포 실행
+- ❌ 커스텀 도메인 연결 (make-page.com)
+- ❌ Cloudflare Pages 제거
+
+---
+
+### Phase 3: 문서 및 정리 ⏳ 0%
+
+**목표:** 문서와 코드 완전 동기화
+
+**작업 목록:**
+- ❌ PROJECT.md 전면 개편 (Google Cloud 기준)
+- ❌ 로컬 CLAUDE.md ↔ 글로벌 CLAUDE.md 동기화
+- ❌ 시스템 현황 섹션 자동 업데이트 (Google Cloud 기준)
+- ❌ 배포 히스토리 정리 (2026-02-03 이후)
+- ❌ workers/ 폴더 완전 삭제
+- ❌ wrangler.toml 삭제
+- ❌ GitHub Actions 워크플로우 정리 (deploy-workers.yml 제거)
+
+---
+
+### Phase 4: Google 생태계 완성 ⏳ 0%
+
+**목표:** 100% Google Cloud 생태계
+
+**작업 목록:**
+- ❌ Cloud CDN 연동 (Firebase Hosting)
+- ❌ Cloud Monitoring 대시보드 구축
+- ❌ Error Reporting 알림 설정
+- ❌ Cloud Logging 필터 및 검색
+- ❌ BigQuery 로그 분석 (선택)
+- ❌ GitHub Actions → Cloud Build 100% 전환
+- ❌ Vertex AI Gemini 전환 검토 (현재 Google AI Studio 사용)
+
+**완료 기준:**
+- GitHub 사용: 5% (코드 저장소만)
+- Google Cloud 사용: 95% (모든 로직/배포/모니터링)
+
+---
+
+**현재 우선순위:** Phase 1 완료 (Cloud Functions 전환)
+
+
 ## 포스팅 생성 규칙
 
 ### 콘텐츠 작성
