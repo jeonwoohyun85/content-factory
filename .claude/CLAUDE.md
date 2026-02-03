@@ -376,3 +376,35 @@ gh run list --limit 100 --json conclusion,displayTitle,createdAt \
 - 하루에 50개 배포가 있어도 전부 상세히 작성
 - 문단이 길어도 괜찮음
 - 완전성이 간결함보다 우선
+
+
+---
+
+# 📦 모듈화 원칙
+
+## 기본 베이스: 모든 작업은 모듈화
+
+**모듈화 = 기능별 분리 = 재사용 가능 = 유지보수 쉬움**
+
+### 필수 사항
+- 독립된 기능은 별도 파일/모듈로 분리
+- 한 파일 = 한 책임
+- 공통 로직은 유틸리티 모듈로 추출
+
+### 예시
+```
+❌ 나쁜 예: 모든 로직을 main.js에 작성
+✅ 좋은 예:
+  - main.js (라우팅만)
+  - modules/posting.js (포스팅 로직)
+  - modules/sheets.js (Sheets 연동)
+  - modules/gemini.js (AI 호출)
+  - utils/lock.js (락 관리)
+  - utils/cache.js (캐시 관리)
+```
+
+### 적용 범위
+- Worker 코드
+- Cloud Functions
+- GAS (Google Apps Script)
+- 모든 백엔드 로직
