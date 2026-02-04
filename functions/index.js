@@ -77,6 +77,26 @@ functions.http('main', async (req, res) => {
       return res.json({ success: true });
     }
 
+    // 포스트 상세 페이지
+    if (pathname === '/post') {
+      const postId = req.query.id;
+      if (!postId) return res.status(400).send('Post ID required');
+
+      const { client } = await sheets.getClientFromSheets(subdomain, env);
+      if (!client) return res.status(404).send('Client not found');
+
+      const post = client.posts?.find(p => {
+        const pId = p.url ? p.url.split('id=')[1] : new Date(p.created_at).getTime().toString(36);
+        return pId === postId;
+      });
+
+      if (!post) return res.status(404).send('Post not found');
+
+      const html = await pages.generatePostPage(client, post, env);
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    }
+
     // 랜딩페이지 (make-page.com)
     if (subdomain === 'make-page' || host === 'make-page.com') {
       let htmlFile = 'index.html';
