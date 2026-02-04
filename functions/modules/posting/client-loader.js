@@ -1,6 +1,8 @@
 // 거래처 정보 조회 (Sheets)
 
-const { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, removeLanguageSuffixFromBusinessName, normalizeSubdomain } = require('../utils.js');
+const { fetchWithTimeout } = require('../utils/http-utils.js');
+const { parseCSV } = require('../utils/csv-parser.js');
+const { normalizeClient, normalizeLanguage, removeLanguageSuffixFromBusinessName, normalizeSubdomain } = require('../utils/normalize.js');
 const { translateWithCache } = require('../translation-cache.js');
 
 async function getClientFromSheetsForPosting(subdomain, env) {

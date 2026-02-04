@@ -1,6 +1,7 @@
 // 포스팅 저장 (Sheets + Firestore)
 
-const { fetchWithTimeout, normalizeSubdomain } = require('../utils.js');
+const { fetchWithTimeout } = require('../utils/http-utils.js');
+const { normalizeSubdomain } = require('../utils/normalize.js');
 
 async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env) {
   const now = new Date();
