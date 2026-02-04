@@ -113,6 +113,35 @@ functions.http('main', async (req, res) => {
           console.error(`[CRON ERROR] 모든 거래처 실패! 시스템 점검 필요`);
         }
 
+        // Telegram 크론 결과 알림
+        const telegramToken = secretsCache.TELEGRAM_BOT_TOKEN;
+        const chatId = secretsCache.TELEGRAM_CHAT_ID;
+        if (telegramToken && chatId) {
+          try {
+            const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+            const kstTime = kstNow.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+            const failedClients = results.filter(r => !r.success);
+            const failedList = failedClients.length > 0
+              ? `\n\n실패 거래처:\n${failedClients.map(r => `- ${r.subdomain}: ${r.error}`).join('\n')}`
+              : '';
+
+            const message = `🤖 크론 실행 완료\n\n✅ 성공: ${successCount}/${activeClients.length}\n❌ 실패: ${failCount}\n\n⏱ 소요 시간: ${duration}초\n🗓 실행 시간: ${kstTime}${failedList}`;
+
+            await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: message
+              })
+            });
+            console.log('[CRON] Telegram 알림 전송 완료');
+          } catch (error) {
+            console.error('[CRON] Telegram 알림 전송 실패:', error.message);
+          }
+        }
+
         return res.json({
           success: true,
           results,
