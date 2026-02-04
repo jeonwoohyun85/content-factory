@@ -217,8 +217,6 @@ async function generatePostingForClient(subdomain, env) {
       stage = '거래처 조회';
     }
 
-    // ntfy 제거됨 - 텔레그램 사용
-
     return {
 
       success: false,

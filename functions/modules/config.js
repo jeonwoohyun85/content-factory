@@ -3,59 +3,6 @@
 // Umami Cloud Analytics
 const UMAMI_WEBSITE_ID = 'aea13630-0836-4fd6-91ae-d04b4180b6e7';
 
-// LRU 캐시 (최대 50개 항목)
-const CACHE_MAX_SIZE = 50;
-const cacheOrder = []; // 사용 순서 추적 (최신이 마지막)
-const cacheData = {}; // 실제 캐시 데이터
-
-// LRU 캐시 관리 함수
-function getFromCache(key) {
-  if (cacheData[key]) {
-    // 사용한 항목을 맨 뒤로 이동 (최신 사용)
-    const index = cacheOrder.indexOf(key);
-    if (index > -1) {
-      cacheOrder.splice(index, 1);
-    }
-    cacheOrder.push(key);
-    return cacheData[key];
-  }
-  return null;
-}
-
-function addToCache(key, value) {
-  // 이미 존재하면 갱신
-  if (cacheData[key]) {
-    const index = cacheOrder.indexOf(key);
-    if (index > -1) {
-      cacheOrder.splice(index, 1);
-    }
-    cacheOrder.push(key);
-    cacheData[key] = value;
-    return;
-  }
-
-  // 캐시가 꽉 찼으면 가장 오래된 항목 제거
-  if (cacheOrder.length >= CACHE_MAX_SIZE) {
-    const oldestKey = cacheOrder.shift();
-    delete cacheData[oldestKey];
-  }
-
-  // 새 항목 추가
-  cacheOrder.push(key);
-  cacheData[key] = value;
-}
-
-// 하위 호환성을 위한 전역 캐시 객체 (사용 금지 - 레거시)
-const TRANSLATION_CACHE = new Proxy({}, {
-  get(target, prop) {
-    return getFromCache(prop);
-  },
-  set(target, prop, value) {
-    addToCache(prop, value);
-    return true;
-  }
-});
-
 // 주요 언어 하드코딩 번역 데이터
 const LANGUAGE_TEXTS = {
 

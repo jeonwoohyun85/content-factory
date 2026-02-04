@@ -314,11 +314,9 @@ async function getPostsFromArchive(subdomain, env) {
 
             const normalizedDomain = normalizeSubdomain(domain);
 
-            const normalizedSubdomain = normalizeSubdomain(domain);
 
 
-
-            if (normalizedDomain === normalizedSubdomain) {
+            if (normalizedDomain === subdomain) {
 
               allPosts.push({
 
@@ -398,98 +396,6 @@ async function getSheetId(sheetsId, sheetName, accessToken) {
 
 }
 
-async function autoResizeBusinessNameColumns(env) {
-  try {
-    const accessToken = await getGoogleAccessTokenForPosting(env);
-
-    const response = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId))`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-      10000
-    );
-
-    if (!response.ok) {
-      console.error('시트 메타데이터 조회 실패');
-      return false;
-    }
-
-    const data = await response.json();
-    const sheets = data.sheets;
-
-    const adminSheet = sheets.find(s => s.properties.title === '관리자');
-    const latestSheet = sheets.find(s => s.properties.title === '최신_포스팅' || s.properties.title === '최신 포스팅');
-
-    const requests = [];
-
-    if (adminSheet) {
-      requests.push({
-        autoResizeDimensions: {
-          dimensions: {
-            sheetId: adminSheet.properties.sheetId,
-            dimension: 'COLUMNS',
-            startIndex: 3,
-            endIndex: 4
-          }
-        }
-      });
-    }
-
-    if (latestSheet) {
-      requests.push({
-        autoResizeDimensions: {
-          dimensions: {
-            sheetId: latestSheet.properties.sheetId,
-            dimension: 'COLUMNS',
-            startIndex: 1,
-            endIndex: 2
-          }
-        }
-      });
-    }
-
-    if (archiveSheet) {
-      requests.push({
-        autoResizeDimensions: {
-          dimensions: {
-            sheetId: archiveSheet.properties.sheetId,
-            dimension: 'COLUMNS',
-            startIndex: 1,
-            endIndex: 2
-          }
-        }
-      });
-    }
-
-    if (requests.length === 0) {
-      console.log('조정할 컬럼 없음');
-      return true;
-    }
-
-    const updateResponse = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ requests })
-      },
-      10000
-    );
-
-    if (updateResponse.ok) {
-      console.log('상호명 컬럼 너비 자동 조정 성공');
-      return true;
-    } else {
-      console.error('컬럼 너비 조정 실패:', updateResponse.status);
-      return false;
-    }
-  } catch (error) {
-    console.error('컬럼 너비 조정 중 에러:', error);
-    return false;
-  }
-}
 async function getActiveClients(env) {
   try {
     const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';

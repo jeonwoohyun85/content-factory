@@ -272,7 +272,6 @@ Google Cloud Load Balancer (34.120.160.174:443)
   - 삭제: staging.make-page.com (테스트용)
   - 유지: make-page.com, *.make-page.com, www (A 레코드)
   - 유지: _acme-challenge (SSL 인증)
-  - 유지: send.make-page.com (이메일)
 
 **최적화:**
 - ✅ BigQuery 로그 분석 (ERROR 이상 자동 저장)
@@ -282,23 +281,6 @@ Google Cloud Load Balancer (34.120.160.174:443)
 - Google Cloud 사용: 95% (모든 로직/배포/모니터링)
 
 ---
-
-### Phase 4: 문서 및 정리 ⏳ 0%
-
-**목표:** 문서와 코드 완전 동기화
-
-**작업 목록:**
-- ❌ PROJECT.md 전면 개편 (Google Cloud 기준)
-- ❌ 로컬 CLAUDE.md ↔ 글로벌 CLAUDE.md 동기화
-- ❌ 시스템 현황 섹션 자동 업데이트 (Google Cloud 기준)
-- ❌ 배포 히스토리 정리 (2026-02-03 이후)
-- ✅ functions/worker-main.js 레거시 파일 삭제
-
----
-
-**현재 우선순위:** Phase 3 완료 (Google 생태계 완성)
-
-
 
 ## 포스팅 생성 규칙
 
