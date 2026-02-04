@@ -5,7 +5,7 @@ const { searchWithClaudeForPosting } = require('./posting/trend-searcher.js');
 const { generatePostWithClaudeForPosting } = require('./posting/content-generator.js');
 const { saveToLatestPostingSheet } = require('./posting/post-saver.js');
 const { getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting } = require('./drive-manager.js');
-const { normalizeSubdomain } = require('./utils.js');
+const { normalizeSubdomain } = require('./utils/normalize.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 const { deleteCachedHTML } = require('./cache.js');
 

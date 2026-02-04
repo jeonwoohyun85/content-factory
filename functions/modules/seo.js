@@ -1,6 +1,8 @@
 // SEO 관련 함수 (robots.txt, sitemap.xml)
 
-const { fetchWithTimeout, parseCSV, normalizeClient } = require('./utils.js');
+const { fetchWithTimeout } = require('./utils/http-utils.js');
+const { parseCSV } = require('./utils/csv-parser.js');
+const { normalizeClient } = require('./utils/normalize.js');
 
 function generateRobotsTxt() {
 

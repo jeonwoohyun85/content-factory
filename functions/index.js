@@ -40,7 +40,8 @@ functions.http('main', async (req, res) => {
   try {
     const env = await createEnv();
     const cache = require('./modules/cache.js');
-    const sheets = require('./modules/sheets.js');
+    const { getClientFromSheets } = require('./modules/sheets/client-reader.js');
+    const { getActiveClients } = require('./modules/sheets/client-lister.js');
     const { generateClientPage } = require('./modules/pages/client-page.js');
     const { generatePostPage } = require('./modules/pages/post-page.js');
     const posting = require('./modules/posting.js');
@@ -57,7 +58,7 @@ functions.http('main', async (req, res) => {
 
     // Cron 및 테스트 엔드포인트 (subdomain 무관)
     if (pathname === '/cron-trigger') {
-      const activeClients = await sheets.getActiveClients(env);
+      const activeClients = await getActiveClients(env);
       const results = [];
       for (const client of activeClients) {
         const sub = client.subdomain.replace('.make-page.com', '');
@@ -115,7 +116,7 @@ functions.http('main', async (req, res) => {
       const postId = req.query.id;
       if (!postId) return res.status(400).send('Post ID required');
 
-      const { client } = await sheets.getClientFromSheets(subdomain, env);
+      const { client } = await getClientFromSheets(subdomain, env);
       if (!client) return res.status(404).send('Client not found');
 
       // 먼저 최신 포스팅에서 찾기
@@ -174,7 +175,7 @@ functions.http('main', async (req, res) => {
       return res.send(cachedHTML);
     }
 
-    const { client, debugInfo } = await sheets.getClientFromSheets(subdomain, env);
+    const { client, debugInfo } = await getClientFromSheets(subdomain, env);
     console.log('[DEBUG] Client found:', !!client);
     if (!client) return res.status(404).send('Not found');
 

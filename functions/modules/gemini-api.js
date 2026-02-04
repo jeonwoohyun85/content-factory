@@ -1,7 +1,7 @@
 // Vertex AI Gemini API 호출 모듈
 
 const { GoogleAuth } = require('google-auth-library');
-const { fetchWithTimeout } = require('./utils.js');
+const { fetchWithTimeout } = require('./utils/http-utils.js');
 
 // Vertex AI Gemini API 헬퍼 함수 (Multimodal 지원)
 async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7, images = []) {

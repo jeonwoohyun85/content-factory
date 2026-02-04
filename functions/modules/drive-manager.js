@@ -1,6 +1,7 @@
 // Google Drive 폴더 및 이미지 관리 모듈
 
-const { normalizeSubdomain, fetchWithTimeout } = require('./utils.js');
+const { normalizeSubdomain } = require('./utils/normalize.js');
+const { fetchWithTimeout } = require('./utils/http-utils.js');
 
 // 포스팅당 최대 이미지 개수
 const MAX_IMAGES_PER_POSTING = 10;
