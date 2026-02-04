@@ -498,11 +498,15 @@ async function generateClientPage(client, debugInfo, env) {
     const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
     const snapshot = await env.POSTING_KV.collection('posts_archive')
       .where('subdomain', '==', subdomain)
-      .orderBy('created_at', 'desc')
-      .limit(10)
       .get();
 
-    previousPosts = snapshot.docs.map(doc => doc.data());
+    // 클라이언트 사이드 정렬 및 제한
+    previousPosts = snapshot.docs
+      .map(doc => doc.data())
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 10);
+
+    console.log(`Previous posts 조회 성공: ${previousPosts.length}개`);
   } catch (error) {
     console.error('Previous posts 조회 실패:', error.message);
   }
