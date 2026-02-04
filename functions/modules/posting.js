@@ -3,6 +3,7 @@
 const { getClientFromSheetsForPosting, searchWithClaudeForPosting, generatePostWithClaudeForPosting, getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting, saveToLatestPostingSheet } = require('./posting-helpers.js');
 const { normalizeSubdomain } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
+const { deleteCachedHTML } = require('./cache.js');
 
 async function generatePostingForClient(subdomain, env) {
 
