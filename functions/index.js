@@ -60,6 +60,23 @@ functions.http('main', async (req, res) => {
 
     // Cron 및 테스트 엔드포인트 (subdomain 무관)
     if (pathname === '/cron-trigger') {
+      // OIDC 인증: Cloud Scheduler만 허용
+      const authHeader = req.headers.authorization;
+      const userAgent = req.headers['user-agent'];
+
+      // Authorization 헤더와 User-Agent 둘 다 확인
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.error('[CRON AUTH] Missing or invalid Authorization header');
+        return res.status(401).json({ error: 'Unauthorized: Missing Authorization' });
+      }
+
+      if (!userAgent || !userAgent.includes('Google-Cloud-Scheduler')) {
+        console.error('[CRON AUTH] Invalid User-Agent:', userAgent);
+        return res.status(401).json({ error: 'Unauthorized: Invalid User-Agent' });
+      }
+
+      console.log('[CRON AUTH] Authorized: Cloud Scheduler');
+
       try {
         const startTime = Date.now();
         const activeClients = await getActiveClients(env);
