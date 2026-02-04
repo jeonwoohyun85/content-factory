@@ -34,7 +34,7 @@ async function searchWithClaudeForPosting(client, env) {
 
   try {
 
-    const result = await callVertexGemini(prompt, 'gemini-2.5-flash', 1024);
+    const result = await callVertexGemini(prompt, 'gemini-2.5-flash', 1024, 0.7, [], env.GEMINI_API_KEY);
 
     return result;
 

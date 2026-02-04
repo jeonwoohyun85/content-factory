@@ -1,19 +1,15 @@
-// Vertex AI Gemini API 호출 모듈
+// Gemini API 호출 모듈 (generativelanguage.googleapis.com)
 
-const { GoogleAuth } = require('google-auth-library');
 const { fetchWithTimeout } = require('./utils/http-utils.js');
 
-// Vertex AI Gemini API 헬퍼 함수 (Multimodal 지원)
-async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7, images = []) {
-    const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform']
-    });
-    const client = await auth.getClient();
-    const accessToken = await client.getAccessToken();
+// Gemini API 헬퍼 함수 (Multimodal 지원)
+async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7, images = [], apiKey) {
+    // API Key 확인
+    if (!apiKey) {
+        throw new Error('Gemini API Key required');
+    }
 
-    const projectId = process.env.GCP_PROJECT || 'content-factory-1770105623';
-    const location = 'us-central1';
-    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     // parts 배열 구성: 텍스트 + 이미지들
     const parts = [{ text: prompt }];
@@ -35,7 +31,7 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
         {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${accessToken.token}`,
+                'x-goog-api-key': apiKey,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -54,7 +50,7 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
 
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Vertex AI Gemini failed: ${response.status} - ${errorText}`);
+        throw new Error(`Gemini API failed: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();

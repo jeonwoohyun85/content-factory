@@ -201,7 +201,7 @@ ${trendsData}
   try {
 
     const startTime = Date.now();
-    const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 8192, 0.7, images);
+    const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 8192, 0.7, images, env.GEMINI_API_KEY);
     const duration = Date.now() - startTime;
 
     // Structured logging for Cloud Monitoring
