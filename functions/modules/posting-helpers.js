@@ -850,10 +850,13 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
       existingData[header] = existingRow[index] || '';
     });
 
+    console.log(`[ARCHIVE] existingRowIndex: ${existingRowIndex}, 도메인: ${existingData['도메인']}, 생성일시: ${existingData['생성일시']}`);
+
     // Firestore에 아카이브 (기존 데이터만)
     if (existingData['도메인'] && existingData['생성일시']) {
       try {
         const archiveId = `${normalizedSubdomain}_${existingData['생성일시'].replace(/[:\s]/g, '-')}`;
+        console.log(`[ARCHIVE] 아카이브 시작: ${archiveId}`);
         await env.POSTING_KV.collection('posts_archive').doc(archiveId).set({
           subdomain: normalizedSubdomain,
           domain: existingData['도메인'],
@@ -869,12 +872,16 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
           cron_date: existingData['크론'],
           archived_at: timestamp
         });
-        console.log(`Firestore 아카이브 완료: ${archiveId}`);
+        console.log(`[ARCHIVE] 아카이브 완료: ${archiveId}`);
       } catch (archiveError) {
-        console.error('Firestore 아카이브 실패:', archiveError.message);
+        console.error('[ARCHIVE] 아카이브 실패:', archiveError.message);
         // 아카이브 실패해도 계속 진행
       }
+    } else {
+      console.log(`[ARCHIVE] 조건 불만족 - 도메인: ${!!existingData['도메인']}, 생성일시: ${!!existingData['생성일시']}`);
     }
+  } else {
+    console.log('[ARCHIVE] 신규 포스팅 (아카이브 없음)');
   }
 
   // 5. UPDATE 또는 APPEND
