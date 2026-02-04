@@ -108,6 +108,21 @@ functions.http('main', async (req, res) => {
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`[CRON] Task 등록 완료: ${taskResult.success}/${taskResult.total} 성공, ${duration}초`);
 
+        // Firestore에 크론 세션 생성
+        const sessionId = `cron_${Date.now()}`;
+        await firestore.collection('cron_sessions').doc(sessionId).set({
+          sessionId,
+          startTime: new Date(),
+          total: taskResult.success,
+          completed: 0,
+          succeeded: 0,
+          failed: 0,
+          results: [],
+          telegramToken: secretsCache.TELEGRAM_BOT_TOKEN,
+          chatId: secretsCache.TELEGRAM_CHAT_ID
+        });
+        console.log(`[CRON] 세션 생성: ${sessionId}`);
+
         // Telegram 크론 시작 알림
         const telegramToken = secretsCache.TELEGRAM_BOT_TOKEN;
         const chatId = secretsCache.TELEGRAM_CHAT_ID;
@@ -180,6 +195,73 @@ functions.http('main', async (req, res) => {
         console.log(`[TASK] 처리 시작: ${subdomain}`);
 
         const result = await posting.generatePostingForClient(subdomain, env);
+
+        // 최신 크론 세션 업데이트
+        const sessionsSnapshot = await firestore.collection('cron_sessions')
+          .orderBy('startTime', 'desc')
+          .limit(1)
+          .get();
+
+        if (!sessionsSnapshot.empty) {
+          const sessionDoc = sessionsSnapshot.docs[0];
+          const sessionData = sessionDoc.data();
+          const sessionRef = firestore.collection('cron_sessions').doc(sessionDoc.id);
+
+          const isSuccess = result.success;
+          const newCompleted = (sessionData.completed || 0) + 1;
+          const newSucceeded = (sessionData.succeeded || 0) + (isSuccess ? 1 : 0);
+          const newFailed = (sessionData.failed || 0) + (isSuccess ? 0 : 1);
+
+          await sessionRef.update({
+            completed: newCompleted,
+            succeeded: newSucceeded,
+            failed: newFailed,
+            results: [...(sessionData.results || []), {
+              subdomain,
+              success: isSuccess,
+              error: result.error || null,
+              timestamp: new Date()
+            }]
+          });
+
+          console.log(`[TASK] 세션 업데이트: ${newCompleted}/${sessionData.total}`);
+
+          // 모든 Task 완료 시 Telegram 알림
+          if (newCompleted === sessionData.total) {
+            const telegramToken = sessionData.telegramToken;
+            const chatId = sessionData.chatId;
+
+            if (telegramToken && chatId) {
+              try {
+                const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+                const kstTime = kstNow.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+                const duration = ((Date.now() - sessionData.startTime.toDate().getTime()) / 1000).toFixed(0);
+
+                // 업데이트된 세션 데이터 다시 읽기
+                const updatedSession = await sessionRef.get();
+                const updatedData = updatedSession.data();
+                const failedResults = (updatedData.results || []).filter(r => !r.success);
+                const failedList = newFailed > 0
+                  ? `\n\n❌ 실패 거래처:\n${failedResults.map(r => `- ${r.subdomain}: ${r.error}`).join('\n')}`
+                  : '';
+
+                const message = `✅ 크론 완료\n\n📊 결과: ${newSucceeded}/${sessionData.total} 성공\n❌ 실패: ${newFailed}\n\n⏱ 소요 시간: ${duration}초\n🗓 완료 시간: ${kstTime}${failedList}`;
+
+                await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message
+                  })
+                });
+                console.log('[TASK] Telegram 완료 알림 전송 완료');
+              } catch (error) {
+                console.error('[TASK] Telegram 알림 전송 실패:', error.message);
+              }
+            }
+          }
+        }
 
         if (result.success) {
           console.log(`[TASK] ✓ ${subdomain} 성공`);
