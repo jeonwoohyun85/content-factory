@@ -117,10 +117,32 @@ functions.http('main', async (req, res) => {
       const { client } = await sheets.getClientFromSheets(subdomain, env);
       if (!client) return res.status(404).send('Client not found');
 
-      const post = client.posts?.find(p => {
+      // 먼저 최신 포스팅에서 찾기
+      let post = client.posts?.find(p => {
         const pId = p.url ? p.url.split('id=')[1] : new Date(p.created_at).getTime().toString(36);
         return pId === postId;
       });
+
+      // 최신 포스팅에 없으면 Firestore archive에서 찾기
+      if (!post) {
+        try {
+          const snapshot = await firestore.collection('posts_archive')
+            .where('subdomain', '==', subdomain)
+            .get();
+
+          const archivePost = snapshot.docs.find(doc => {
+            const data = doc.data();
+            const archiveId = data.url ? data.url.split('id=')[1] : '';
+            return archiveId === postId;
+          });
+
+          if (archivePost) {
+            post = archivePost.data();
+          }
+        } catch (error) {
+          console.error('Archive search error:', error);
+        }
+      }
 
       if (!post) return res.status(404).send('Post not found');
 
