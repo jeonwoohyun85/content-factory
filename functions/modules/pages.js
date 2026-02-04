@@ -482,9 +482,9 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-  // Video 파싱 (쉼표 구분)
+  // Video 파싱 (쉼표 구분, 최대 2개)
 
-  const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v);
+  const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v).slice(0, 2);
 
 
 
