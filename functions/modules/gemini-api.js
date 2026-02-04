@@ -2,8 +2,8 @@
 
 const { fetchWithTimeout } = require('./utils/http-utils.js');
 
-// Gemini API 헬퍼 함수 (Multimodal 지원)
-async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7, images = [], apiKey) {
+// Gemini API 헬퍼 함수 (Multimodal 지원 + Google Search grounding)
+async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7, images = [], apiKey, useWebSearch = false) {
     // API Key 확인
     if (!apiKey) {
         throw new Error('Gemini API Key required');
@@ -26,6 +26,24 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
         }
     }
 
+    const requestBody = {
+        contents: [{
+            role: 'user',
+            parts: parts
+        }],
+        generationConfig: {
+            maxOutputTokens: maxTokens,
+            temperature: temperature
+        }
+    };
+
+    // Google Search grounding 활성화
+    if (useWebSearch) {
+        requestBody.tools = [{
+            googleSearchRetrieval: {}
+        }];
+    }
+
     const response = await fetchWithTimeout(
         endpoint,
         {
@@ -34,16 +52,7 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
                 'x-goog-api-key': apiKey,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                contents: [{
-                    role: 'user',
-                    parts: parts
-                }],
-                generationConfig: {
-                    maxOutputTokens: maxTokens,
-                    temperature: temperature
-                }
-            })
+            body: JSON.stringify(requestBody)
         },
         120000
     );
