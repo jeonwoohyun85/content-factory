@@ -66,30 +66,47 @@ functions.http('main', async (req, res) => {
         const results = [];
         let successCount = 0;
         let failCount = 0;
+        const BATCH_SIZE = 5;
 
-        console.log(`[CRON] 시작: ${activeClients.length}개 거래처 처리`);
+        console.log(`[CRON] 시작: ${activeClients.length}개 거래처 처리 (배치 ${BATCH_SIZE}개)`);
 
-        for (const client of activeClients) {
-          const sub = client.subdomain.replace('.make-page.com', '');
-          try {
-            const result = await posting.generatePostingForClient(sub, env);
-            results.push({ subdomain: sub, success: result.success, error: result.error || null });
-            if (result.success) {
-              successCount++;
-              console.log(`[CRON] ✓ ${sub} 성공`);
-            } else {
-              failCount++;
-              console.error(`[CRON] ✗ ${sub} 실패: ${result.error}`);
+        // 배치 병렬 처리 (5개씩)
+        for (let i = 0; i < activeClients.length; i += BATCH_SIZE) {
+          const batch = activeClients.slice(i, i + BATCH_SIZE);
+          const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+
+          console.log(`[CRON] 배치 ${batchNum} 시작: ${batch.length}개 처리`);
+
+          const batchPromises = batch.map(async (client) => {
+            const sub = client.subdomain.replace('.make-page.com', '');
+            try {
+              const result = await posting.generatePostingForClient(sub, env);
+              if (result.success) {
+                console.log(`[CRON] ✓ ${sub} 성공`);
+              } else {
+                console.error(`[CRON] ✗ ${sub} 실패: ${result.error}`);
+              }
+              return { subdomain: sub, success: result.success, error: result.error || null };
+            } catch (error) {
+              console.error(`[CRON] ✗ ${sub} 예외: ${error.message}`);
+              return { subdomain: sub, success: false, error: error.message };
             }
-          } catch (error) {
-            failCount++;
-            console.error(`[CRON] ✗ ${sub} 예외: ${error.message}`);
-            results.push({ subdomain: sub, success: false, error: error.message });
-          }
+          });
+
+          const batchResults = await Promise.all(batchPromises);
+          results.push(...batchResults);
+
+          // 배치 결과 집계
+          batchResults.forEach(result => {
+            if (result.success) successCount++;
+            else failCount++;
+          });
+
+          console.log(`[CRON] 배치 ${batchNum} 완료: ${batchResults.filter(r => r.success).length}/${batch.length} 성공`);
         }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`[CRON] 완료: ${successCount}/${activeClients.length} 성공, ${failCount} 실패, ${duration}초`);
+        console.log(`[CRON] 전체 완료: ${successCount}/${activeClients.length} 성공, ${failCount} 실패, ${duration}초`);
 
         // 전체 실패 시 ERROR 로그 (Telegram 알림 트리거)
         if (failCount === activeClients.length && activeClients.length > 0) {
@@ -103,7 +120,8 @@ functions.http('main', async (req, res) => {
             total: activeClients.length,
             success: successCount,
             fail: failCount,
-            duration: `${duration}s`
+            duration: `${duration}s`,
+            batchSize: BATCH_SIZE
           }
         });
       } catch (error) {
