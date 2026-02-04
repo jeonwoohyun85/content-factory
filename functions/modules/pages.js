@@ -1855,12 +1855,10 @@ async function generateClientPage(client, debugInfo, env) {
 
     <!-- Posts Section -->
 
-    ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => {
+    <section><h2 class="section-title">Posts</h2>${posts.length > 0 ? '<div class="posts-grid">' + posts.map(post => {
       const postUrl = post.url ? '/' + post.url.split('/').slice(1).join('/') : '/post?id=' + new Date(post.created_at).getTime().toString(36);
       return '<article class="post-card"><a href="' + postUrl + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>';
-    }).join('') + '</div>' +
-    '<div class="accordion"><div class="accordion-header" onclick="toggleAccordion()"><div class="accordion-title"><span class="accordion-icon" id="accordion-icon">▶</span><span>Previous Posts</span></div></div><div class="accordion-content" id="accordion-content"><div class="accordion-body">' +
-    (previousPosts.length > 0 ?
+    }).join('') + '</div>' : ''}<div class="accordion"><div class="accordion-header" onclick="toggleAccordion()"><div class="accordion-title"><span class="accordion-icon" id="accordion-icon">▶</span><span>Previous Posts</span></div></div><div class="accordion-content" id="accordion-content"><div class="accordion-body">${previousPosts.length > 0 ?
       '<table class="previous-posts-table"><thead><tr><th>Title</th><th>Date</th></tr></thead><tbody id="previous-posts-list">' + previousPosts.map(p => {
         // URL에서 도메인 부분 제거하고 경로만 추출
         let pUrl = p.url || '';
@@ -1870,9 +1868,7 @@ async function generateClientPage(client, debugInfo, env) {
         return '<tr onclick="window.location.href=\'' + pUrl + '\'"><td class="previous-post-title">' + escapeHtml(p.title) + '</td><td class="previous-post-date">' + escapeHtml(formatKoreanTime(p.created_at)) + '</td></tr>';
       }).join('') + '</tbody></table><div class="load-more-container"><button class="load-more-btn" id="load-more-btn" onclick="loadMorePosts()">Load More</button></div>'
       : '<div style="text-align:center;padding:40px 20px;color:#718096;">아직 포스팅이 없습니다</div>'
-    ) +
-    '</div></div></div>' +
-    '</section>' : ''}
+    }</div></div></div></section>
 
 
 
