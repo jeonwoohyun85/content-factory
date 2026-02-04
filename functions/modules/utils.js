@@ -62,7 +62,7 @@ function normalizeLanguage(lang) {
 
   
 
-  // 주요 5개 언어만 체크 (하드코딩된 번역 데이터)
+  // 주요 언어 체크 (하드코딩된 번역 데이터)
 
   if (lower.includes('한국') || lower.includes('한글') || lower.includes('korean') || lower === 'ko') return 'ko';
 
@@ -74,7 +74,9 @@ function normalizeLanguage(lang) {
 
   if (lower.includes('번체') || lower.includes('traditional') || lower === 'zh-tw') return 'zh-TW';
 
-  
+  if (lower.includes('태국') || lower.includes('타이') || lower.includes('thai') || lower === 'th') return 'th';
+
+
 
   // 나머지는 입력값 그대로 반환 (API에서 처리)
 

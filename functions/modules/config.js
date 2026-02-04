@@ -61,11 +61,25 @@ const LANGUAGE_TEXTS = {
 
   ko: {
 
+    home: '홈',
+
+    posts: '포스팅',
+
+    location: '위치',
+
+    hours: '영업시간',
+
+    contact: '연락처',
+
+    gallery: '갤러리',
+
+    back: '뒤로가기',
+
+    readMore: '자세히 보기',
+
     info: 'Info',
 
     video: 'Video',
-
-    posts: 'Posts',
 
     backToHome: '홈으로',
 
@@ -79,8 +93,6 @@ const LANGUAGE_TEXTS = {
 
     kakao: '카카오톡',
 
-    location: '위치보기',
-
     blog: '블로그',
 
     store: '스토어',
@@ -91,10 +103,6 @@ const LANGUAGE_TEXTS = {
 
     stats: '통계',
 
-    info: 'Info',
-
-    video: 'Video',
-
     postImage: '포스트 이미지',
 
     galleryImage: '갤러리 이미지'
@@ -103,11 +111,25 @@ const LANGUAGE_TEXTS = {
 
   en: {
 
+    home: 'Home',
+
+    posts: 'Posts',
+
+    location: 'Location',
+
+    hours: 'Hours',
+
+    contact: 'Contact',
+
+    gallery: 'Gallery',
+
+    back: 'Back',
+
+    readMore: 'Read More',
+
     info: 'Gallery',
 
     video: 'Videos',
-
-    posts: 'Posts',
 
     backToHome: 'Back to Home',
 
@@ -120,8 +142,6 @@ const LANGUAGE_TEXTS = {
     facebook: 'Facebook',
 
     kakao: 'KakaoTalk',
-
-    location: 'Location',
 
     blog: 'Blog',
 
@@ -141,11 +161,25 @@ const LANGUAGE_TEXTS = {
 
   ja: {
 
+    home: 'ホーム',
+
+    posts: '投稿',
+
+    location: '場所',
+
+    hours: '営業時間',
+
+    contact: '連絡先',
+
+    gallery: 'ギャラリー',
+
+    back: '戻る',
+
+    readMore: '続きを読む',
+
     info: 'ギャラリー',
 
     video: '動画',
-
-    posts: '投稿',
 
     backToHome: 'ホームに戻る',
 
@@ -158,8 +192,6 @@ const LANGUAGE_TEXTS = {
     facebook: 'フェイスブック',
 
     kakao: 'カカオトーク',
-
-    location: '位置を見る',
 
     blog: 'ブログ',
 
@@ -179,11 +211,25 @@ const LANGUAGE_TEXTS = {
 
   'zh-CN': {
 
+    home: '首页',
+
+    posts: '帖子',
+
+    location: '位置',
+
+    hours: '营业时间',
+
+    contact: '联系方式',
+
+    gallery: '画廊',
+
+    back: '返回',
+
+    readMore: '阅读更多',
+
     info: '画廊',
 
     video: '视频',
-
-    posts: '帖子',
 
     backToHome: '返回主页',
 
@@ -196,8 +242,6 @@ const LANGUAGE_TEXTS = {
     facebook: 'Facebook',
 
     kakao: 'KakaoTalk',
-
-    location: '查看位置',
 
     blog: '博客',
 
@@ -217,11 +261,25 @@ const LANGUAGE_TEXTS = {
 
   'zh-TW': {
 
+    home: '首頁',
+
+    posts: '貼文',
+
+    location: '位置',
+
+    hours: '營業時間',
+
+    contact: '聯絡方式',
+
+    gallery: '畫廊',
+
+    back: '返回',
+
+    readMore: '閱讀更多',
+
     info: '畫廊',
 
     video: '影片',
-
-    posts: '貼文',
 
     backToHome: '返回主頁',
 
@@ -234,8 +292,6 @@ const LANGUAGE_TEXTS = {
     facebook: 'Facebook',
 
     kakao: 'KakaoTalk',
-
-    location: '查看位置',
 
     blog: '部落格',
 
@@ -250,6 +306,56 @@ const LANGUAGE_TEXTS = {
     postImage: '貼文圖片',
 
     galleryImage: '畫廊圖片'
+
+  },
+
+  th: {
+
+    home: 'หน้าแรก',
+
+    posts: 'โพสต์',
+
+    location: 'ที่ตั้ง',
+
+    hours: 'เวลาทำการ',
+
+    contact: 'ติดต่อ',
+
+    gallery: 'แกลเลอรี',
+
+    back: 'กลับ',
+
+    readMore: 'อ่านเพิ่มเติม',
+
+    info: 'แกลเลอรี',
+
+    video: 'วิดีโอ',
+
+    backToHome: 'กลับหน้าแรก',
+
+    phone: 'โทร',
+
+    instagram: 'Instagram',
+
+    youtube: 'YouTube',
+
+    facebook: 'Facebook',
+
+    kakao: 'KakaoTalk',
+
+    blog: 'บล็อก',
+
+    store: 'ร้านค้า',
+
+    booking: 'จองเลย',
+
+    link: 'ลิงก์',
+
+    stats: 'สถิติ',
+
+    postImage: 'รูปโพสต์',
+
+    galleryImage: 'รูปแกลเลอรี'
 
   }
 };
