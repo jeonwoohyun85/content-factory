@@ -763,7 +763,7 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
     '언어': client.language || 'ko',
     '업종': client.industry || '',
     '폴더명': folderName || '',
-    '본문': String(postData.body || '').replace(/[\r\n]+/g, ' ').trim(),
+    '본문': String(postData.body || '').trim(),
     '이미지': postData.images || '',
     '크론': cronDate
   };
