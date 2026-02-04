@@ -7,7 +7,7 @@ const { UMAMI_WEBSITE_ID, LANGUAGE_TEXTS } = require('./config.js');
 function getLanguageTexts(lang) {
   return LANGUAGE_TEXTS[lang] || LANGUAGE_TEXTS.ko;
 }
-const { getPostsFromArchive, getClientFromSheets, getSheetId } = require('./sheets.js');
+const { getClientFromSheets, getSheetId } = require('./sheets.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 
 async function generatePostPage(client, post, env) {
@@ -1868,8 +1868,6 @@ async function deletePost(subdomain, createdAt, password, env) {
 
     const accessToken = await getGoogleAccessTokenForPosting(env);
 
-    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
-
     const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
 
@@ -1882,113 +1880,7 @@ async function deletePost(subdomain, createdAt, password, env) {
 
 
 
-    // 1. 저장소 탭에서 삭제
-
-    const archiveResponse = await fetch(
-
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${archiveSheetName}'!A:Z`,
-
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-
-    );
-
-    const archiveData = await archiveResponse.json();
-
-    const archiveRows = archiveData.values || [];
-
-
-
-    if (archiveRows.length < 2) {
-
-      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
-
-    }
-
-
-
-    const archiveHeaders = archiveRows[0];
-
-    const archiveDomainIndex = archiveHeaders.indexOf('도메인');
-
-    const archiveCreatedAtIndex = archiveHeaders.indexOf('생성일시');
-
-
-
-    if (archiveDomainIndex === -1 || archiveCreatedAtIndex === -1) {
-
-      return { success: false, error: '저장소 시트 구조 오류' };
-
-    }
-
-
-
-    let foundInArchive = false;
-
-    for (let i = 1; i < archiveRows.length; i++) {
-
-      const row = archiveRows[i];
-
-      if (row[archiveDomainIndex] === domain && row[archiveCreatedAtIndex] === createdAt) {
-
-        // 행 삭제
-
-        const archiveSheetId = await getSheetId(env.SHEETS_ID, archiveSheetName, accessToken);
-
-        await fetch(
-
-          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-
-          {
-
-            method: 'POST',
-
-            headers: {
-
-              'Authorization': `Bearer ${accessToken}`,
-
-              'Content-Type': 'application/json'
-
-            },
-
-            body: JSON.stringify({
-
-              requests: [{
-
-                deleteDimension: {
-
-                  range: {
-
-                    sheetId: archiveSheetId,
-
-                    dimension: 'ROWS',
-
-                    startIndex: i,
-
-                    endIndex: i + 1
-
-                  }
-
-                }
-
-              }]
-
-            })
-
-          }
-
-        );
-
-        foundInArchive = true;
-
-        break;
-
-      }
-
-    }
-
-
-
-    // 2. 최신 포스팅 탭에서도 삭제
+    // 최신 포스팅 탭에서 삭제
 
     const latestResponse = await fetch(
 

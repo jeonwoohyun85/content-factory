@@ -168,7 +168,7 @@ async function getClientFromSheets(clientId, env) {
 
 
 
-    // Posts 조회 추가 (최신 포스팅 + 저장소)
+    // Posts 조회 추가 (최신 포스팅)
 
     if (client) {
 
@@ -254,8 +254,7 @@ async function getPostsFromArchive(subdomain, env) {
 
 
 
-    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
-    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신_포스팅';
 
     const allPosts = [];
 
@@ -351,116 +350,6 @@ async function getPostsFromArchive(subdomain, env) {
 
 
 
-    // Step 3: 저장소 시트 읽기
-
-    const archiveResponse = await fetch(
-
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent(archiveSheetName)}!A:Z`,
-
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-
-    );
-
-
-
-    if (archiveResponse.ok) {
-
-      const archiveData = await archiveResponse.json();
-
-      const archiveRows = archiveData.values || [];
-
-
-
-      if (archiveRows.length >= 2) {
-
-        const headers = archiveRows[0];
-
-        const domainIndex = headers.indexOf('도메인');
-
-        const businessNameIndex = headers.indexOf('상호명');
-
-        const titleIndex = headers.indexOf('제목');
-
-        const createdAtIndex = headers.indexOf('생성일시');
-
-        const languageIndex = headers.indexOf('언어');
-
-        const industryIndex = headers.indexOf('업종');
-
-        const bodyIndex = headers.indexOf('본문');
-
-        const imagesIndex = headers.indexOf('이미지');
-
-
-
-        if (domainIndex !== -1) {
-
-          for (let i = 1; i < archiveRows.length; i++) {
-
-            const row = archiveRows[i];
-
-            const domain = row[domainIndex] || '';
-
-            const normalizedDomain = normalizeSubdomain(domain);
-
-            const normalizedSubdomain = normalizeSubdomain(domain);
-
-
-
-            if (normalizedDomain === normalizedSubdomain) {
-
-              const createdAt = createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '';
-
-              const language = languageIndex !== -1 ? (row[languageIndex] || '') : '';
-
-              const industry = industryIndex !== -1 ? (row[industryIndex] || '') : '';
-
-              const body = bodyIndex !== -1 ? (row[bodyIndex] || '') : '';
-
-              const images = imagesIndex !== -1 ? (row[imagesIndex] || '') : '';
-
-
-
-              // 중복 방지: 동일 created_at이 최신_포스팅에 없을 때만 추가
-
-              const existsInLatest = allPosts.some(p => p.created_at === createdAt);
-
-              if (!existsInLatest && createdAt) {
-
-                allPosts.push({
-
-                  subdomain: domain,
-
-                  business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
-
-                  title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
-
-                  created_at: createdAt,
-
-                  language: language,
-
-                  industry: industry,
-
-                  body: body,
-
-                  images: images
-
-                });
-
-              }
-
-            }
-
-          }
-
-        }
-
-      }
-
-    }
-
-
-
     // created_at 기준 내림차순 정렬 (최신순)
 
     allPosts.sort((a, b) => {
@@ -525,7 +414,6 @@ async function autoResizeBusinessNameColumns(env) {
 
     const adminSheet = sheets.find(s => s.properties.title === '관리자');
     const latestSheet = sheets.find(s => s.properties.title === '최신_포스팅' || s.properties.title === '최신 포스팅');
-    const archiveSheet = sheets.find(s => s.properties.title === '저장소');
 
     const requests = [];
 

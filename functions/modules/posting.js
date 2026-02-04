@@ -1,6 +1,6 @@
 // 포스팅 자동화 메인 오케스트레이션
 
-const { getClientFromSheetsForPosting, searchWithClaudeForPosting, generatePostWithClaudeForPosting, getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting, removeDuplicatesFromLatestPosting, saveToLatestPostingSheet } = require('./posting-helpers.js');
+const { getClientFromSheetsForPosting, searchWithClaudeForPosting, generatePostWithClaudeForPosting, getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting, saveToLatestPostingSheet } = require('./posting-helpers.js');
 const { normalizeSubdomain } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 
@@ -77,8 +77,6 @@ async function generatePostingForClient(subdomain, env) {
 
     const lastFolder = folderData?.lastFolder || null;
 
-    const archiveHeaders = folderData?.archiveHeaders || [];
-
     nextFolder = getNextFolderForPosting(folders, lastFolder);
 
     logs.push(`선택된 폴더: ${nextFolder}`);
@@ -127,13 +125,13 @@ async function generatePostingForClient(subdomain, env) {
 
 
 
-    // Step 4: 저장소 + 최신 포스팅 시트 저장
+    // Step 4: 최신 포스팅 시트 저장
 
-    logs.push('저장소/최신포스팅 시트 저장 시작...');
+    logs.push('최신포스팅 시트 저장 시작...');
 
-    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, accessToken, env, archiveHeaders);
+    await saveToLatestPostingSheet(client, postData, normalizedSubdomain, nextFolder, accessToken, env);
 
-    logs.push('저장소/최신포스팅 시트 저장 완료');
+    logs.push('최신포스팅 시트 저장 완료');
 
     
 
@@ -204,7 +202,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // 실패 단계 파악
     let stage = '알 수 없음';
-    if (logs.some(log => log.includes('저장소/최신포스팅'))) {
+    if (logs.some(log => log.includes('최신포스팅'))) {
       stage = '시트 저장';
     } else if (logs.some(log => log.includes('포스팅 생성'))) {
       stage = '포스팅 생성';

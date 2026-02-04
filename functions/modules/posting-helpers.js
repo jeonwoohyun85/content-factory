@@ -1,9 +1,8 @@
 // 포스팅 자동화 헬퍼 함수
 
 const { GoogleAuth } = require('google-auth-library');
-const { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, formatKoreanTime, getColumnLetter, removeLanguageSuffixFromBusinessName, normalizeSubdomain } = require('./utils.js');
+const { fetchWithTimeout, parseCSV, normalizeClient, normalizeLanguage, removeLanguageSuffixFromBusinessName, normalizeSubdomain } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
-const { autoResizeBusinessNameColumns } = require('./sheets.js');
 const { translateWithCache } = require('./translation-cache.js');
 
 // 관리자 시트 헤더 고정값 (A~Q열, 17개)
@@ -744,572 +743,121 @@ function getNextFolderForPosting(folders, lastFolder) {
 }
 
 // 최신_포스팅 시트에서 중복 도메인 제거 (동시성 문제 해결)
-async function removeDuplicatesFromLatestPosting(env, domain, latestSheetId, accessToken) {
-  try {
-    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env) {
+  const now = new Date();
+  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
+  const domain = `${normalizedSubdomain}.make-page.com`;
+  const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신_포스팅';
 
-    // 최신_포스팅 전체 읽기
-    const response = await fetchWithTimeout(
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
+  // 포스트 데이터 준비
+  const postId = new Date(timestamp).getTime().toString(36);
+  const cronDate = timestamp.substring(5, 10);
+
+  const postDataMap = {
+    '도메인': domain,
+    '상호명': String(client.business_name_original || client.business_name || '').replace(/[\r\n]+/g, ' ').trim(),
+    '제목': String(postData.title || '').replace(/[\r\n]+/g, ' ').trim(),
+    'URL': `${domain}/post?id=${postId}`,
+    '생성일시': timestamp,
+    '언어': client.language || 'ko',
+    '업종': client.industry || '',
+    '폴더명': folderName || '',
+    '본문': String(postData.body || '').replace(/[\r\n]+/g, ' ').trim(),
+    '이미지': postData.images || '',
+    '크론': cronDate
+  };
+
+  // 1. 시트 읽기
+  const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")}`;
+  const getResponse = await fetchWithTimeout(
+    sheetsUrl,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    10000
+  );
+
+  if (!getResponse.ok) {
+    const errorText = await getResponse.text();
+    throw new Error(`최신_포스팅 시트 읽기 실패: ${getResponse.status} - ${errorText}`);
+  }
+
+  const getData = await getResponse.json();
+  const rows = getData.values || [];
+
+  if (rows.length < 1) {
+    throw new Error('최신_포스팅 시트에 헤더가 없습니다');
+  }
+
+  const headers = rows[0];
+  const domainIndex = headers.indexOf('도메인');
+
+  if (domainIndex === -1) {
+    throw new Error('최신_포스팅 시트에 도메인 컬럼이 없습니다');
+  }
+
+  // 2. 기존 행 찾기
+  let existingRowIndex = -1;
+  for (let i = 1; i < rows.length; i++) {
+    const rowDomain = normalizeSubdomain(rows[i][domainIndex] || '');
+    const searchDomain = normalizeSubdomain(domain);
+    if (rowDomain === searchDomain) {
+      existingRowIndex = i + 1; // A1 notation (1-based)
+      break;
+    }
+  }
+
+  // 3. 데이터 행 준비
+  const rowData = headers.map(header => postDataMap[header] || '');
+
+  // 4. UPDATE 또는 APPEND
+  let response;
+  if (existingRowIndex !== -1) {
+    // 기존 행 UPDATE
+    const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A" + existingRowIndex)}?valueInputOption=RAW`;
+    response = await fetchWithTimeout(
+      updateUrl,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ values: [rowData] })
+      },
       10000
     );
 
     if (!response.ok) {
-      console.error('중복 제거: 시트 읽기 실패');
-      return;
+      const errorText = await response.text();
+      throw new Error(`최신_포스팅 시트 UPDATE 실패: ${response.status} - ${errorText}`);
     }
-
-    const data = await response.json();
-    const rows = data.values || [];
-
-    if (rows.length < 2) return;
-
-    const headers = rows[0];
-    const domainIndex = headers.indexOf('도메인');
-    const createdAtIndex = headers.indexOf('생성일시');
-
-    if (domainIndex === -1 || createdAtIndex === -1) {
-      console.error('중복 제거: 필수 컬럼 없음');
-      return;
-    }
-
-    // 정규화된 도메인으로 매칭
-    const normalizedDomain = normalizeSubdomain(domain);
-    const matchingRows = [];
-
-    for (let i = 1; i < rows.length; i++) {
-      const rowDomain = normalizeSubdomain(rows[i][domainIndex] || '');
-      if (rowDomain === normalizedDomain) {
-        matchingRows.push({
-          index: i + 1,
-          createdAt: rows[i][createdAtIndex] || ''
-        });
-      }
-    }
-
-    // 2개 이상이면 중복
-    if (matchingRows.length <= 1) {
-      console.log('중복 제거: 중복 없음');
-      return;
-    }
-
-    console.log(`중복 제거: ${matchingRows.length}개 행 발견`);
-
-    // 생성일시 기준 내림차순 정렬 (최신이 첫 번째)
-    // 빈 값은 미래 날짜로 처리하여 최신으로 간주
-    matchingRows.sort((a, b) => {
-      const timeA = a.createdAt || '9999-12-31 23:59:59';
-      const timeB = b.createdAt || '9999-12-31 23:59:59';
-      if (timeA > timeB) return -1;
-      if (timeA < timeB) return 1;
-      return 0;
-    });
-
-    // 첫 번째(최신) 제외하고 나머지 삭제
-    const toDelete = matchingRows.slice(1);
-
-    // 내림차순 정렬 (뒤에서부터 삭제)
-    toDelete.sort((a, b) => b.index - a.index);
-
-    for (const row of toDelete) {
-      const deleteResponse = await fetchWithTimeout(
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            requests: [{
-              deleteDimension: {
-                range: {
-                  sheetId: latestSheetId,
-                  dimension: 'ROWS',
-                  startIndex: row.index - 1,
-                  endIndex: row.index
-                }
-              }
-            }]
-          })
+    console.log(`최신_포스팅 시트 UPDATE 완료 (행 ${existingRowIndex})`);
+  } else {
+    // 신규 행 APPEND
+    const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")}:append?valueInputOption=RAW`;
+    response = await fetchWithTimeout(
+      appendUrl,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
         },
-        10000
-      );
-
-      if (!deleteResponse.ok) {
-        console.error(`중복 행 삭제 실패: ${deleteResponse.status}`);
-      }
-    }
-
-    console.log(`중복 제거 완료: ${toDelete.length}개 행 삭제`);
-  } catch (error) {
-    console.error(`중복 제거 에러: ${error.message}`);
-  }
-}
-
-async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env) {
-
-  const now = new Date();
-
-  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-
-  const timestamp = koreaTime.toISOString().replace('T', ' ').substring(0, 19);
-
-  const domain = `${normalizedSubdomain}.make-page.com`;
-
-
-
-  const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
-
-
-
-  // 데이터 객체 (컬럼명: 값)
-  // 포스트 ID: 타임스탬프를 36진수로 변환 (날짜 숨김)
-  const postId = new Date(timestamp).getTime().toString(36);
-
-  // 크론 날짜: MM-DD 형식 추출 (timestamp: "2026-02-01 09:05:23" → "02-01")
-  const cronDate = timestamp.substring(5, 10); // "02-01"
-
-  const postDataMap = {
-
-    '도메인': domain,
-
-    '상호명': String(client.business_name_original || client.business_name || '').replace(new RegExp('[\r\n]+', 'g'), ' ').trim(),
-
-    '제목': String(postData.title || '').replace(new RegExp('[\r\n]+', 'g'), ' ').trim(),
-
-    'URL': `${domain}/post?id=${postId}`,
-
-    '생성일시': timestamp,
-
-    '언어': client.language || 'ko',
-
-    '업종': client.industry || '',
-
-    '폴더명': folderName || '',
-
-    '본문': String(postData.body || '').replace(new RegExp('[\r\n]+', 'g'), ' ').trim(),
-
-    '이미지': postData.images || '',
-
-    '크론': cronDate
-
-  };
-
-
-
-  // 1. 최신 포스팅 탭 먼저 처리 (트랜잭션 방식 - 실패 시 저장소 저장 안함)
-  const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")}`;
-  console.log(`Sheets API 호출 - Sheet: ${latestSheetName}, SHEETS_ID: ${env.SHEETS_ID}`);
-  console.log(`Full URL: ${sheetsUrl}`);
-  console.log(`Access token length: ${accessToken?.length || 0}`);
-
-  const getResponse = await fetchWithTimeout(
-
-    sheetsUrl,
-
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-
-    10000
-
-  );
-
-
-
-  if (!getResponse.ok) {
-    const errorText = await getResponse.text();
-    console.error(`최신 포스팅 시트 읽기 실패 - Status: ${getResponse.status}, Response: ${errorText}`);
-    throw new Error(`최신 포스팅 시트 읽기 실패: ${getResponse.status}`);
-
-  }
-
-
-
-  const getData = await getResponse.json();
-
-  const rows = getData.values || [];
-
-
-
-  if (rows.length < 1) {
-
-    throw new Error('최신 포스팅 시트에 헤더가 없습니다');
-
-  }
-
-
-
-  const latestHeaders = rows[0];
-
-  const domainIndex = latestHeaders.indexOf('도메인');
-
-  const createdAtIndex = latestHeaders.indexOf('생성일시');
-
-
-
-  if (domainIndex === -1 || createdAtIndex === -1) {
-
-    throw new Error('최신 포스팅 시트에 필수 컬럼(도메인, 생성일시)이 없습니다');
-
-  }
-
-
-
-  // 2. 시트 메타데이터 한 번만 조회 (API 중복 호출 방지)
-
-  const spreadsheetResponse = await fetchWithTimeout(
-
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}?fields=sheets(properties(title,sheetId),data.columnMetadata.pixelSize)`,
-
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-
-    10000
-
-  );
-
-
-
-  if (!spreadsheetResponse.ok) {
-
-    throw new Error(`시트 메타데이터 조회 실패: ${spreadsheetResponse.status}`);
-
-  }
-
-
-
-  const spreadsheetData = await spreadsheetResponse.json();
-
-  const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
-
-  const adminSheet = spreadsheetData.sheets.find(s => s.properties.title === '관리자');
-
-
-
-  const latestSheetId = latestSheet ? latestSheet.properties.sheetId : 0;
-
-
-
-  console.log(`SheetID - 최신포스팅: ${latestSheetId}`);
-
-  // 3. 해당 도메인의 행들 찾기
-
-  const domainRows = [];
-
-  for (let i = 1; i < rows.length; i++) {
-
-    // 도메인 정규화 비교
-
-        const normalizedStoredDomain = normalizeSubdomain(rows[i][domainIndex]) || '';
-
-        const normalizedSearchDomain = normalizeSubdomain(domain);
-
-
-
-        if (normalizedStoredDomain === normalizedSearchDomain) {
-
-      domainRows.push({ index: i + 1, createdAt: rows[i][createdAtIndex] || '' });
-
-    }
-
-  }
-
-
-
-  // 4. 기존 행 모두 삭제
-
-  if (domainRows.length > 0) {
-
-    // 내림차순 정렬 (뒤에서부터 삭제하여 인덱스 오류 방지)
-
-    domainRows.sort((a, b) => b.index - a.index);
-
-
-
-    for (const row of domainRows) {
-
-      const oldestRowIndex = row.index;
-
-
-
-      const deleteResponse = await fetchWithTimeout(
-
-        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-
-        {
-
-          method: 'POST',
-
-          headers: {
-
-            'Authorization': `Bearer ${accessToken}`,
-
-            'Content-Type': 'application/json'
-
-          },
-
-          body: JSON.stringify({
-
-            requests: [{
-
-              deleteDimension: {
-
-                range: {
-
-                  sheetId: latestSheetId,
-
-                  dimension: 'ROWS',
-
-                  startIndex: oldestRowIndex - 1,
-
-                  endIndex: oldestRowIndex
-
-                }
-
-              }
-
-            }]
-
-          })
-
-        },
-
-        10000
-
-      );
-
-      if (!deleteResponse.ok) {
-
-        throw new Error(`최신 포스팅 행 삭제 실패: ${deleteResponse.status}`);
-
-      }
-
-    }
-
-  }
-
-
-
-  // 5. 최신 포스팅 탭에 append (헤더 순서대로)
-
-  const latestRowData = latestHeaders.map(header => postDataMap[header] || '');
-
-
-
-  const latestAppendResponse = await fetchWithTimeout(
-
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")}:append?valueInputOption=RAW`,
-
-    {
-
-      method: 'POST',
-
-      headers: {
-
-        'Authorization': `Bearer ${accessToken}`,
-
-        'Content-Type': 'application/json'
-
+        body: JSON.stringify({ values: [rowData] })
       },
-
-      body: JSON.stringify({ values: [latestRowData] })
-
-    },
-
-    10000
-
-  );
-
-
-
-  if (!latestAppendResponse.ok) {
-
-    const errorText = await latestAppendResponse.text();
-
-    throw new Error(`최신 포스팅 시트 append 실패: ${latestAppendResponse.status} - ${errorText}`);
-
-  }
-
-  // 중복 제거 (동시성 문제 해결)
-  await removeDuplicatesFromLatestPosting(env, domain, latestSheetId, accessToken);
-
-  // 최신 포스팅 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
-
-  try {
-
-    const latestAppendResult = await latestAppendResponse.json();
-
-    const latestUpdatedRange = latestAppendResult.updates?.updatedRange;
-
-
-
-    if (latestUpdatedRange) {
-
-      const latestRowMatch = latestUpdatedRange.match(/:(\d+)$/);
-
-      const latestNewRowIndex = latestRowMatch ? parseInt(latestRowMatch[1]) - 1 : null;
-
-
-
-      if (latestNewRowIndex !== null) {
-
-        const latestCreatedAtColIndex = latestHeaders.indexOf('생성일시');
-
-
-
-        const latestFormatRequests = [{
-
-          repeatCell: {
-
-            range: {
-
-              sheetId: latestSheetId,
-
-              startRowIndex: latestNewRowIndex,
-
-              endRowIndex: latestNewRowIndex + 1
-
-            },
-
-            cell: {
-
-              userEnteredFormat: {
-
-                wrapStrategy: 'WRAP'
-
-              }
-
-            },
-
-            fields: 'userEnteredFormat.wrapStrategy'
-
-          }
-
-        }];
-
-
-
-        // 생성일시 컬럼에 datetime 형식 적용
-
-        if (latestCreatedAtColIndex !== -1) {
-
-          latestFormatRequests.push({
-
-            repeatCell: {
-
-              range: {
-
-                sheetId: latestSheetId,
-
-                startRowIndex: latestNewRowIndex,
-
-                endRowIndex: latestNewRowIndex + 1,
-
-                startColumnIndex: latestCreatedAtColIndex,
-
-                endColumnIndex: latestCreatedAtColIndex + 1
-
-              },
-
-              cell: {
-
-                userEnteredFormat: {
-
-                  numberFormat: {
-
-                    type: 'DATE_TIME',
-
-                    pattern: 'yyyy-mm-dd hh:mm:ss'
-
-                  }
-
-                }
-
-              },
-
-              fields: 'userEnteredFormat.numberFormat'
-
-            }
-
-          });
-
-        }
-
-        // 행 높이 21로 고정
-        latestFormatRequests.push({
-          updateDimensionProperties: {
-            range: {
-              sheetId: latestSheetId,
-              dimension: 'ROWS',
-              startIndex: latestNewRowIndex,
-              endIndex: latestNewRowIndex + 1
-            },
-            properties: {
-              pixelSize: 21
-            },
-            fields: 'pixelSize'
-          }
-        });
-
-        const latestFormatResponse = await fetchWithTimeout(
-
-          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-
-          {
-
-            method: 'POST',
-
-            headers: {
-
-              'Authorization': `Bearer ${accessToken}`,
-
-              'Content-Type': 'application/json'
-
-            },
-
-            body: JSON.stringify({ requests: latestFormatRequests })
-
-          },
-
-          10000
-
-        );
-
-
-
-        if (!latestFormatResponse.ok) {
-
-          console.error(`최신 포스팅 행 서식 설정 실패: ${latestFormatResponse.status}`);
-
-        } else {
-
-          console.log(`최신 포스팅 행 ${latestNewRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 CLIP)`);
-
-        }
-
-      }
-
+      10000
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`최신_포스팅 시트 APPEND 실패: ${response.status} - ${errorText}`);
     }
-
-  } catch (error) {
-
-    console.error(`최신 포스팅 행 서식 설정 중 에러: ${error.message}`);
-
+    console.log('최신_포스팅 시트 APPEND 완료');
   }
-
-
-
-
-  // 상호명 컬럼 너비 자동 조정
-  try {
-    await autoResizeBusinessNameColumns(env);
-  } catch (resizeError) {
-    console.error('[ERROR] 컬럼 너비 조정 실패:', resizeError.message);
-  }
-
-
-
 }
+
+
+
 
 module.exports = {
   getClientFromSheetsForPosting,
@@ -1319,6 +867,5 @@ module.exports = {
   getClientFoldersForPosting,
   getLastUsedFolderForPosting,
   getNextFolderForPosting,
-  removeDuplicatesFromLatestPosting,
   saveToLatestPostingSheet
 };
