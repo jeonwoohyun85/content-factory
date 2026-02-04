@@ -1860,7 +1860,11 @@ async function generateClientPage(client, debugInfo, env) {
       return '<article class="post-card"><a href="' + postUrl + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>';
     }).join('') + '</div>' +
     (previousPosts.length > 0 ? '<div class="accordion"><div class="accordion-header" onclick="toggleAccordion()"><div class="accordion-title"><span class="accordion-icon" id="accordion-icon">▶</span><span>Previous Posts</span></div></div><div class="accordion-content" id="accordion-content"><div class="accordion-body"><table class="previous-posts-table"><thead><tr><th>Title</th><th>Date</th></tr></thead><tbody id="previous-posts-list">' + previousPosts.map(p => {
-      const pUrl = p.url || '';
+      // URL에서 도메인 부분 제거하고 경로만 추출
+      let pUrl = p.url || '';
+      if (pUrl.includes('/post?id=')) {
+        pUrl = pUrl.substring(pUrl.indexOf('/post?id='));
+      }
       return '<tr onclick="window.location.href=\'' + pUrl + '\'"><td class="previous-post-title">' + escapeHtml(p.title) + '</td><td class="previous-post-date">' + escapeHtml(formatKoreanTime(p.created_at)) + '</td></tr>';
     }).join('') + '</tbody></table><div class="load-more-container"><button class="load-more-btn" id="load-more-btn" onclick="loadMorePosts()">Load More</button></div></div></div></div>' : '') +
     '</section>' : ''}
