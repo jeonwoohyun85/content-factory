@@ -699,9 +699,43 @@ async function getClientFoldersForPosting(folderName, subdomain, accessToken, en
 
 async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
-  // 저장소 시트 폐기: lastFolder는 항상 null 반환
+  try {
+    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신_포스팅';
+    const sheetsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + latestSheetName + "'!A:Z")}`;
 
-  return { lastFolder: null };
+    const response = await fetchWithTimeout(
+      sheetsUrl,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+      10000
+    );
+
+    if (!response.ok) return { lastFolder: null };
+
+    const data = await response.json();
+    const rows = data.values || [];
+
+    if (rows.length < 2) return { lastFolder: null };
+
+    const headers = rows[0];
+    const domainIndex = headers.indexOf('도메인');
+    const folderIndex = headers.indexOf('폴더명');
+
+    if (domainIndex === -1 || folderIndex === -1) return { lastFolder: null };
+
+    // 해당 거래처 찾기
+    const targetDomain = `${subdomain}.make-page.com`;
+    for (let i = 1; i < rows.length; i++) {
+      const rowDomain = normalizeSubdomain(rows[i][domainIndex] || '');
+      if (rowDomain === subdomain) {
+        return { lastFolder: rows[i][folderIndex] || null };
+      }
+    }
+
+    return { lastFolder: null };
+  } catch (error) {
+    console.error('getLastUsedFolderForPosting error:', error);
+    return { lastFolder: null };
+  }
 
 }
 
@@ -715,27 +749,7 @@ function getNextFolderForPosting(folders, lastFolder) {
 
 
 
-  // 1. 날짜 기반 매칭 (오늘 날짜 YYYY-MM-DD)
-
-  const now = new Date();
-
-  const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-
-  const todayString = koreaTime.toISOString().split('T')[0];
-
-
-
-  const todayFolder = folders.find(f => f.includes(todayString));
-
-  if (todayFolder) {
-
-    return todayFolder;
-
-  }
-
-
-
-  // 2. 순환 로직 (기존 방식)
+  // 순환 로직
 
   if (!lastFolder) {
 
