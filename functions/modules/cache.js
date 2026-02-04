@@ -26,7 +26,7 @@ async function getCachedHTML(key, env) {
 async function setCachedHTML(key, html, env) {
   try {
     const docRef = env.POSTING_KV.collection('cache').doc(`html_${key}`);
-    const expiresAt = Date.now() + (60 * 1000); // 1분 후
+    const expiresAt = Date.now() + (300 * 1000); // 5분 후
 
     await docRef.set({
       html,

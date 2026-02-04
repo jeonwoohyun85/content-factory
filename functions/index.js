@@ -45,9 +45,11 @@ functions.http('main', async (req, res) => {
     const { generateClientPage } = require('./modules/pages/client-page.js');
     const { generatePostPage } = require('./modules/pages/post-page.js');
     const posting = require('./modules/posting.js');
+    const { checkRateLimit, getRateLimitHeaders } = require('./modules/rate-limiter.js');
 
     const host = req.headers.host || 'make-page.com';
     const pathname = req.path;
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
 
     // pathname에서 subdomain 추출 (/00001 형식) 또는 host에서 추출
     let subdomain = host.split('.')[0];
@@ -69,12 +71,34 @@ functions.http('main', async (req, res) => {
     }
 
     if (pathname === '/test-posting') {
+      const rateLimitResult = await checkRateLimit(clientIp, pathname, env);
+      const headers = getRateLimitHeaders(rateLimitResult);
+      Object.entries(headers).forEach(([key, value]) => res.set(key, value));
+
+      if (!rateLimitResult.allowed) {
+        return res.status(429).json({
+          error: 'Too many requests',
+          retryAfter: rateLimitResult.retryAfter
+        });
+      }
+
       const sub = req.body?.subdomain || req.query.subdomain;
       const result = await posting.generatePostingForClient(sub, env);
       return res.json(result);
     }
 
     if (pathname === '/refresh') {
+      const rateLimitResult = await checkRateLimit(clientIp, pathname, env);
+      const headers = getRateLimitHeaders(rateLimitResult);
+      Object.entries(headers).forEach(([key, value]) => res.set(key, value));
+
+      if (!rateLimitResult.allowed) {
+        return res.status(429).json({
+          error: 'Too many requests',
+          retryAfter: rateLimitResult.retryAfter
+        });
+      }
+
       await cache.deleteCachedHTML(req.query.subdomain, env);
       return res.json({ success: true });
     }
