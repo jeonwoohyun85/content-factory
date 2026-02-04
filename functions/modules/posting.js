@@ -1,6 +1,10 @@
 // 포스팅 자동화 메인 오케스트레이션
 
-const { getClientFromSheetsForPosting, searchWithClaudeForPosting, generatePostWithClaudeForPosting, getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting, saveToLatestPostingSheet } = require('./posting-helpers.js');
+const { getClientFromSheetsForPosting } = require('./posting/client-loader.js');
+const { searchWithClaudeForPosting } = require('./posting/trend-searcher.js');
+const { generatePostWithClaudeForPosting } = require('./posting/content-generator.js');
+const { saveToLatestPostingSheet } = require('./posting/post-saver.js');
+const { getFolderImagesForPosting, getClientFoldersForPosting, getLastUsedFolderForPosting, getNextFolderForPosting } = require('./drive-manager.js');
 const { normalizeSubdomain } = require('./utils.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 const { deleteCachedHTML } = require('./cache.js');

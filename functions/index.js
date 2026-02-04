@@ -41,7 +41,8 @@ functions.http('main', async (req, res) => {
     const env = await createEnv();
     const cache = require('./modules/cache.js');
     const sheets = require('./modules/sheets.js');
-    const pages = require('./modules/pages.js');
+    const { generateClientPage } = require('./modules/pages/client-page.js');
+    const { generatePostPage } = require('./modules/pages/post-page.js');
     const posting = require('./modules/posting.js');
 
     const host = req.headers.host || 'make-page.com';
@@ -146,7 +147,7 @@ functions.http('main', async (req, res) => {
 
       if (!post) return res.status(404).send('Post not found');
 
-      const html = await pages.generatePostPage(client, post, env);
+      const html = await generatePostPage(client, post, env);
       res.set('Content-Type', 'text/html; charset=utf-8');
       return res.send(html);
     }
@@ -177,7 +178,7 @@ functions.http('main', async (req, res) => {
     console.log('[DEBUG] Client found:', !!client);
     if (!client) return res.status(404).send('Not found');
 
-    const html = await pages.generateClientPage(client, debugInfo, env);
+    const html = await generateClientPage(client, debugInfo, env);
     cache.setCachedHTML(subdomain, html, env);
 
     res.set('Content-Type', 'text/html; charset=utf-8');
