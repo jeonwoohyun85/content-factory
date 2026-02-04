@@ -14,8 +14,8 @@ steps:
       - --trigger-http
       - --allow-unauthenticated
       - --max-instances=10
-      - --memory=512MB
-      - --timeout=540s
+      - --memory=256MB
+      - --timeout=300s
     timeout: 600s
 
 options:
