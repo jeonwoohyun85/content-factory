@@ -84,6 +84,9 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
       try {
         const archiveId = `${normalizedSubdomain}_${existingData['생성일시'].replace(/[:\s]/g, '-')}`;
         console.log(`[ARCHIVE] 아카이브 시작: ${archiveId}`);
+        // TTL: 1년 후 자동 삭제
+        const expireAt = new Date(new Date(timestamp).getTime() + (365 * 24 * 60 * 60 * 1000));
+
         await env.POSTING_KV.collection('posts_archive').doc(archiveId).set({
           subdomain: normalizedSubdomain,
           domain: existingData['도메인'],
@@ -97,7 +100,8 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
           body: existingData['본문'],
           images: existingData['이미지'],
           cron_date: existingData['크론'],
-          archived_at: timestamp
+          archived_at: timestamp,
+          expire_at: expireAt  // Firestore TTL 필드
         });
         console.log(`[ARCHIVE] 아카이브 완료: ${archiveId}`);
       } catch (archiveError) {
