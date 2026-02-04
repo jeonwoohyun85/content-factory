@@ -91,6 +91,10 @@ const LANGUAGE_TEXTS = {
 
     stats: '통계',
 
+    info: 'Info',
+
+    video: 'Video',
+
     postImage: '포스트 이미지',
 
     galleryImage: '갤러리 이미지'

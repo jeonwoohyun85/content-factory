@@ -45,18 +45,25 @@ functions.http('main', async (req, res) => {
     const posting = require('./modules/posting.js');
 
     const host = req.headers.host || 'make-page.com';
-    const subdomain = host.split('.')[0];
     const pathname = req.path;
+
+    // pathname에서 subdomain 추출 (/00001 형식) 또는 host에서 추출
+    let subdomain = host.split('.')[0];
+    if (pathname.match(/^\/\d{5}/)) {
+      subdomain = pathname.substring(1).split('/')[0];
+    }
 
 
     // Cron 및 테스트 엔드포인트 (subdomain 무관)
     if (pathname === '/cron-trigger') {
+      const activeClients = await sheets.getActiveClients(env);
       const results = [];
-      for (const sub of ['00001', '00002', '00003', '00004']) {
+      for (const client of activeClients) {
+        const sub = client.subdomain.replace('.make-page.com', '');
         const result = await posting.generatePostingForClient(sub, env);
         results.push({ subdomain: sub, success: result.success });
       }
-      return res.json({ success: true, results });
+      return res.json({ success: true, results, total: activeClients.length });
     }
 
     if (pathname === '/test-posting') {
@@ -84,16 +91,19 @@ functions.http('main', async (req, res) => {
       return res.send(html);
     }
 
+    console.log('[DEBUG] Requested subdomain:', subdomain);
+
     const cachedHTML = await cache.getCachedHTML(subdomain, env);
     if (cachedHTML && !req.query.refresh) {
       res.set('Content-Type', 'text/html; charset=utf-8');
       return res.send(cachedHTML);
     }
 
-    const client = await sheets.getClientFromSheets(subdomain, env);
+    const { client, debugInfo } = await sheets.getClientFromSheets(subdomain, env);
+    console.log('[DEBUG] Client found:', !!client);
     if (!client) return res.status(404).send('Not found');
 
-    const html = await pages.generateClientPage(client, env);
+    const html = await pages.generateClientPage(client, debugInfo, env);
     cache.setCachedHTML(subdomain, html, env);
 
     res.set('Content-Type', 'text/html; charset=utf-8');

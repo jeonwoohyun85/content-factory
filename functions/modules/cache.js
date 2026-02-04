@@ -9,7 +9,7 @@ async function getCachedHTML(key, env) {
 
     const data = doc.data();
 
-    // TTL 체크 (86400초 = 24시간)
+    // TTL 체크 (60초 = 1분)
     if (data.expiresAt && Date.now() > data.expiresAt) {
       // 만료됨, 삭제
       await docRef.delete();
@@ -26,7 +26,7 @@ async function getCachedHTML(key, env) {
 async function setCachedHTML(key, html, env) {
   try {
     const docRef = env.POSTING_KV.collection('cache').doc(`html_${key}`);
-    const expiresAt = Date.now() + (86400 * 1000); // 24시간 후
+    const expiresAt = Date.now() + (60 * 1000); // 1분 후
 
     await docRef.set({
       html,

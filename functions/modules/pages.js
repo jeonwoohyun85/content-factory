@@ -6,10 +6,10 @@ const { UMAMI_WEBSITE_ID } = require('./config.js');
 // getLanguageTexts 함수 (translation.js에서 이동)
 function getLanguageTexts(lang) {
   const texts = {
-    ko: { home: '홈', posts: '포스팅', location: '위치', hours: '영업시간', contact: '연락처', gallery: '갤러리', back: '뒤로가기', readMore: '자세히 보기' },
-    en: { home: 'Home', posts: 'Posts', location: 'Location', hours: 'Hours', contact: 'Contact', gallery: 'Gallery', back: 'Back', readMore: 'Read More' },
-    ja: { home: 'ホーム', posts: '投稿', location: '場所', hours: '営業時間', contact: '連絡先', gallery: 'ギャラリー', back: '戻る', readMore: '続きを読む' },
-    zh: { home: '首页', posts: '帖子', location: '位置', hours: '营业时间', contact: '联系方式', gallery: '画廊', back: '返回', readMore: '阅读更多' }
+    ko: { home: '홈', posts: '포스팅', location: '위치', hours: '영업시간', contact: '연락처', gallery: '갤러리', back: '뒤로가기', readMore: '자세히 보기', info: 'Info', video: 'Video', phone: '전화하기', instagram: '인스타그램', youtube: '유튜브', facebook: '페이스북', kakao: '카카오톡', blog: '블로그', store: '스토어', booking: '예약하기', link: '링크', stats: '통계', postImage: '포스트 이미지', galleryImage: '갤러리 이미지' },
+    en: { home: 'Home', posts: 'Posts', location: 'Location', hours: 'Hours', contact: 'Contact', gallery: 'Gallery', back: 'Back', readMore: 'Read More', info: 'Gallery', video: 'Videos', phone: 'Call', instagram: 'Instagram', youtube: 'YouTube', facebook: 'Facebook', kakao: 'KakaoTalk', blog: 'Blog', store: 'Store', booking: 'Book Now', link: 'Link', stats: 'Stats', postImage: 'Post Image', galleryImage: 'Gallery Image' },
+    ja: { home: 'ホーム', posts: '投稿', location: '場所', hours: '営業時間', contact: '連絡先', gallery: 'ギャラリー', back: '戻る', readMore: '続きを読む', info: 'ギャラリー', video: '動画', phone: '電話する', instagram: 'インスタグラム', youtube: 'ユーチューブ', facebook: 'フェイスブック', kakao: 'カカオトーク', blog: 'ブログ', store: 'ストア', booking: '予約する', link: 'リンク', stats: '統計', postImage: '投稿画像', galleryImage: 'ギャラリー画像' },
+    zh: { home: '首页', posts: '帖子', location: '位置', hours: '营业时间', contact: '联系方式', gallery: '画廊', back: '返回', readMore: '阅读更多', info: '画廊', video: '视频', phone: '打电话', instagram: 'Instagram', youtube: 'YouTube', facebook: 'Facebook', kakao: 'KakaoTalk', blog: '博客', store: '商店', booking: '预订', link: '链接', stats: '统计', postImage: '帖子图片', galleryImage: '画廊图片' }
   };
   return texts[lang] || texts.ko;
 }

@@ -140,6 +140,10 @@ async function getClientFromSheets(clientId, env) {
 
 
 
+    console.log('[SHEETS] Looking for clientId:', clientId);
+    console.log('[SHEETS] Total clients:', normalizedClients.length);
+    console.log('[SHEETS] Client subdomains:', normalizedClients.map(c => c.subdomain).slice(0, 5));
+
     const client = normalizedClients.find(c => {
 
       // subdomain 정규화: "00001.make-page.com" → "00001"
@@ -155,6 +159,12 @@ async function getClientFromSheets(clientId, env) {
       return normalizedSubdomain === clientId;
 
     });
+
+    console.log('[SHEETS] Client found:', !!client);
+    if (client) {
+      console.log('[SHEETS] Client keys:', Object.keys(client).slice(0, 10));
+      console.log('[SHEETS] Business name:', client.business_name, client['상호명']);
+    }
 
 
 
@@ -588,4 +598,30 @@ async function autoResizeBusinessNameColumns(env) {
     return false;
   }
 }
-module.exports = { getClientFromSheets, getPostsFromArchive };
+async function getActiveClients(env) {
+  try {
+    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
+    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+    const csvText = await response.text();
+    const lines = csvText.trim().split('\n');
+    const headers = parseCSVLine(lines[0]).map(h => h.replace(/^\uFEFF/, '').trim());
+
+    const clients = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      const client = {};
+      headers.forEach((header, index) => {
+        client[header] = values[index] || '';
+      });
+      clients.push(client);
+    }
+
+    const normalizedClients = clients.map(normalizeClient);
+    return normalizedClients.filter(c => c.subscription === '활성');
+  } catch (error) {
+    console.error('getActiveClients error:', error.message);
+    return [];
+  }
+}
+
+module.exports = { getClientFromSheets, getPostsFromArchive, getActiveClients };
