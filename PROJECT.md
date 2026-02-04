@@ -690,6 +690,59 @@ Worker Function → 개별 거래처 처리 (30-60초)
 
 ---
 
+### Gemini API 전환 (Vertex AI → Gemini API) ✅ 100%
+
+**목표:** 무료 할당량 확대 및 비용 절감
+
+**문제 상황:**
+```
+Vertex AI Gemini:
+├─ 무료 할당량: 2 RPM (분당 2회)
+├─ 거래처 4개: 8 API 호출 필요
+├─ 결과: 429 에러 (Resource Exhausted)
+└─ 유료 전환 필요: $3-5/월
+```
+
+**해결:**
+```
+Gemini API (generativelanguage.googleapis.com):
+├─ 무료 할당량: 15 RPM (7배 증가)
+├─ 일일 무료: 1,500회
+├─ 거래처 4개: ✅ 성공
+├─ 거래처 100개: ✅ 무료
+└─ 비용: $0
+```
+
+**변경 사항:**
+- ✅ `gemini-api.js` 전환
+  - 엔드포인트: aiplatform.googleapis.com → generativelanguage.googleapis.com
+  - 인증: OAuth (Service Account) → API Key (x-goog-api-key)
+  - 할당량: 2 RPM → 15 RPM
+- ✅ `content-generator.js`: API Key 전달
+- ✅ `trend-searcher.js`: API Key 전달
+- ✅ Secret Manager: GEMINI_API_KEY 사용
+
+**비교:**
+
+| 항목 | Vertex AI | Gemini API |
+|------|----------|-----------|
+| 무료 RPM | 2 | 15 |
+| 무료 일일 | 제한적 | 1,500회 |
+| 거래처 4개 | ❌ 실패 | ✅ 성공 |
+| 거래처 100개 | 유료 ($10) | 무료 ($0) |
+| 안정성 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| 할당량 증가 | 신청 필요 | 자동 증가 |
+
+**완료일:** 2026-02-05
+
+**개선 효과:**
+- 💰 **비용**: $3-5/월 → $0 (거래처 100개까지)
+- 🚀 **할당량**: 2 RPM → 15 RPM (7배)
+- ✅ **안정성**: 429 에러 해결
+- ⚡ **즉시**: 할당량 신청 불필요
+
+---
+
 ## 포스팅 생성 규칙
 
 ### 콘텐츠 작성
