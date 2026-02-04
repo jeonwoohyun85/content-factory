@@ -10,6 +10,27 @@ const { getPostsFromArchive } = require('./posts-reader.js');
 async function getClientFromSheets(clientId, env) {
 
   try {
+    // Firestore 캐시 확인 (1시간 TTL)
+    const cacheKey = `client_${clientId}`;
+    try {
+      const cacheDoc = await env.POSTING_KV.collection('clients_cache').doc(cacheKey).get();
+
+      if (cacheDoc.exists) {
+        const cached = cacheDoc.data();
+        const cacheAge = Date.now() - cached.cached_at;
+        const CACHE_TTL = 60 * 60 * 1000; // 1시간
+
+        if (cacheAge < CACHE_TTL) {
+          console.log('[CACHE HIT] Client from Firestore:', clientId);
+          return { client: cached.client, debugInfo: { source: 'cache' } };
+        }
+      }
+    } catch (cacheError) {
+      console.error('[CACHE ERROR]', cacheError.message);
+      // 캐시 실패해도 계속 진행
+    }
+
+    console.log('[CACHE MISS] Fetching from Sheets:', clientId);
 
     const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
 
@@ -132,8 +153,19 @@ async function getClientFromSheets(clientId, env) {
       }
     }
 
-
-
+    // Firestore 캐시 저장
+    if (client) {
+      try {
+        await env.POSTING_KV.collection('clients_cache').doc(cacheKey).set({
+          client,
+          cached_at: Date.now()
+        });
+        console.log('[CACHE SAVE] Client cached:', clientId);
+      } catch (cacheError) {
+        console.error('[CACHE SAVE ERROR]', cacheError.message);
+        // 캐시 저장 실패해도 계속 진행
+      }
+    }
 
     return { client, debugInfo };
 
