@@ -8,7 +8,13 @@ async function generatePostWithClaudeForPosting(client, trendsData, images, env)
 
   const imageCount = images.length;
 
-
+  // KST 현재 날짜
+  const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+  const year = kstNow.getFullYear();
+  const month = kstNow.getMonth() + 1;
+  const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+  const monthName = monthNames[month - 1];
+  const currentDate = `${year}년 ${monthName}`;
 
   const prompt = hasImages ? `
 
@@ -19,6 +25,14 @@ async function generatePostWithClaudeForPosting(client, trendsData, images, env)
 - 언어: ${client.language}
 
 - **핵심 주제 및 소개 (필수 반영): ${client.description}**
+
+
+
+[현재 날짜]
+
+- 오늘: ${currentDate}
+- 날짜/년도/계절 언급 시 위 날짜 기준으로 작성
+- 이미지 속 날짜는 묘사만, '현재', '지금', '최근', '올해' 표현은 실제 날짜 기준
 
 
 
@@ -76,6 +90,8 @@ ${trendsData}
 
 9. **상호명(${client.business_name})을 본문에 1~2회 자연스럽게 언급** (필수)
 
+10. **날짜/시간 기준**: [현재 날짜] 기준으로 작성 (이미지 속 날짜 무시)
+
 
 
 출력 형식 (JSON):
@@ -101,6 +117,14 @@ ${trendsData}
 - 언어: ${client.language}
 
 - **핵심 주제 및 소개 (필수 반영): ${client.description}**
+
+
+
+[현재 날짜]
+
+- 오늘: ${currentDate}
+- 날짜/년도/계절 언급 시 위 날짜 기준으로 작성
+- '현재', '지금', '최근', '올해' 표현은 실제 날짜 기준
 
 
 
@@ -151,6 +175,8 @@ ${trendsData}
 8. **간결하고 핵심적인 표현 사용 - 장황한 설명 금지**
 
 9. **상호명(${client.business_name})을 본문에 1~2회 자연스럽게 언급** (필수)
+
+10. **날짜/시간 기준**: [현재 날짜] 기준으로 작성
 
 
 
