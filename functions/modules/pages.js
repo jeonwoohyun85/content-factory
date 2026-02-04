@@ -5,62 +5,62 @@ const { UMAMI_WEBSITE_ID, LANGUAGE_TEXTS } = require('./config.js');
 
 // getLanguageTexts 함수 (config.js의 LANGUAGE_TEXTS 사용)
 function getLanguageTexts(lang) {
-  return LANGUAGE_TEXTS[lang] || LANGUAGE_TEXTS.ko;
+    return LANGUAGE_TEXTS[lang] || LANGUAGE_TEXTS.ko;
 }
 const { getClientFromSheets, getSheetId } = require('./sheets.js');
 const { getGoogleAccessTokenForPosting } = require('./auth.js');
 
 async function generatePostPage(client, post, env) {
 
-  const langCode = normalizeLanguage(client.language);
+    const langCode = normalizeLanguage(client.language);
 
-  const texts = await getLanguageTexts(langCode, env);
-
-
-
-  // 이미지 URL 파싱
-
-  const imageUrls = (post.images || '').split(',').map(url => url.trim()).filter(url => url);
+    const texts = await getLanguageTexts(langCode, env);
 
 
 
-  // 본문을 문단으로 분리
+    // 이미지 URL 파싱
 
-  const paragraphs = (post.body || '').split('\n\n').filter(p => p.trim());
-
-
-
-  // 이미지와 문단을 인터리브
-
-  let contentHtml = '';
-
-  const maxLength = Math.max(imageUrls.length, paragraphs.length);
+    const imageUrls = (post.images || '').split(',').map(url => url.trim()).filter(url => url);
 
 
 
-  for (let i = 0; i < maxLength; i++) {
+    // 본문을 문단으로 분리
 
-    // 문단 먼저 추가 (텍스트가 위로)
+    const paragraphs = (post.body || '').split('\n\n').filter(p => p.trim());
 
-    if (i < paragraphs.length) {
 
-      contentHtml += `<p class="post-paragraph">${escapeHtml(paragraphs[i])}</p>`;
+
+    // 이미지와 문단을 인터리브
+
+    let contentHtml = '';
+
+    const maxLength = Math.max(imageUrls.length, paragraphs.length);
+
+
+
+    for (let i = 0; i < maxLength; i++) {
+
+        // 문단 먼저 추가 (텍스트가 위로)
+
+        if (i < paragraphs.length) {
+
+            contentHtml += `<p class="post-paragraph">${escapeHtml(paragraphs[i])}</p>`;
+
+        }
+
+        // 이미지 다음 추가 (문단 아래)
+
+        if (i < imageUrls.length) {
+
+            contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="${texts.postImage}" class="post-image">`;
+
+        }
 
     }
 
-    // 이미지 다음 추가 (문단 아래)
-
-    if (i < imageUrls.length) {
-
-      contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="${texts.postImage}" class="post-image">`;
-
-    }
-
-  }
 
 
-
-  return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 
 <html lang="${langCode}">
 
@@ -428,102 +428,102 @@ async function generatePostPage(client, post, env) {
 
 async function generateClientPage(client, debugInfo, env) {
 
-  const langCode = normalizeLanguage(client.language);
+    const langCode = normalizeLanguage(client.language);
 
-  const texts = await getLanguageTexts(langCode, env);
-
-
-
-  // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
-
-  const links = (client.links || '').split(',')
-    .map(l => extractUrlFromMarkdown(l.trim()))
-    .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL 제외
-    .map(url => getLinkInfo(url, texts))
-    .filter(l => l);
-  
-  // Umami 통계 버튼 (우마미_공유 컬럼 사용)
-  if (client.umami_share) {
-    // 전체 URL이면 그대로, Share ID만 있으면 URL 생성
-    const shareUrl = client.umami_share.includes('http') 
-      ? client.umami_share 
-      : `https://cloud.umami.is/share/${client.umami_share}`;
-    
-    links.push({
-      icon: '📊',
-      text: texts.stats,
-      url: shareUrl
-    });
-  }
-
-  // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환 (전체 이미지 포함, 제한 없음)
-
-  const allInfoImages = (client.info || '').split(',')
-
-    .map(i => i.trim())
-
-    .filter(i => i)
-
-    .map(url => {
-
-      // Google Drive /view URL을 /thumbnail로 변환
-
-      if (url.includes('drive.google.com/file/d/')) {
-
-        const fileId = url.split('/d/')[1].split('/')[0];
-
-        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
-
-      }
-
-      return url;
-
-    });
+    const texts = await getLanguageTexts(langCode, env);
 
 
 
-  // Video 파싱 (쉼표 구분, 최대 2개)
+    // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
-  const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v).slice(0, 2);
+    const links = (client.links || '').split(',')
+        .map(l => extractUrlFromMarkdown(l.trim()))
+        .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL 제외
+        .map(url => getLinkInfo(url, texts))
+        .filter(l => l);
+
+    // Umami 통계 버튼 (우마미_공유 컬럼 사용)
+    if (client.umami_share) {
+        // 전체 URL이면 그대로, Share ID만 있으면 URL 생성
+        const shareUrl = client.umami_share.includes('http')
+            ? client.umami_share
+            : `https://cloud.umami.is/share/${client.umami_share}`;
+
+        links.push({
+            icon: '📊',
+            text: texts.stats,
+            url: shareUrl
+        });
+    }
+
+    // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환 (전체 이미지 포함, 제한 없음)
+
+    const allInfoImages = (client.info || '').split(',')
+
+        .map(i => i.trim())
+
+        .filter(i => i)
+
+        .map(url => {
+
+            // Google Drive /view URL을 /thumbnail로 변환
+
+            if (url.includes('drive.google.com/file/d/')) {
+
+                const fileId = url.split('/d/')[1].split('/')[0];
+
+                return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+
+            }
+
+            return url;
+
+        });
 
 
 
-  // Posts 파싱 (최근 1개)
+    // Video 파싱 (쉼표 구분, 최대 2개)
 
-  const posts = (client.posts || []).slice(0, 1);
-
-  // Previous Posts (Firestore에서 조회, 10개)
-  let previousPosts = [];
-  try {
-    const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
-    const snapshot = await env.POSTING_KV.collection('posts_archive')
-      .where('subdomain', '==', subdomain)
-      .get();
-
-    // 클라이언트 사이드 정렬 및 제한
-    previousPosts = snapshot.docs
-      .map(doc => doc.data())
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 10);
-
-    console.log(`Previous posts 조회 성공: ${previousPosts.length}개`);
-  } catch (error) {
-    console.error('Previous posts 조회 실패:', error.message);
-  }
+    const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v).slice(0, 2);
 
 
 
-  // 전화번호 링크 추가
+    // Posts 파싱 (최근 1개)
 
-  if (client.phone && !links.some(l => l.url.includes(client.phone))) {
+    const posts = (client.posts || []).slice(0, 1);
 
-    links.unshift({ icon: '📞', text: texts.phone, url: `tel:${client.phone}` });
+    // Previous Posts (Firestore에서 조회, 10개)
+    let previousPosts = [];
+    try {
+        const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+        const snapshot = await env.POSTING_KV.collection('posts_archive')
+            .where('subdomain', '==', subdomain)
+            .get();
 
-  }
+        // 클라이언트 사이드 정렬 및 제한
+        previousPosts = snapshot.docs
+            .map(doc => doc.data())
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 10);
+
+        console.log(`Previous posts 조회 성공: ${previousPosts.length}개`);
+    } catch (error) {
+        console.error('Previous posts 조회 실패:', error.message);
+    }
 
 
 
-  return `<!DOCTYPE html>
+    // 전화번호 링크 추가
+
+    if (client.phone && !links.some(l => l.url.includes(client.phone))) {
+
+        links.unshift({ icon: '📞', text: texts.phone, url: `tel:${client.phone}` });
+
+    }
+
+
+
+    return `<!DOCTYPE html>
 
 <html lang="${langCode}">
 
@@ -1856,19 +1856,19 @@ async function generateClientPage(client, debugInfo, env) {
     <!-- Posts Section -->
 
     <section><h2 class="section-title">Posts</h2>${posts.length > 0 ? '<div class="posts-grid">' + posts.map(post => {
-      const postUrl = post.url ? '/' + post.url.split('/').slice(1).join('/') : '/post?id=' + new Date(post.created_at).getTime().toString(36);
-      return '<article class="post-card"><a href="' + postUrl + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>';
+        const postUrl = post.url ? '/' + post.url.split('/').slice(1).join('/') : '/post?id=' + new Date(post.created_at).getTime().toString(36);
+        return '<article class="post-card"><a href="' + postUrl + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>';
     }).join('') + '</div>' : ''}<div class="accordion"><div class="accordion-header" onclick="toggleAccordion()"><div class="accordion-title"><span class="accordion-icon" id="accordion-icon">▶</span><span>Previous Posts</span></div></div><div class="accordion-content" id="accordion-content"><div class="accordion-body">${previousPosts.length > 0 ?
-      '<table class="previous-posts-table"><thead><tr><th>Title</th><th>Date</th></tr></thead><tbody id="previous-posts-list">' + previousPosts.map(p => {
-        // URL에서 도메인 부분 제거하고 경로만 추출
-        let pUrl = p.url || '';
-        if (pUrl.includes('/post?id=')) {
-          pUrl = pUrl.substring(pUrl.indexOf('/post?id='));
-        }
-        return '<tr onclick="window.location.href=\'' + pUrl + '\'"><td class="previous-post-title">' + escapeHtml(p.title) + '</td><td class="previous-post-date">' + escapeHtml(formatKoreanTime(p.created_at)) + '</td></tr>';
-      }).join('') + '</tbody></table><div class="load-more-container"><button class="load-more-btn" id="load-more-btn" onclick="loadMorePosts()">Load More</button></div>'
-      : '<div style="text-align:center;padding:40px 20px;color:#718096;">아직 포스팅이 없습니다</div>'
-    }</div></div></div></section>
+        '<table class="previous-posts-table"><thead><tr><th>Title</th><th>Date</th></tr></thead><tbody id="previous-posts-list">' + previousPosts.map(p => {
+            // URL에서 도메인 부분 제거하고 경로만 추출
+            let pUrl = p.url || '';
+            if (pUrl.includes('/post?id=')) {
+                pUrl = pUrl.substring(pUrl.indexOf('/post?id='));
+            }
+            return '<tr onclick="window.location.href=\'' + pUrl + '\'"><td class="previous-post-title">' + escapeHtml(p.title) + '</td><td class="previous-post-date">' + escapeHtml(formatKoreanTime(p.created_at)) + '</td></tr>';
+        }).join('') + '</tbody></table><div class="load-more-container"><button class="load-more-btn" id="load-more-btn" onclick="loadMorePosts()">Load More</button></div>'
+        : '<div style="text-align:center;padding:40px 20px;color:#718096;">아직 포스팅이 없습니다</div>'
+        }</div></div></div></section>
 
 
 
@@ -2168,263 +2168,149 @@ async function generateClientPage(client, debugInfo, env) {
 
 }
 
-function generateRobotsTxt() {
 
-  return `User-agent: *
 
-Allow: /
 
-
-
-Sitemap: https://make-page.com/sitemap.xml`;
-
-}
-
-async function handleSitemap(env) {
-
-  try {
-
-    // Google Sheets에서 활성 거래처 조회
-
-    const SHEET_URL = env.GOOGLE_SHEETS_CSV_URL || 'https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/export?format=csv&gid=0';
-
-    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
-
-    const csvText = await response.text();
-
-    const clients = parseCSV(csvText).map(normalizeClient);
-
-
-
-    const activeClients = clients.filter(client => client.subscription === '활성');
-
-
-
-    let urls = [];
-
-
-
-    // KST 날짜 계산
-
-    const getKstDate = () => {
-
-      const utcDate = new Date();
-
-      const kstDate = new Date(utcDate.getTime() + (9 * 60 * 60 * 1000));
-
-      return kstDate.toISOString().split('T')[0];
-
-    };
-
-
-
-    // 거래처 메인 페이지만 포함
-
-    activeClients.forEach(client => {
-      // subdomain 정규화 (.make-page.com 제거)
-      const normalizedSubdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
-
-      urls.push({
-
-        loc: `https://${normalizedSubdomain}.make-page.com/`,
-
-        lastmod: getKstDate(),
-
-        changefreq: 'daily',
-
-        priority: '0.9'
-
-      });
-
-    });
-
-
-
-    // XML 생성
-
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
-${urls.map(url => `  <url>
-
-    <loc>${url.loc}</loc>
-
-    <lastmod>${url.lastmod}</lastmod>
-
-    <changefreq>${url.changefreq}</changefreq>
-
-    <priority>${url.priority}</priority>
-
-  </url>`).join('\n')}
-
-</urlset>`;
-
-
-
-    return new Response(xml, {
-
-      headers: {
-
-        'Content-Type': 'application/xml; charset=utf-8',
-
-        'Cache-Control': 'public, max-age=3600'
-
-      }
-
-    });
-
-
-
-  } catch (error) {
-
-    console.error('Sitemap generation error:', error);
-
-    return new Response('Error generating sitemap', { status: 500 });
-
-  }
-
-}
 
 async function deletePost(subdomain, createdAt, password, env) {
 
-  // 비밀번호 확인
+    // 비밀번호 확인
 
-  if (password !== env.DELETE_PASSWORD) {
+    if (password !== env.DELETE_PASSWORD) {
 
-    return { success: false, error: '비밀번호가 올바르지 않습니다' };
+        return { success: false, error: '비밀번호가 올바르지 않습니다' };
 
-  }
-
-
-
-  try {
-
-    const accessToken = await getGoogleAccessTokenForPosting(env);
-
-    const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
+    }
 
 
 
-    // 도메인 정규화
+    try {
 
-    const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
+        const accessToken = await getGoogleAccessTokenForPosting(env);
 
-    const domain = `${normalizedSubdomain}.make-page.com`;
-
-
-
-    // 최신 포스팅 탭에서 삭제
-
-    const latestResponse = await fetch(
-
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
-
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-
-    );
-
-    const latestData = await latestResponse.json();
-
-    const latestRows = latestData.values || [];
+        const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
 
 
-    if (latestRows.length >= 2) {
+        // 도메인 정규화
 
-      const latestHeaders = latestRows[0];
+        const normalizedSubdomain = subdomain.replace('.make-page.com', '').replace('/', '');
 
-      const latestDomainIndex = latestHeaders.indexOf('도메인');
-
-      const latestCreatedAtIndex = latestHeaders.indexOf('생성일시');
+        const domain = `${normalizedSubdomain}.make-page.com`;
 
 
 
-      if (latestDomainIndex !== -1 && latestCreatedAtIndex !== -1) {
+        // 최신 포스팅 탭에서 삭제
 
-        for (let i = 1; i < latestRows.length; i++) {
+        const latestResponse = await fetch(
 
-          const row = latestRows[i];
+            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/'${latestSheetName}'!A:Z`,
 
-          if (row[latestDomainIndex] === domain && row[latestCreatedAtIndex] === createdAt) {
-
-            const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
-
-        await fetch(
-
-          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-
-          {
-
-            method: 'POST',
-
-            headers: {
-
-              'Authorization': `Bearer ${accessToken}`,
-
-              'Content-Type': 'application/json'
-
-            },
-
-            body: JSON.stringify({
-
-              requests: [{
-
-                deleteDimension: {
-
-                  range: {
-
-                    sheetId: latestSheetId,
-
-                    dimension: 'ROWS',
-
-                    startIndex: i,
-
-                    endIndex: i + 1
-
-                  }
-
-                }
-
-              }]
-
-            })
-
-          }
+            { headers: { Authorization: `Bearer ${accessToken}` } }
 
         );
 
-        break;
+        const latestData = await latestResponse.json();
 
-      }
+        const latestRows = latestData.values || [];
+
+
+
+        if (latestRows.length >= 2) {
+
+            const latestHeaders = latestRows[0];
+
+            const latestDomainIndex = latestHeaders.indexOf('도메인');
+
+            const latestCreatedAtIndex = latestHeaders.indexOf('생성일시');
+
+
+
+            if (latestDomainIndex !== -1 && latestCreatedAtIndex !== -1) {
+
+                for (let i = 1; i < latestRows.length; i++) {
+
+                    const row = latestRows[i];
+
+                    if (row[latestDomainIndex] === domain && row[latestCreatedAtIndex] === createdAt) {
+
+                        const latestSheetId = await getSheetId(env.SHEETS_ID, latestSheetName, accessToken);
+
+                        await fetch(
+
+                            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
+
+                            {
+
+                                method: 'POST',
+
+                                headers: {
+
+                                    'Authorization': `Bearer ${accessToken}`,
+
+                                    'Content-Type': 'application/json'
+
+                                },
+
+                                body: JSON.stringify({
+
+                                    requests: [{
+
+                                        deleteDimension: {
+
+                                            range: {
+
+                                                sheetId: latestSheetId,
+
+                                                dimension: 'ROWS',
+
+                                                startIndex: i,
+
+                                                endIndex: i + 1
+
+                                            }
+
+                                        }
+
+                                    }]
+
+                                })
+
+                            }
+
+                        );
+
+                        break;
+
+                    }
+
+                }
+
+            }
+
+        }
+
+
+
+        if (!foundInArchive) {
+
+            return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
+
+        }
+
+
+
+        return { success: true };
+
+
+
+    } catch (error) {
+
+        console.error('Delete post error:', error);
+
+        return { success: false, error: error.message };
 
     }
-
-      }
-
-    }
-
-
-
-    if (!foundInArchive) {
-
-      return { success: false, error: '삭제할 포스트를 찾을 수 없습니다' };
-
-    }
-
-
-
-    return { success: true };
-
-
-
-  } catch (error) {
-
-    console.error('Delete post error:', error);
-
-    return { success: false, error: error.message };
-
-  }
 
 }
 
