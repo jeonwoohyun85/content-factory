@@ -92,7 +92,7 @@ Cloud Monitoring 알림
 
 ## 🗺️ Google Cloud 전환 로드맵
 
-### Phase 1: Cloud Functions 전환 ✅ 100%
+### Phase: Cloud Functions 전환 ✅ 100%
 
 **목표:** Cloudflare Workers → Cloud Functions 완전 이전
 
@@ -115,7 +115,7 @@ Cloud Monitoring 알림
 
 ---
 
-### Phase 2: 도메인 및 라우팅 통합 ✅ 100%
+### Phase: 도메인 및 라우팅 통합 ✅ 100%
 
 **목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Run + Global Load Balancing + Certificate Manager)
 
@@ -190,7 +190,7 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
-### Phase 3: Google 생태계 완성 ✅ 100%
+### Phase: Google 생태계 완성 ✅ 100%
 
 **목표:** 100% Google Cloud 생태계
 
@@ -282,7 +282,7 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
-### Phase 5: Previous Posts 아카이브 시스템 ✅ 100%
+### Phase: Previous Posts 아카이브 시스템 ✅ 100%
 
 **목표:** 모든 거래처 페이지에 Previous Posts 아코디언 디폴트 표시 및 자동 아카이브
 
@@ -392,7 +392,7 @@ posts_archive/{document_id}
 
 ---
 
-### Phase 6: 코드 품질 및 안정성 강화 ✅ 100%
+### Phase: 코드 품질 및 안정성 강화 ✅ 100%
 
 **목표:** 코드 모듈화, 캐시 최적화, Rate Limiting, 테스트 코드 작성
 
@@ -452,11 +452,20 @@ posts_archive/{document_id}
   - formatKoreanTime 테스트
 - ✅ 전체 8개 함수 테스트 통과
 
+**5. Cloud Build 자동 배포 (완료)**
+- ✅ Trigger 이름: deploy-cloud-functions
+- ✅ 리전: asia-east1
+- ✅ GitHub 연동: jeonwoohyun85/content-factory (main 브랜치)
+- ✅ 빌드 파일: cloudbuild.yaml
+- ✅ 생성일: 2026-02-03
+- ✅ 작동 확인: GitHub 푸시 → 자동 배포
+
 **개선 효과:**
 - 📦 **모듈화**: 평균 파일 크기 87% 감소 (~1,200줄 → ~150줄)
 - ⚡ **캐시**: API 호출 5배 감소 (60초 → 300초)
 - 🛡️ **보안**: DDoS 방어 (Rate Limiting)
 - ✅ **품질**: 핵심 함수 테스트 보장
+- 🚀 **자동화**: GitHub 푸시 → 자동 배포
 
 **아키텍처 개선:**
 ```
@@ -493,12 +502,6 @@ functions/modules/
 └── test/
     └── utils.test.js (~160줄)
 ```
-
-**남은 작업 (수동 설정 필요):**
-- ⏸️ Cloud Build 트리거 설정
-  - GitHub 연결 필요 (OAuth 인증)
-  - 웹 콘솔: Cloud Build > 트리거 > GitHub 연결
-  - 현재: 수동 배포 (gcloud builds submit)
 
 **완료일:** 2026-02-05
 
