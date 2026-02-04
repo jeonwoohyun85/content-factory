@@ -842,7 +842,42 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   // 3. 데이터 행 준비
   const rowData = headers.map(header => postDataMap[header] || '');
 
-  // 4. UPDATE 또는 APPEND
+  // 4. Firestore 아카이브 (기존 데이터가 있으면 저장)
+  if (existingRowIndex !== -1) {
+    const existingRow = rows[existingRowIndex - 1];
+    const existingData = {};
+    headers.forEach((header, index) => {
+      existingData[header] = existingRow[index] || '';
+    });
+
+    // Firestore에 아카이브 (기존 데이터만)
+    if (existingData['도메인'] && existingData['생성일시']) {
+      try {
+        const archiveId = `${normalizedSubdomain}_${existingData['생성일시'].replace(/[:\s]/g, '-')}`;
+        await env.POSTING_KV.collection('posts_archive').doc(archiveId).set({
+          subdomain: normalizedSubdomain,
+          domain: existingData['도메인'],
+          business_name: existingData['상호명'],
+          title: existingData['제목'],
+          url: existingData['URL'],
+          created_at: existingData['생성일시'],
+          language: existingData['언어'],
+          industry: existingData['업종'],
+          folder_name: existingData['폴더명'],
+          body: existingData['본문'],
+          images: existingData['이미지'],
+          cron_date: existingData['크론'],
+          archived_at: timestamp
+        });
+        console.log(`Firestore 아카이브 완료: ${archiveId}`);
+      } catch (archiveError) {
+        console.error('Firestore 아카이브 실패:', archiveError.message);
+        // 아카이브 실패해도 계속 진행
+      }
+    }
+  }
+
+  // 5. UPDATE 또는 APPEND
   let response;
   if (existingRowIndex !== -1) {
     // 기존 행 UPDATE

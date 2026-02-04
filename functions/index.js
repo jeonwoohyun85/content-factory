@@ -77,6 +77,38 @@ functions.http('main', async (req, res) => {
       return res.json({ success: true });
     }
 
+    // Previous Posts AJAX API
+    if (pathname === '/api/posts') {
+      const sub = req.query.subdomain;
+      const offset = parseInt(req.query.offset) || 0;
+      const limit = parseInt(req.query.limit) || 10;
+
+      if (!sub) return res.status(400).json({ error: 'Subdomain required' });
+
+      try {
+        const snapshot = await firestore.collection('posts_archive')
+          .where('subdomain', '==', sub)
+          .orderBy('created_at', 'desc')
+          .offset(offset)
+          .limit(limit)
+          .get();
+
+        const posts = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            title: data.title,
+            url: data.url,
+            created_at: data.created_at
+          };
+        });
+
+        return res.json({ success: true, posts });
+      } catch (error) {
+        console.error('API posts error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
     // 포스트 상세 페이지
     if (pathname === '/post') {
       const postId = req.query.id;

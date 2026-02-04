@@ -492,6 +492,21 @@ async function generateClientPage(client, debugInfo, env) {
 
   const posts = (client.posts || []).slice(0, 1);
 
+  // Previous Posts (Firestore에서 조회, 10개)
+  let previousPosts = [];
+  try {
+    const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
+    const snapshot = await env.POSTING_KV.collection('posts_archive')
+      .where('subdomain', '==', subdomain)
+      .orderBy('created_at', 'desc')
+      .limit(10)
+      .get();
+
+    previousPosts = snapshot.docs.map(doc => doc.data());
+  } catch (error) {
+    console.error('Previous posts 조회 실패:', error.message);
+  }
+
 
 
   // 전화번호 링크 추가
@@ -1076,6 +1091,290 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
+        /* Previous Posts Accordion */
+
+        .accordion {
+
+            margin-top: 30px;
+
+            border-top: 2px solid #e2e8f0;
+
+            padding-top: 20px;
+
+        }
+
+
+
+        .accordion-header {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            cursor: pointer;
+
+            padding: 16px 20px;
+
+            background: #f7fafc;
+
+            border-radius: 8px;
+
+            transition: all 0.2s;
+
+            user-select: none;
+
+        }
+
+
+
+        .accordion-header:hover {
+
+            background: #edf2f7;
+
+        }
+
+
+
+        .accordion-title {
+
+            font-size: 16px;
+
+            font-weight: 600;
+
+            color: #2d3748;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+        }
+
+
+
+        .accordion-icon {
+
+            font-size: 14px;
+
+            color: #718096;
+
+            transition: transform 0.3s;
+
+        }
+
+
+
+        .accordion-icon.open {
+
+            transform: rotate(90deg);
+
+        }
+
+
+
+        .accordion-content {
+
+            max-height: 0;
+
+            overflow: hidden;
+
+            transition: max-height 0.3s ease-out;
+
+        }
+
+
+
+        .accordion-content.open {
+
+            max-height: 3000px;
+
+            transition: max-height 0.5s ease-in;
+
+        }
+
+
+
+        .accordion-body {
+
+            padding-top: 20px;
+
+        }
+
+
+
+        .previous-posts-table {
+
+            width: 100%;
+
+            border-collapse: collapse;
+
+            background: #fff;
+
+        }
+
+
+
+        .previous-posts-table thead {
+
+            background: #f7fafc;
+
+        }
+
+
+
+        .previous-posts-table th {
+
+            padding: 12px 16px;
+
+            text-align: left;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            color: #718096;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+
+            border-bottom: 2px solid #e2e8f0;
+
+        }
+
+
+
+        .previous-posts-table td {
+
+            padding: 16px;
+
+            border-top: 1px solid #e2e8f0;
+
+            color: #4a5568;
+
+        }
+
+
+
+        .previous-posts-table tbody tr {
+
+            cursor: pointer;
+
+            transition: background 0.2s;
+
+        }
+
+
+
+        .previous-posts-table tbody tr:hover {
+
+            background: #f7fafc;
+
+        }
+
+
+
+        .previous-post-title {
+
+            color: #2d3748;
+
+            font-weight: 500;
+
+            max-width: 400px;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+
+            white-space: nowrap;
+
+        }
+
+
+
+        .previous-post-date {
+
+            color: #a0aec0;
+
+            font-size: 14px;
+
+            white-space: nowrap;
+
+        }
+
+
+
+        .load-more-container {
+
+            text-align: center;
+
+            margin-top: 20px;
+
+            padding-top: 20px;
+
+            border-top: 1px solid #e2e8f0;
+
+        }
+
+
+
+        .load-more-btn {
+
+            padding: 12px 24px;
+
+            background: #667eea;
+
+            color: white;
+
+            border: none;
+
+            border-radius: 8px;
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+
+            transition: all 0.2s;
+
+        }
+
+
+
+        .load-more-btn:hover {
+
+            background: #5568d3;
+
+            transform: translateY(-1px);
+
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+
+        }
+
+
+
+        .load-more-btn:active {
+
+            transform: translateY(0);
+
+        }
+
+
+
+        .load-more-btn:disabled {
+
+            opacity: 0.5;
+
+            cursor: not-allowed;
+
+        }
+
+
+
         @media (min-width: 768px) {
 
             .contact-info {
@@ -1555,7 +1854,12 @@ async function generateClientPage(client, debugInfo, env) {
     ${posts.length > 0 ? '<section><h2 class="section-title">Posts</h2><div class="posts-grid">' + posts.map(post => {
       const postUrl = post.url ? '/' + post.url.split('/').slice(1).join('/') : '/post?id=' + new Date(post.created_at).getTime().toString(36);
       return '<article class="post-card"><a href="' + postUrl + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>';
-    }).join('') + '</div></section>' : ''}
+    }).join('') + '</div>' +
+    (previousPosts.length > 0 ? '<div class="accordion"><div class="accordion-header" onclick="toggleAccordion()"><div class="accordion-title"><span class="accordion-icon" id="accordion-icon">▶</span><span>Previous Posts</span></div></div><div class="accordion-content" id="accordion-content"><div class="accordion-body"><table class="previous-posts-table"><thead><tr><th>Title</th><th>Date</th></tr></thead><tbody id="previous-posts-list">' + previousPosts.map(p => {
+      const pUrl = p.url || '';
+      return '<tr onclick="window.location.href=\'' + pUrl + '\'"><td class="previous-post-title">' + escapeHtml(p.title) + '</td><td class="previous-post-date">' + escapeHtml(formatKoreanTime(p.created_at)) + '</td></tr>';
+    }).join('') + '</tbody></table><div class="load-more-container"><button class="load-more-btn" id="load-more-btn" onclick="loadMorePosts()">Load More</button></div></div></div></div>' : '') +
+    '</section>' : ''}
 
 
 
@@ -1722,6 +2026,124 @@ async function generateClientPage(client, debugInfo, env) {
         } else {
 
             renderGallery();
+
+        }
+
+
+
+        // Previous Posts Accordion
+
+        let currentOffset = 10;
+
+        const subdomain = '${client.subdomain.replace('.make-page.com', '').replace('/', '')}';
+
+
+
+        function toggleAccordion() {
+
+            const content = document.getElementById('accordion-content');
+
+            const icon = document.getElementById('accordion-icon');
+
+
+
+            if (content.classList.contains('open')) {
+
+                content.classList.remove('open');
+
+                icon.classList.remove('open');
+
+            } else {
+
+                content.classList.add('open');
+
+                icon.classList.add('open');
+
+            }
+
+        }
+
+
+
+        async function loadMorePosts() {
+
+            const btn = document.getElementById('load-more-btn');
+
+            const list = document.getElementById('previous-posts-list');
+
+
+
+            btn.disabled = true;
+
+            btn.textContent = 'Loading...';
+
+
+
+            try {
+
+                const response = await fetch(\`/api/posts?subdomain=\${subdomain}&offset=\${currentOffset}&limit=10\`);
+
+                const data = await response.json();
+
+
+
+                if (data.posts && data.posts.length > 0) {
+
+                    data.posts.forEach(post => {
+
+                        const row = document.createElement('tr');
+
+                        row.onclick = () => window.location.href = post.url;
+
+                        row.innerHTML = \`
+
+                            <td class="previous-post-title">\${escapeHtml(post.title)}</td>
+
+                            <td class="previous-post-date">\${escapeHtml(post.created_at)}</td>
+
+                        \`;
+
+                        list.appendChild(row);
+
+                    });
+
+
+
+                    currentOffset += 10;
+
+                    btn.disabled = false;
+
+                    btn.textContent = 'Load More';
+
+                } else {
+
+                    btn.textContent = 'No More Posts';
+
+                    btn.disabled = true;
+
+                }
+
+            } catch (error) {
+
+                console.error('Load more error:', error);
+
+                btn.disabled = false;
+
+                btn.textContent = 'Load More';
+
+            }
+
+        }
+
+
+
+        function escapeHtml(text) {
+
+            const div = document.createElement('div');
+
+            div.textContent = text;
+
+            return div.innerHTML;
 
         }
 
