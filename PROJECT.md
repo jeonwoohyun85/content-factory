@@ -282,6 +282,116 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 ---
 
+### Phase 5: Previous Posts 아카이브 시스템 ✅ 100%
+
+**목표:** 모든 거래처 페이지에 Previous Posts 아코디언 디폴트 표시 및 자동 아카이브
+
+**완료:**
+- ✅ Firestore posts_archive 컬렉션 생성
+  - 저장 시점: 최신_포스팅 시트 UPDATE 전
+  - 저장 데이터: 기존 포스팅 전체 (도메인, 상호명, 제목, URL, 생성일시, 언어, 업종, 폴더명, 본문, 이미지, 크론, 아카이브 시간)
+  - Document ID: `{subdomain}_{생성일시}`
+
+- ✅ 자동 아카이브 로직 (posting-helpers.js)
+  - savePostToSheets 함수 내부 구현
+  - existingRowIndex 확인 → 기존 데이터 있으면 Firestore 저장
+  - 최신_포스팅 시트 UPDATE 전에 아카이브 완료
+
+- ✅ Previous Posts 아코디언 UI
+  - 모든 거래처 페이지에 디폴트 표시 (신규 포함)
+  - 접힌 상태 기본 (클릭 시 확장)
+  - 10개씩 조회 후 표시
+  - Load More 버튼 AJAX 페이지네이션
+  - 빈 상태: "아직 포스팅이 없습니다" 메시지
+
+- ✅ Firestore 쿼리 최적화
+  - 초기: orderBy('created_at', 'desc') 시도 → 인덱스 에러
+  - 최종: 클라이언트 사이드 정렬 (.sort()) 적용
+  - 성능: 빠른 조회 (10개 제한)
+
+- ✅ /post 엔드포인트 Firestore 검색
+  - 1단계: client.posts (최신 포스팅 시트) 검색
+  - 2단계: posts_archive (Firestore) 검색
+  - URL ID 매칭: `url.split('id=')[1]`
+
+- ✅ KST 시간 적용
+  - 모든 타임스탬프 KST (UTC+9)
+  - created_at, archived_at 필드
+
+- ✅ 라우팅 검증
+  - 서브도메인 방식: 00001.make-page.com
+  - /post?id={postId} 경로
+  - 모든 거래처 동작 확인 (00001~00004)
+
+**아키텍처:**
+
+**1. 데이터 흐름:**
+```
+포스팅 생성 → 최신_포스팅 시트 확인
+    ↓
+기존 포스팅 존재?
+    ↓ YES
+Firestore posts_archive 저장 (아카이브)
+    ↓
+최신_포스팅 시트 UPDATE (새 포스팅)
+    ↓
+캐시 삭제
+    ↓
+페이지 재생성 (Previous Posts 포함)
+```
+
+**2. 조회 흐름:**
+```
+거래처 페이지 요청
+    ↓
+Firestore posts_archive 조회 (subdomain 기준)
+    ↓
+클라이언트 사이드 정렬 (created_at desc)
+    ↓
+10개 제한 (.slice(0, 10))
+    ↓
+HTML 아코디언 생성
+    ↓
+Load More 클릭 → AJAX 추가 조회
+```
+
+**3. Firestore 컬렉션 구조:**
+```javascript
+posts_archive/{document_id}
+{
+  subdomain: "00001",
+  domain: "00001.make-page.com",
+  business_name: "상호명",
+  title: "포스팅 제목",
+  url: "https://00001.make-page.com/post?id=xxx",
+  created_at: "2026-02-04 12:34:56",
+  language: "ko",
+  industry: "피아노학원",
+  folder_name: "폴더명",
+  body: "본문 전체 텍스트",
+  images: "https://...,https://...",
+  cron_date: "2026-02-04",
+  archived_at: "2026-02-05 01:00:00"
+}
+```
+
+**4. 핵심 함수:**
+- `savePostToSheets()` (posting-helpers.js): 아카이브 트리거
+- `generateClientPage()` (pages.js): Previous Posts 조회 및 렌더링
+- `/api/posts` (index.js): AJAX 페이지네이션
+- `/post` (index.js): 개별 포스팅 조회
+
+**특징:**
+- 📦 **디폴트 표시**: 신규 거래처도 아코디언 자동 생성
+- 🔄 **동적 작동**: 포스팅 생성 시 레거시 자동 이동
+- 📊 **무한 저장**: Firestore에 모든 이력 영구 보관
+- ⚡ **빠른 조회**: 클라이언트 사이드 정렬 (인덱스 불필요)
+- 📱 **모바일 최적화**: 아코디언 UI, Load More 버튼
+
+**완료일:** 2026-02-05
+
+---
+
 ## 포스팅 생성 규칙
 
 ### 콘텐츠 작성
