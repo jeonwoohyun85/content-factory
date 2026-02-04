@@ -362,7 +362,7 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 - Temperature: 0.7
 
-- Max Tokens: 600
+- Max Tokens: 1024
 
 - Timeout: 120초
 
@@ -370,9 +370,9 @@ Google Cloud Load Balancer (34.120.160.174:443)
 
 **Gemini 2.5 Pro (포스팅)**:
 
-- Temperature: 0.8
+- Temperature: 0.7
 
-- Max Tokens: 8000
+- Max Tokens: 8192
 
 - Timeout: 120초
 
