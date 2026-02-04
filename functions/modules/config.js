@@ -308,8 +308,6 @@ const LANGUAGE_TEXTS = {
 };
 
 module.exports = {
-  TRANSLATION_CACHE,
   LANGUAGE_TEXTS,
-  getFromCache,
-  addToCache
+  UMAMI_WEBSITE_ID
 };
