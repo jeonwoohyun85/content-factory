@@ -124,7 +124,7 @@ async function generatePostingForClient(subdomain, env) {
 
     // Step 3.5: 이미지 URL 추가
 
-    const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w800`).join(',');
+    const imageUrls = images.map(img => `https://drive.google.com/thumbnail?id=${img.id}&sz=w600`).join(',');
 
     postData.images = imageUrls;
 
