@@ -19,11 +19,11 @@
 **2. 빌드/배포 (Cloud Build)**
 - GitHub 연동: 푸시 자동 감지
 - Secret Manager 연동: API 키 자동 주입
-- 배포 대상: Cloud Functions, Firebase Hosting
+- 배포 대상: Cloud Functions Gen2
 
 **3. 실행 환경**
-- Cloud Functions: Worker 로직 (포스팅, API)
-- Cloud Scheduler: 크론 (매일 00:01 KST)
+- Cloud Functions Gen2: 모든 로직 (포스팅, API, 랜딩페이지)
+- Cloud Scheduler: 크론 (매일 00:01 KST, 배치 5개 병렬)
 
 **4. 데이터 저장**
 - Google Sheets: 거래처 DB (기존 유지)
@@ -41,8 +41,8 @@
 - Telegram: 실시간 알림 (Cloud Function → Pub/Sub)
 
 **7. 프론트엔드**
-- Firebase Hosting: 랜딩페이지 (make-page.com)
-- Cloud CDN: 글로벌 배포
+- Cloud Functions: 랜딩페이지 직접 서빙 (functions/landing/)
+- Global Load Balancer: CDN 역할
 
 ### 배포 흐름
 
@@ -53,7 +53,7 @@ Cloud Build 자동 감지
         ↓
 Secret Manager에서 API 키 가져옴
         ↓
-Cloud Functions 배포 / Firebase Hosting 배포
+Cloud Functions Gen2 배포
         ↓
 Cloud Monitoring 알림
 ```
@@ -117,15 +117,15 @@ Cloud Monitoring 알림
 
 ### Phase: 도메인 및 라우팅 통합 ✅ 100%
 
-**목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Run + Global Load Balancing + Certificate Manager)
+**목표:** Cloudflare → Google Cloud 완전 이전 (Cloud Functions Gen2 + Global Load Balancing + Certificate Manager)
 
 **완료:**
 
-**1. Cloud Run 배포**
-- ✅ 서비스명: content-factory
+**1. Cloud Functions Gen2 배포**
+- ✅ 함수명: content-factory
 - ✅ 리전: asia-northeast3
-- ✅ URL: https://content-factory-wdbgrmxlaa-du.a.run.app
-- ✅ 상태: 정상 작동 (STATUS: True)
+- ✅ URL: https://asia-northeast3-content-factory-1770105623.cloudfunctions.net/content-factory
+- ✅ 상태: 정상 작동
 
 **2. 랜딩페이지 통합**
 - ✅ functions/landing/ 폴더 생성
@@ -138,7 +138,7 @@ Cloud Monitoring 알림
 
 **3. Global Load Balancing 완전 구축**
 - ✅ Serverless NEG: content-factory-neg
-  - Cloud Run 서비스 연결: content-factory
+  - Cloud Functions 서비스 연결: content-factory
   - 리전: asia-northeast3
 - ✅ Backend Service: content-factory-backend
   - NEG 연결 완료
@@ -181,7 +181,7 @@ Google Cloud Load Balancer (34.120.160.174:443)
     ↓ Certificate Manager (ACTIVE)
     ↓ Backend Service
     ↓ Serverless NEG
-    ↓ Cloud Run (content-factory)
+    ↓ Cloud Functions Gen2 (content-factory)
     ↓ functions/index.js
     ↓ 랜딩페이지 (landing/) + 서브도메인 동적 생성
 ```
@@ -675,9 +675,9 @@ functions/modules/
 
 ### 배치 처리
 
-- **크기**: 10개씩
+- **크기**: 5개씩 병렬 (Promise.all)
 
-- **대기**: 배치 간 1초
+- **안정성**: API Rate Limit 안전, 타임아웃 회피
 
 - **필터**: `subscription = '활성'`
 
