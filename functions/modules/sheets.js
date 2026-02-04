@@ -290,6 +290,8 @@ async function getPostsFromArchive(subdomain, env) {
 
         const titleIndex = headers.indexOf('제목');
 
+        const urlIndex = headers.indexOf('URL');
+
         const createdAtIndex = headers.indexOf('생성일시');
 
         const languageIndex = headers.indexOf('언어');
@@ -325,6 +327,8 @@ async function getPostsFromArchive(subdomain, env) {
                 business_name: businessNameIndex !== -1 ? (row[businessNameIndex] || '') : '',
 
                 title: titleIndex !== -1 ? (row[titleIndex] || '') : '',
+
+                url: urlIndex !== -1 ? (row[urlIndex] || '') : '',
 
                 created_at: createdAtIndex !== -1 ? (row[createdAtIndex] || '') : '',
 

@@ -1552,7 +1552,10 @@ async function generateClientPage(client, debugInfo, env) {
 
     <!-- Posts Section -->
 
-    ${posts.length > 0 ? '<section><h2 class="section-title">' + texts.posts + '</h2><div class="posts-grid">' + posts.map(post => '<article class="post-card"><a href="/post?id=' + encodeURIComponent(post.created_at) + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>').join('') + '</div></section>' : ''}
+    ${posts.length > 0 ? '<section><h2 class="section-title">' + texts.posts + '</h2><div class="posts-grid">' + posts.map(post => {
+      const postUrl = post.url ? '/' + post.url.split('/').slice(1).join('/') : '/post?id=' + new Date(post.created_at).getTime().toString(36);
+      return '<article class="post-card"><a href="' + postUrl + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>';
+    }).join('') + '</div></section>' : ''}
 
 
 
