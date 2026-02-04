@@ -1,6 +1,9 @@
 // 거래처 메인 페이지 HTML 생성
 
-const { escapeHtml, normalizeLanguage, getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown, formatKoreanTime } = require('../utils.js');
+const { escapeHtml } = require('../utils/html-utils.js');
+const { normalizeLanguage } = require('../utils/normalize.js');
+const { getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown } = require('../utils/url-utils.js');
+const { formatKoreanTime } = require('../utils/time-utils.js');
 const { UMAMI_WEBSITE_ID, LANGUAGE_TEXTS } = require('../config.js');
 
 function getLanguageTexts(lang) {

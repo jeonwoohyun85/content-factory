@@ -1,6 +1,8 @@
 // 포스팅 상세 페이지 HTML 생성
 
-const { escapeHtml, normalizeLanguage, formatKoreanTime } = require('../utils.js');
+const { escapeHtml } = require('../utils/html-utils.js');
+const { normalizeLanguage } = require('../utils/normalize.js');
+const { formatKoreanTime } = require('../utils/time-utils.js');
 const { UMAMI_WEBSITE_ID, LANGUAGE_TEXTS } = require('../config.js');
 
 function getLanguageTexts(lang) {
