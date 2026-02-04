@@ -21,8 +21,8 @@ const LATEST_POSTING_HEADERS_FALLBACK = [
 // 포스팅당 최대 이미지 개수
 const MAX_IMAGES_PER_POSTING = 10;
 
-// Vertex AI Gemini API 헬퍼 함수
-async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7) {
+// Vertex AI Gemini API 헬퍼 함수 (Multimodal 지원)
+async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 1024, temperature = 0.7, images = []) {
   const auth = new GoogleAuth({
     scopes: ['https://www.googleapis.com/auth/cloud-platform']
   });
@@ -32,6 +32,21 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
   const projectId = process.env.GCP_PROJECT || 'content-factory-1770105623';
   const location = 'us-central1';
   const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+
+  // parts 배열 구성: 텍스트 + 이미지들
+  const parts = [{ text: prompt }];
+
+  // 이미지가 있으면 추가
+  if (images && images.length > 0) {
+    for (const image of images) {
+      parts.push({
+        inline_data: {
+          mime_type: image.mimeType || 'image/jpeg',
+          data: image.data
+        }
+      });
+    }
+  }
 
   const response = await fetchWithTimeout(
     endpoint,
@@ -44,7 +59,7 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
       body: JSON.stringify({
         contents: [{
           role: 'user',
-          parts: [{ text: prompt }]
+          parts: parts
         }],
         generationConfig: {
           maxOutputTokens: maxTokens,
@@ -213,7 +228,7 @@ ${trendsData}
 
 [제공된 이미지]
 
-총 ${imageCount}장의 이미지가 제공됩니다.
+총 ${imageCount}장의 이미지를 첨부했습니다. 각 이미지를 자세히 확인하고 순서대로 설명하세요.
 
 
 
@@ -345,7 +360,7 @@ ${trendsData}
 
   try {
 
-    const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 8192);
+    const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 8192, 0.7, images);
 
 
 
