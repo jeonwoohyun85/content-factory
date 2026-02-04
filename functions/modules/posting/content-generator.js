@@ -200,9 +200,20 @@ ${trendsData}
 
   try {
 
+    const startTime = Date.now();
     const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 8192, 0.7, images);
+    const duration = Date.now() - startTime;
 
-
+    // Structured logging for Cloud Monitoring
+    console.log(JSON.stringify({
+      severity: 'INFO',
+      message: 'Gemini API call completed',
+      component: 'content-generator',
+      model: 'gemini-2.5-pro',
+      duration_ms: duration,
+      has_images: hasImages,
+      image_count: imageCount
+    }));
 
     console.log("Gemini response:", result.substring(0, 500));
     // Remove markdown code blocks
