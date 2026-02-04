@@ -128,8 +128,7 @@ functions.http('main', async (req, res) => {
         const chatId = secretsCache.TELEGRAM_CHAT_ID;
         if (telegramToken && chatId) {
           try {
-            const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
-            const kstTime = kstNow.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+            const kstTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
             const failedList = taskResult.errors.length > 0
               ? `\n\n등록 실패:\n${taskResult.errors.map(e => `- ${e.subdomain}: ${e.error}`).join('\n')}`
