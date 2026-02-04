@@ -80,57 +80,35 @@ functions.http('main', async (req, res) => {
       try {
         const startTime = Date.now();
         const activeClients = await getActiveClients(env);
-        const results = [];
-        let successCount = 0;
-        let failCount = 0;
-        const BATCH_SIZE = 5;
 
-        console.log(`[CRON] 시작: ${activeClients.length}개 거래처 처리 (배치 ${BATCH_SIZE}개)`);
+        console.log(`[CRON] 시작: ${activeClients.length}개 거래처 Cloud Tasks 등록`);
 
-        // 배치 병렬 처리 (5개씩)
-        for (let i = 0; i < activeClients.length; i += BATCH_SIZE) {
-          const batch = activeClients.slice(i, i + BATCH_SIZE);
-          const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        // Cloud Tasks에 Task 등록 (비동기 분산 처리)
+        const { createPostingTasksBatch } = require('./modules/task-dispatcher.js');
+        const projectId = process.env.GCP_PROJECT || 'content-factory-1770105623';
+        const location = 'asia-northeast3';
+        const queue = 'posting-queue';
+        const functionUrl = process.env.FUNCTION_URL || 'https://content-factory-wdbgrmxlaa-du.a.run.app';
 
-          console.log(`[CRON] 배치 ${batchNum} 시작: ${batch.length}개 처리`);
+        // 거래처 서브도메인 추출
+        const subdomains = activeClients.map(client =>
+          client.subdomain.replace('.make-page.com', '')
+        );
 
-          const batchPromises = batch.map(async (client) => {
-            const sub = client.subdomain.replace('.make-page.com', '');
-            try {
-              const result = await posting.generatePostingForClient(sub, env);
-              if (result.success) {
-                console.log(`[CRON] ✓ ${sub} 성공`);
-              } else {
-                console.error(`[CRON] ✗ ${sub} 실패: ${result.error}`);
-              }
-              return { subdomain: sub, success: result.success, error: result.error || null };
-            } catch (error) {
-              console.error(`[CRON] ✗ ${sub} 예외: ${error.message}`);
-              return { subdomain: sub, success: false, error: error.message };
-            }
-          });
-
-          const batchResults = await Promise.all(batchPromises);
-          results.push(...batchResults);
-
-          // 배치 결과 집계
-          batchResults.forEach(result => {
-            if (result.success) successCount++;
-            else failCount++;
-          });
-
-          console.log(`[CRON] 배치 ${batchNum} 완료: ${batchResults.filter(r => r.success).length}/${batch.length} 성공`);
-        }
+        // Cloud Tasks 배치 등록 (100개씩)
+        const taskResult = await createPostingTasksBatch(
+          subdomains,
+          projectId,
+          location,
+          queue,
+          functionUrl,
+          100 // 배치 크기
+        );
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`[CRON] 전체 완료: ${successCount}/${activeClients.length} 성공, ${failCount} 실패, ${duration}초`);
+        console.log(`[CRON] Task 등록 완료: ${taskResult.success}/${taskResult.total} 성공, ${duration}초`);
 
-        // 전체 실패 시 ERROR 로그 (Telegram 알림 트리거)
-        if (failCount === activeClients.length && activeClients.length > 0) {
-          console.error(`[CRON ERROR] 모든 거래처 실패! 시스템 점검 필요`);
-        }
-
-        // Telegram 크론 결과 알림
+        // Telegram 크론 시작 알림
         const telegramToken = secretsCache.TELEGRAM_BOT_TOKEN;
         const chatId = secretsCache.TELEGRAM_CHAT_ID;
         if (telegramToken && chatId) {
@@ -138,12 +116,11 @@ functions.http('main', async (req, res) => {
             const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
             const kstTime = kstNow.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-            const failedClients = results.filter(r => !r.success);
-            const failedList = failedClients.length > 0
-              ? `\n\n실패 거래처:\n${failedClients.map(r => `- ${r.subdomain}: ${r.error}`).join('\n')}`
+            const failedList = taskResult.errors.length > 0
+              ? `\n\n등록 실패:\n${taskResult.errors.map(e => `- ${e.subdomain}: ${e.error}`).join('\n')}`
               : '';
 
-            const message = `🤖 크론 실행 완료\n\n✅ 성공: ${successCount}/${activeClients.length}\n❌ 실패: ${failCount}\n\n⏱ 소요 시간: ${duration}초\n🗓 실행 시간: ${kstTime}${failedList}`;
+            const message = `🚀 크론 시작\n\n📋 Task 등록: ${taskResult.success}/${taskResult.total}\n❌ 등록 실패: ${taskResult.fail}\n\n⏱ 등록 시간: ${duration}초\n🗓 시작 시간: ${kstTime}${failedList}\n\n💡 Cloud Tasks가 자동으로 분산 처리합니다.`;
 
             await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
               method: 'POST',
@@ -161,17 +138,66 @@ functions.http('main', async (req, res) => {
 
         return res.json({
           success: true,
-          results,
+          message: 'Cloud Tasks 등록 완료',
           summary: {
-            total: activeClients.length,
-            success: successCount,
-            fail: failCount,
+            total: taskResult.total,
+            tasksCreated: taskResult.success,
+            tasksFailed: taskResult.fail,
             duration: `${duration}s`,
-            batchSize: BATCH_SIZE
-          }
+            queue: `${projectId}/locations/${location}/queues/${queue}`
+          },
+          errors: taskResult.errors
         });
       } catch (error) {
         console.error(`[CRON FATAL] 크론 실행 실패: ${error.message}`, error.stack);
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+          stack: error.stack?.substring(0, 500)
+        });
+      }
+    }
+
+    // Cloud Tasks Worker: 개별 거래처 포스팅 처리
+    if (pathname === '/task/posting') {
+      // OIDC 인증: Cloud Tasks만 허용
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.error('[TASK AUTH] Missing or invalid Authorization header');
+        return res.status(401).json({ error: 'Unauthorized: Missing Authorization' });
+      }
+
+      console.log('[TASK AUTH] Authorized: Cloud Tasks');
+
+      try {
+        const { subdomain } = req.body;
+
+        if (!subdomain) {
+          return res.status(400).json({ error: 'subdomain required' });
+        }
+
+        console.log(`[TASK] 처리 시작: ${subdomain}`);
+
+        const result = await posting.generatePostingForClient(subdomain, env);
+
+        if (result.success) {
+          console.log(`[TASK] ✓ ${subdomain} 성공`);
+          return res.json({
+            success: true,
+            subdomain,
+            message: 'Posting created successfully'
+          });
+        } else {
+          console.error(`[TASK] ✗ ${subdomain} 실패: ${result.error}`);
+          return res.status(500).json({
+            success: false,
+            subdomain,
+            error: result.error
+          });
+        }
+      } catch (error) {
+        console.error(`[TASK ERROR] ${req.body?.subdomain || 'unknown'}: ${error.message}`, error.stack);
         return res.status(500).json({
           success: false,
           error: error.message,
