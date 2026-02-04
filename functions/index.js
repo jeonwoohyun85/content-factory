@@ -60,14 +60,60 @@ functions.http('main', async (req, res) => {
 
     // Cron 및 테스트 엔드포인트 (subdomain 무관)
     if (pathname === '/cron-trigger') {
-      const activeClients = await getActiveClients(env);
-      const results = [];
-      for (const client of activeClients) {
-        const sub = client.subdomain.replace('.make-page.com', '');
-        const result = await posting.generatePostingForClient(sub, env);
-        results.push({ subdomain: sub, success: result.success });
+      try {
+        const startTime = Date.now();
+        const activeClients = await getActiveClients(env);
+        const results = [];
+        let successCount = 0;
+        let failCount = 0;
+
+        console.log(`[CRON] 시작: ${activeClients.length}개 거래처 처리`);
+
+        for (const client of activeClients) {
+          const sub = client.subdomain.replace('.make-page.com', '');
+          try {
+            const result = await posting.generatePostingForClient(sub, env);
+            results.push({ subdomain: sub, success: result.success, error: result.error || null });
+            if (result.success) {
+              successCount++;
+              console.log(`[CRON] ✓ ${sub} 성공`);
+            } else {
+              failCount++;
+              console.error(`[CRON] ✗ ${sub} 실패: ${result.error}`);
+            }
+          } catch (error) {
+            failCount++;
+            console.error(`[CRON] ✗ ${sub} 예외: ${error.message}`);
+            results.push({ subdomain: sub, success: false, error: error.message });
+          }
+        }
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`[CRON] 완료: ${successCount}/${activeClients.length} 성공, ${failCount} 실패, ${duration}초`);
+
+        // 전체 실패 시 ERROR 로그 (Telegram 알림 트리거)
+        if (failCount === activeClients.length && activeClients.length > 0) {
+          console.error(`[CRON ERROR] 모든 거래처 실패! 시스템 점검 필요`);
+        }
+
+        return res.json({
+          success: true,
+          results,
+          summary: {
+            total: activeClients.length,
+            success: successCount,
+            fail: failCount,
+            duration: `${duration}s`
+          }
+        });
+      } catch (error) {
+        console.error(`[CRON FATAL] 크론 실행 실패: ${error.message}`, error.stack);
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+          stack: error.stack?.substring(0, 500)
+        });
       }
-      return res.json({ success: true, results, total: activeClients.length });
     }
 
     if (pathname === '/test-posting') {
