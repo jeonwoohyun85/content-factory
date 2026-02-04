@@ -18,10 +18,6 @@ const LATEST_POSTING_HEADERS_FALLBACK = [
   '도메인', '상호명', '제목', '생성일시', '언어', '업종', '폴더명', '본문', '이미지', 'URL', '크론'
 ];
 
-// 저장소 헤더 고정값 (백업용 - API 실패 시 사용, 10개)
-const ARCHIVE_HEADERS_FALLBACK = [
-  '도메인', '상호명', '제목', '생성일시', '언어', '업종', '폴더명', '본문', '이미지', 'URL'
-];
 
 // 포스팅당 최대 이미지 개수
 const MAX_IMAGES_PER_POSTING = 10;
@@ -350,7 +346,7 @@ ${trendsData}
 
   try {
 
-    const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 4096);
+    const result = await callVertexGemini(prompt, 'gemini-2.5-pro', 8192);
 
 
 
@@ -685,105 +681,9 @@ async function getClientFoldersForPosting(folderName, subdomain, accessToken, en
 
 async function getLastUsedFolderForPosting(subdomain, accessToken, env) {
 
-  try {
+  // 저장소 시트 폐기: lastFolder는 항상 null 반환
 
-    const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
-
-
-
-    const response = await fetchWithTimeout(
-
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + archiveSheetName + "'!A:Z")}`,
-
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-
-      10000
-
-    );
-
-
-
-    if (!response.ok) {
-
-      console.warn('[WARNING] 저장소 시트 읽기 실패, 고정 헤더 사용');
-
-      return { lastFolder: null, archiveHeaders: ARCHIVE_HEADERS_FALLBACK };
-
-    }
-
-
-
-    const data = await response.json();
-
-    const rows = data.values || [];
-
-
-
-    if (rows.length < 1) {
-
-      console.warn('[WARNING] 저장소 시트 비어있음, 고정 헤더 사용');
-
-      return { lastFolder: null, archiveHeaders: ARCHIVE_HEADERS_FALLBACK };
-
-    }
-
-
-
-    const headers = rows[0];
-
-    const domainIndex = headers.indexOf('도메인');
-
-    const folderNameIndex = headers.indexOf('폴더명');
-
-
-
-    if (domainIndex === -1 || folderNameIndex === -1) {
-
-      return { lastFolder: null, archiveHeaders: headers };
-
-    }
-
-
-
-    const normalizedSubdomain = normalizeSubdomain(subdomain);
-
-    const domain = `${normalizedSubdomain}.make-page.com`;
-
-
-
-    // 해당 도메인의 마지막 행에서 폴더명 가져오기
-
-    let lastFolder = null;
-
-    for (let i = rows.length - 1; i >= 1; i--) {
-
-      const row = rows[i];
-
-      const rowDomain = row[domainIndex] || '';
-
-      if (rowDomain === domain) {
-
-        lastFolder = row[folderNameIndex] || null;
-
-        break;
-
-      }
-
-    }
-
-
-
-    return { lastFolder, archiveHeaders: headers };
-
-  } catch (error) {
-
-    console.error('[ERROR] 저장소 조회 중 에러:', error.message);
-
-    console.warn('[WARNING] 고정 헤더 사용');
-
-    return { lastFolder: null, archiveHeaders: ARCHIVE_HEADERS_FALLBACK };
-
-  }
+  return { lastFolder: null };
 
 }
 
@@ -948,7 +848,7 @@ async function removeDuplicatesFromLatestPosting(env, domain, latestSheetId, acc
   }
 }
 
-async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env, archiveHeaders) {
+async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, folderName, accessToken, env) {
 
   const now = new Date();
 
@@ -959,8 +859,6 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
   const domain = `${normalizedSubdomain}.make-page.com`;
 
 
-
-  const archiveSheetName = env.ARCHIVE_SHEET_NAME || '저장소';
 
   const latestSheetName = env.LATEST_POSTING_SHEET_NAME || '최신 포스팅';
 
@@ -1084,19 +982,15 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
   const latestSheet = spreadsheetData.sheets.find(s => s.properties.title === latestSheetName);
 
-  const archiveSheet = spreadsheetData.sheets.find(s => s.properties.title === archiveSheetName);
-
   const adminSheet = spreadsheetData.sheets.find(s => s.properties.title === '관리자');
 
 
 
   const latestSheetId = latestSheet ? latestSheet.properties.sheetId : 0;
 
-  const archiveSheetId = archiveSheet ? archiveSheet.properties.sheetId : 0;
 
 
-
-  console.log(`SheetID - 최신포스팅: ${latestSheetId}, 저장소: ${archiveSheetId}`);
+  console.log(`SheetID - 최신포스팅: ${latestSheetId}`);
 
   // 3. 해당 도메인의 행들 찾기
 
@@ -1405,347 +1299,6 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
 
 
 
-  // 6. 최신 포스팅 저장 성공 → 이제 저장소에 저장 (실패해도 무시)
-
-  try {
-
-
-
-  // 헤더 순서대로 rowData 생성
-
-  const archiveRowData = archiveHeaders.map(header => postDataMap[header] || '');
-
-  console.log('[INFO] 저장소 저장:', { sheet: archiveSheetName, headersCount: archiveHeaders.length, dataLength: archiveRowData.length });
-
-
-
-  // 저장소 탭에 append
-
-  const archiveAppendResponse = await fetchWithTimeout(
-
-    `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}/values/${encodeURIComponent("'" + archiveSheetName + "'!A:Z")}:append?valueInputOption=USER_ENTERED`,
-
-    {
-
-      method: 'POST',
-
-      headers: {
-
-        'Authorization': `Bearer ${accessToken}`,
-
-        'Content-Type': 'application/json'
-
-      },
-
-      body: JSON.stringify({ values: [archiveRowData] })
-
-    },
-
-    10000
-
-  );
-
-
-
-  if (!archiveAppendResponse.ok) {
-
-    const errorText = await archiveAppendResponse.text();
-
-    console.error(`저장소 시트 append 실패: ${archiveAppendResponse.status} - ${errorText}`);
-
-    // 최신 포스팅은 이미 저장됨, 저장소 저장 실패는 치명적이지 않음
-
-  } else {
-
-    console.log('[SUCCESS] 저장소 저장 완료');
-
-    // 저장소 시트에 새로 추가된 행의 높이와 텍스트 줄바꿈 설정
-
-    try {
-
-      const appendResult = await archiveAppendResponse.json();
-
-      const updatedRange = appendResult.updates?.updatedRange;
-
-
-
-      if (updatedRange) {
-
-        // 범위에서 행 번호 추출 (예: "저장소!A20:I20" → 20)
-
-        const rowMatch = updatedRange.match(/:(\d+)$/);
-
-        const newRowIndex = rowMatch ? parseInt(rowMatch[1]) - 1 : null;
-
-
-
-        if (newRowIndex !== null) {
-
-          // 행 높이 21px + 텍스트 줄바꿈 WRAP + 생성일시 datetime 형식
-
-          const createdAtColIndex = archiveHeaders.indexOf('생성일시');
-
-
-
-          const formatRequests = [{
-
-            updateDimensionProperties: {
-
-              range: {
-
-                sheetId: archiveSheetId,
-
-                dimension: 'ROWS',
-
-                startIndex: newRowIndex,
-
-                endIndex: newRowIndex + 1
-
-              },
-
-              properties: {
-
-                pixelSize: 21
-
-              },
-
-              fields: 'pixelSize'
-
-            }
-
-          }, {
-
-            repeatCell: {
-
-              range: {
-
-                sheetId: archiveSheetId,
-
-                startRowIndex: newRowIndex,
-
-                endRowIndex: newRowIndex + 1
-
-              },
-
-              cell: {
-
-                userEnteredFormat: {
-
-                  wrapStrategy: 'WRAP'
-
-                }
-
-              },
-
-              fields: 'userEnteredFormat.wrapStrategy'
-
-            }
-
-          }];
-
-
-
-          // 생성일시 컬럼에 datetime 형식 적용
-
-          if (createdAtColIndex !== -1) {
-
-            formatRequests.push({
-
-              repeatCell: {
-
-                range: {
-
-                  sheetId: archiveSheetId,
-
-                  startRowIndex: newRowIndex,
-
-                  endRowIndex: newRowIndex + 1,
-
-                  startColumnIndex: createdAtColIndex,
-
-                  endColumnIndex: createdAtColIndex + 1
-
-                },
-
-                cell: {
-
-                  userEnteredFormat: {
-
-                    numberFormat: {
-
-                      type: 'DATE_TIME',
-
-                      pattern: 'yyyy-mm-dd hh:mm:ss'
-
-                    }
-
-                  }
-
-                },
-
-                fields: 'userEnteredFormat.numberFormat'
-
-              }
-
-            });
-
-          }
-
-
-
-          const formatResponse = await fetchWithTimeout(
-
-            `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-
-            {
-
-              method: 'POST',
-
-              headers: {
-
-                'Authorization': `Bearer ${accessToken}`,
-
-                'Content-Type': 'application/json'
-
-              },
-
-              body: JSON.stringify({ requests: formatRequests })
-
-            },
-
-            10000
-
-          );
-
-
-
-          if (!formatResponse.ok) {
-
-            console.error(`저장소 행 서식 설정 실패: ${formatResponse.status}`);
-
-          } else {
-
-            console.log(`저장소 행 ${newRowIndex + 1} 서식 설정 완료 (높이 21px, 줄바꿈 WRAP)`);
-
-          }
-
-        }
-
-      }
-
-    } catch (error) {
-
-      console.error(`저장소 행 서식 설정 중 에러: ${error.message}`);
-
-    }
-
-  }
-
-
-
-  // 7. 관리자 시트의 열 너비를 저장소 시트에 복사
-
-  try {
-
-    if (!adminSheet || !adminSheet.data || !adminSheet.data[0] || !adminSheet.data[0].columnMetadata) {
-
-      console.error('관리자 시트 열 너비 정보를 찾을 수 없음');
-
-      return;
-
-    }
-
-
-
-    const columnWidths = adminSheet.data[0].columnMetadata.slice(0, 9).map(col => col.pixelSize || 100);
-
-    console.log(`관리자 시트 열 너비 (복사할 값): ${JSON.stringify(columnWidths)}`);
-
-
-
-    // 저장소 시트에 열 너비 적용
-
-    const updateRequests = columnWidths.map((width, i) => ({
-
-      updateDimensionProperties: {
-
-        range: {
-
-          sheetId: archiveSheetId,
-
-          dimension: 'COLUMNS',
-
-          startIndex: i,
-
-          endIndex: i + 1
-
-        },
-
-        properties: {
-
-          pixelSize: width
-
-        },
-
-        fields: 'pixelSize'
-
-      }
-
-    }));
-
-
-
-    const updateResponse = await fetch(
-
-      `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEETS_ID}:batchUpdate`,
-
-      {
-
-        method: 'POST',
-
-        headers: {
-
-          'Authorization': `Bearer ${accessToken}`,
-
-          'Content-Type': 'application/json'
-
-        },
-
-        body: JSON.stringify({ requests: updateRequests })
-
-      }
-
-    );
-
-
-
-    if (!updateResponse.ok) {
-
-      const errorText = await updateResponse.text();
-
-      console.error(`저장소 시트 열 너비 업데이트 실패: ${updateResponse.status} - ${errorText}`);
-
-    } else {
-
-      console.log('저장소 시트 열 너비 업데이트 성공 (관리자 시트 기준)');
-
-    }
-
-  } catch (error) {
-
-    console.error(`열 너비 복사 중 에러: ${error.message}`);
-
-  }
-
-  } catch (archiveError) {
-
-    // 저장소 저장 실패해도 무시 (최신 포스팅은 이미 저장됨)
-
-    console.error('[ERROR] 저장소 저장 실패:', archiveError.message);
-
-    console.log('[INFO] 최신 포스팅 저장은 성공, 저장소만 실패 (무시하고 계속)');
-
-  }
 
   // 상호명 컬럼 너비 자동 조정
   try {
