@@ -31,7 +31,7 @@ async function generateClientPage(client, debugInfo, env) {
         // 전체 URL이면 그대로, Share ID만 있으면 URL 생성
         const shareUrl = client.umami_share.includes('http')
             ? client.umami_share
-            : `https://cloud.umami.is/share/${client.umami_share}`;
+            : `https://umami-analytics-753166847054.asia-northeast3.run.app/share/${client.umami_share}`;
 
         links.push({
             icon: '📊',
@@ -119,9 +119,9 @@ async function generateClientPage(client, debugInfo, env) {
 
     <title>${escapeHtml(client.business_name)}</title>
 
-    <!-- Umami Cloud Analytics -->
+    <!-- Umami Self-Hosted Analytics -->
 
-    <script defer src="https://cloud.umami.is/script.js" data-website-id="${client.umami_id || UMAMI_WEBSITE_ID}"></script>
+    <script defer src="https://umami-analytics-753166847054.asia-northeast3.run.app/script.js" data-website-id="${client.umami_id || UMAMI_WEBSITE_ID}"></script>
 
     <style>
 
