@@ -1642,11 +1642,10 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-            // 랜덤으로 섞고 최대 6개 선택 (crypto 기반)
-            const crypto = require('crypto');
+            // 랜덤으로 섞고 최대 6개 선택
             displayedImages = allInfoImages.length > 6
 
-                ? [...allInfoImages].sort(() => crypto.randomInt(-1, 2)).slice(0, 6)
+                ? [...allInfoImages].sort(() => Math.random() - 0.5).slice(0, 6)
 
                 : [...allInfoImages];
 
