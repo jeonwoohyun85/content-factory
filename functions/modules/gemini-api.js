@@ -40,7 +40,7 @@ async function callVertexGemini(prompt, model = 'gemini-2.5-flash', maxTokens = 
     // Google Search grounding 활성화
     if (useWebSearch) {
         requestBody.tools = [{
-            googleSearchRetrieval: {}
+            googleSearch: {}
         }];
     }
 
