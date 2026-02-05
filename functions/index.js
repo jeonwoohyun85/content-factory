@@ -232,8 +232,7 @@ functions.http('main', async (req, res) => {
 
             if (telegramToken && chatId) {
               try {
-                const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
-                const kstTime = kstNow.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+                const kstTime = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
                 const duration = ((Date.now() - sessionData.startTime.toDate().getTime()) / 1000).toFixed(0);
 
                 // 업데이트된 세션 데이터 다시 읽기
