@@ -140,21 +140,20 @@ async function generateClientPage(client, debugInfo, env) {
 
     const posts = (client.posts || []).slice(0, 1);
 
-    // Previous Posts (Firestore에서 조회, 10개)
+    // Previous Posts (Firestore에서 조회, 최신 10개만)
     let previousPosts = [];
     try {
         const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
         const snapshot = await env.POSTING_KV.collection('posts_archive')
             .where('subdomain', '==', subdomain)
+            .orderBy('created_at', 'desc')
+            .limit(10)
             .get();
 
-        // 클라이언트 사이드 정렬 및 제한
-        previousPosts = snapshot.docs
-            .map(doc => doc.data())
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            .slice(0, 10);
+        // 서버사이드 정렬 및 제한 (최적화)
+        previousPosts = snapshot.docs.map(doc => doc.data());
 
-        console.log(`Previous posts 조회 성공: ${previousPosts.length}개`);
+        console.log(`Previous posts 조회 성공: ${previousPosts.length}개 (최적화: orderBy+limit)`);
     } catch (error) {
         console.error('Previous posts 조회 실패:', error.message);
     }

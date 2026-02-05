@@ -409,6 +409,39 @@ functions.http('main', async (req, res) => {
       }
     }
 
+    // Sitemap.xml (모든 포스트 URL for SEO)
+    if (pathname === '/sitemap.xml') {
+      try {
+        const snapshot = await firestore.collection('posts_archive')
+          .orderBy('created_at', 'desc')
+          .get();
+
+        const urls = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const domain = data.domain || `${data.subdomain}.make-page.com`;
+          const postId = data.url ? data.url.split('id=')[1] : '';
+          const lastmod = data.created_at ? new Date(data.created_at).toISOString().split('T')[0] : '';
+
+          return `  <url>
+    <loc>https://${domain}/post?id=${postId}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>`;
+        }).join('\n');
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>`;
+
+        res.setHeader('Content-Type', 'application/xml');
+        return res.send(xml);
+      } catch (error) {
+        console.error('Sitemap error:', error);
+        return res.status(500).send('Sitemap generation failed');
+      }
+    }
 
     // 포스트 상세 페이지
     if (pathname === '/post') {

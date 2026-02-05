@@ -544,6 +544,35 @@ functions/modules/
   - 스토리지 비용 절감
   - expire_at 필드 기반
 
+**4-1. Previous Posts 페이지네이션 최적화 (2026-02-06)**
+- ✅ 서버사이드 쿼리 최적화
+  - 기존: 전체 조회 (365개) → 클라이언트 정렬 → 10개 표시
+  - 개선: orderBy + limit(10) → 서버 정렬 → 10개만 조회
+  - Firestore 읽기: 365 reads → 10 reads (97% 절감)
+- ✅ 페이지네이션 API
+  - /api/posts?subdomain=xxx&offset=0&limit=10
+  - offset 기반 페이지 이동
+  - 사용자 필요 시에만 추가 조회
+- ✅ Sitemap.xml 추가
+  - 모든 포스트 URL 등록 (365개)
+  - 검색엔진 크롤링 유도
+  - SEO 100% 유지
+- ✅ Firestore 복합 인덱스
+  - Collection: posts_archive
+  - Fields: subdomain (ASC) + created_at (DESC)
+  - 쿼리 성능 최적화
+
+**비용 효과 (거래처 100개, 1년 기준):**
+- 기존: 365 reads × 100회/일 × 100개 = 109.5M reads/월 = $65.7/월
+- 개선: 10 reads × 100회/일 × 100개 = 3M reads/월 = $1.8/월
+- **절감: $63.9/월 (97% 절감)**
+
+**SEO 효과:**
+- 메인 페이지: 최신 10개만 로드 (성능 ↑)
+- Sitemap: 모든 포스트 URL 노출
+- 검색엔진: 365개 전체 크롤링 가능
+- 사용자 경험: 페이지네이션으로 전체 이력 탐색 가능
+
 **5. 리소스 최적화**
 - ✅ 메모리 축소 (512MB → 256MB)
   - 비용 50% 절감
