@@ -13,7 +13,8 @@ function getLanguageTexts(lang) {
 
 async function generateClientPage(client, debugInfo, env) {
 
-    const langCode = normalizeLanguage(client.language);
+    // 외부 사용자는 항상 한국어로 표시
+    const langCode = 'ko';
 
     const texts = await getLanguageTexts(langCode, env);
 
@@ -191,7 +192,21 @@ async function generateClientPage(client, debugInfo, env) {
 
             color: #1a1a1a;
 
-            margin-bottom: 4px;
+            display: inline;
+
+        }
+
+        .business-domain {
+
+            font-size: 16px;
+
+            font-weight: 500;
+
+            color: #718096;
+
+            display: inline;
+
+            margin-left: 8px;
 
         }
 
@@ -1430,6 +1445,8 @@ async function generateClientPage(client, debugInfo, env) {
         <div class="header-content">
 
             <h1 class="business-name">${escapeHtml(client.business_name)}</h1>
+
+            <div class="business-domain">${escapeHtml(fullDomain)}</div>
 
         </div>
 
