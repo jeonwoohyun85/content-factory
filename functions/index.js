@@ -501,6 +501,7 @@ ${urls}
     const cachedHTML = await cache.getCachedHTML(subdomain, env);
     if (cachedHTML && !req.query.refresh) {
       res.set('Content-Type', 'text/html; charset=utf-8');
+      res.set('Cache-Control', 'public, max-age=60');
       return res.send(cachedHTML);
     }
 
@@ -512,6 +513,7 @@ ${urls}
     cache.setCachedHTML(subdomain, html, env);
 
     res.set('Content-Type', 'text/html; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=60');
     res.send(html);
   } catch (error) {
     console.error(error);
