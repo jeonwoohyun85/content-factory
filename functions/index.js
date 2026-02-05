@@ -501,7 +501,9 @@ ${urls}
     const cachedHTML = await cache.getCachedHTML(subdomain, env);
     if (cachedHTML && !req.query.refresh) {
       res.set('Content-Type', 'text/html; charset=utf-8');
-      res.set('Cache-Control', 'no-cache, must-revalidate');
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       return res.send(cachedHTML);
     }
 
@@ -513,7 +515,9 @@ ${urls}
     cache.setCachedHTML(subdomain, html, env);
 
     res.set('Content-Type', 'text/html; charset=utf-8');
-    res.set('Cache-Control', 'no-cache, must-revalidate');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.send(html);
   } catch (error) {
     console.error(error);

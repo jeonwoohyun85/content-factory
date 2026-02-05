@@ -18,7 +18,7 @@ async function getClientFromSheets(clientId, env) {
       if (cacheDoc.exists) {
         const cached = cacheDoc.data();
         const cacheAge = Date.now() - cached.cached_at;
-        const CACHE_TTL = 60 * 60 * 1000; // 1시간
+        const CACHE_TTL = 10 * 60 * 1000; // 10분 (캐시 문제 방지)
 
         if (cacheAge < CACHE_TTL) {
           console.log('[CACHE HIT] Client from Firestore:', clientId);
