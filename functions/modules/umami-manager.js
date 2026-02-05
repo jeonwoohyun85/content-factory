@@ -164,6 +164,14 @@ async function getOrCreateUmamiWebsite(domain, businessName) {
     }
 }
 
+// Umami 캐시 삭제
+async function deleteCachedUmamiWebsite(domain) {
+    const db = getFirestore();
+    const docRef = db.collection('umami_websites').doc(domain);
+    await docRef.delete();
+    console.log(`[Umami] Cache deleted for ${domain}`);
+}
+
 // Umami 스크립트 URL
 function getUmamiScriptUrl() {
     return `${UMAMI_BASE_URL}/script.js`;
@@ -171,5 +179,6 @@ function getUmamiScriptUrl() {
 
 module.exports = {
     getOrCreateUmamiWebsite,
-    getUmamiScriptUrl
+    getUmamiScriptUrl,
+    deleteCachedUmamiWebsite
 };

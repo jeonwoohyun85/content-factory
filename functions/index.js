@@ -316,6 +316,16 @@ functions.http('main', async (req, res) => {
       }
 
       await cache.deleteCachedHTML(req.query.subdomain, env);
+
+      // Umami 캐시도 삭제
+      if (req.query.subdomain) {
+        const fullDomain = req.query.subdomain.includes('.')
+          ? req.query.subdomain
+          : `${req.query.subdomain}.make-page.com`;
+        await firestore.collection('umami_websites').doc(fullDomain).delete();
+        console.log(`[Refresh] Umami cache deleted for ${fullDomain}`);
+      }
+
       return res.json({ success: true });
     }
 
