@@ -118,14 +118,14 @@ async function getClientFromSheets(clientId, env) {
 
     }
 
+    // Umami용 원본 이름 저장 (언어 표시 제거 전, 번역 전)
+    if (client && client.business_name) {
+      client.business_name_original = client.business_name;
+    }
+
     // 상호명에서 언어 표시 자동 제거
     if (client && client.business_name) {
       client.business_name = removeLanguageSuffixFromBusinessName(client.business_name);
-    }
-
-    // Umami용 원본 이름 저장 (번역 전)
-    if (client && client.business_name) {
-      client.business_name_original = client.business_name;
     }
 
     // Sheets 데이터 번역 (언어가 한국어가 아닐 때)

@@ -13,8 +13,8 @@ function getLanguageTexts(lang) {
 
 async function generateClientPage(client, debugInfo, env) {
 
-    // 외부 사용자는 항상 한국어로 표시
-    const langCode = 'ko';
+    // 거래처 언어에 맞게 UI 표시
+    const langCode = normalizeLanguage(client.language);
 
     const texts = await getLanguageTexts(langCode, env);
 
