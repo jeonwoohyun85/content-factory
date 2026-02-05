@@ -1,4 +1,4 @@
-// 거래처 메인 페이지 HTML 생성
+// 嫄곕옒泥?硫붿씤 ?섏씠吏 HTML ?앹꽦
 
 const { escapeHtml } = require('../utils/html-utils.js');
 const { normalizeLanguage } = require('../utils/normalize.js');
@@ -18,29 +18,29 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-    // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
+    // Links ?뚯떛 (?쇳몴 援щ텇) - 留덊겕?ㅼ슫 ?뺤떇 泥섎━ ???몄뼱 ?띿뒪???꾨떖
 
     const links = (client.links || '').split(',')
         .map(l => extractUrlFromMarkdown(l.trim()))
-        .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL 제외
+        .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL ?쒖쇅
         .map(url => getLinkInfo(url, texts))
         .filter(l => l);
 
-    // Umami 통계 버튼 (우마미_공유 컬럼 사용)
+    // Umami ?듦퀎 踰꾪듉 (?곕쭏誘?怨듭쑀 而щ읆 ?ъ슜)
     if (client.umami_share) {
-        // 전체 URL이면 그대로, Share ID만 있으면 URL 생성
+        // ?꾩껜 URL?대㈃ 洹몃?濡? Share ID留??덉쑝硫?URL ?앹꽦
         const shareUrl = client.umami_share.includes('http')
             ? client.umami_share
             : `https://cloud.umami.is/share/${client.umami_share}`;
 
         links.push({
-            icon: '📊',
+            icon: '?뱤',
             text: texts.stats,
             url: shareUrl
         });
     }
 
-    // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환 (전체 이미지 포함, 제한 없음)
+    // Info ?대?吏 ?뚯떛 (?쇳몴 援щ텇) + Google Drive URL 蹂??(?꾩껜 ?대?吏 ?ы븿, ?쒗븳 ?놁쓬)
 
     const allInfoImages = (client.info || '').split(',')
 
@@ -50,8 +50,7 @@ async function generateClientPage(client, debugInfo, env) {
 
         .map(url => {
 
-            // Google Drive /view URL을 /thumbnail로 변환
-
+            // Google Drive /view URL??/thumbnail濡?蹂??
             if (url.includes('drive.google.com/file/d/')) {
 
                 const fileId = url.split('/d/')[1].split('/')[0];
@@ -66,17 +65,17 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-    // Video 파싱 (쉼표 구분, 최대 2개)
+    // Video ?뚯떛 (?쇳몴 援щ텇, 理쒕? 2媛?
 
     const videoUrls = (client.video || '').split(',').map(v => v.trim()).filter(v => v).map(convertToEmbedUrl).filter(v => v).slice(0, 2);
 
 
 
-    // Posts 파싱 (최근 1개)
+    // Posts ?뚯떛 (理쒓렐 1媛?
 
     const posts = (client.posts || []).slice(0, 1);
 
-    // Previous Posts (Firestore에서 조회, 10개)
+    // Previous Posts (Firestore?먯꽌 議고쉶, 10媛?
     let previousPosts = [];
     try {
         const subdomain = client.subdomain.replace('.make-page.com', '').replace('/', '');
@@ -84,24 +83,24 @@ async function generateClientPage(client, debugInfo, env) {
             .where('subdomain', '==', subdomain)
             .get();
 
-        // 클라이언트 사이드 정렬 및 제한
+        // ?대씪?댁뼵???ъ씠???뺣젹 諛??쒗븳
         previousPosts = snapshot.docs
             .map(doc => doc.data())
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             .slice(0, 10);
 
-        console.log(`Previous posts 조회 성공: ${previousPosts.length}개`);
+        console.log(`Previous posts 議고쉶 ?깃났: ${previousPosts.length}媛?);
     } catch (error) {
-        console.error('Previous posts 조회 실패:', error.message);
+        console.error('Previous posts 議고쉶 ?ㅽ뙣:', error.message);
     }
 
 
 
-    // 전화번호 링크 추가
+    // ?꾪솕踰덊샇 留곹겕 異붽?
 
     if (client.phone && !links.some(l => l.url.includes(client.phone))) {
 
-        links.unshift({ icon: '📞', text: texts.phone, url: `tel:${client.phone}` });
+        links.unshift({ icon: '?뱸', text: texts.phone, url: `tel:${client.phone}` });
 
     }
 
@@ -139,7 +138,7 @@ async function generateClientPage(client, debugInfo, env) {
 
         body {
 
-            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "留묒? 怨좊뵓", "Segoe UI", Roboto, sans-serif;
 
             line-height: 1.6;
 
@@ -515,7 +514,7 @@ async function generateClientPage(client, debugInfo, env) {
 
             width: 100%;
 
-            padding-top: 56.25%; /* 16:9 비율 (모바일 최적화) */
+            padding-top: 56.25%; /* 16:9 鍮꾩쑉 (紐⑤컮??理쒖쟻?? */
 
             border-radius: 8px;
 
@@ -1405,11 +1404,11 @@ async function generateClientPage(client, debugInfo, env) {
 
             <div class="contact-info">
 
-                ${client.address ? '<div class="contact-item"><span class="contact-icon">📍</span><span>' + escapeHtml(client.address) + '</span></div>' : ''}
+                ${client.address ? '<div class="contact-item"><span class="contact-icon">?뱧</span><span>' + escapeHtml(client.address) + '</span></div>' : ''}
 
-                ${client.phone ? '<div class="contact-item"><span class="contact-icon">📞</span><span>' + escapeHtml(client.phone) + '</span></div>' : ''}
+                ${client.phone ? '<div class="contact-item"><span class="contact-icon">?뱸</span><span>' + escapeHtml(client.phone) + '</span></div>' : ''}
 
-                ${client.business_hours ? '<div class="contact-item"><span class="contact-icon">🕐</span><span>' + escapeHtml(client.business_hours) + '</span></div>' : ''}
+                ${client.business_hours ? '<div class="contact-item"><span class="contact-icon">?븧</span><span>' + escapeHtml(client.business_hours) + '</span></div>' : ''}
 
             </div>
 
@@ -1425,7 +1424,7 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-    <!-- Info Section (클라이언트 사이드 랜덤 렌더링) -->
+    <!-- Info Section (?대씪?댁뼵???ъ씠???쒕뜡 ?뚮뜑留? -->
 
     ${allInfoImages.length > 0 ? '<section><h2 class="section-title">' + texts.info + '</h2><div id="gallery-grid" class="gallery-grid"></div></section>' : ''}
 
@@ -1442,16 +1441,16 @@ async function generateClientPage(client, debugInfo, env) {
     <section><h2 class="section-title">Posts</h2>${posts.length > 0 ? '<div class="posts-grid">' + posts.map(post => {
         const postUrl = post.url ? '/' + post.url.split('/').slice(1).join('/') : '/post?id=' + new Date(post.created_at).getTime().toString(36);
         return '<article class="post-card"><a href="' + postUrl + '" style="text-decoration: none; color: inherit;"><h3 class="post-title">' + escapeHtml(post.title) + '</h3><p class="post-body">' + escapeHtml((post.body || '').substring(0, 200)) + '...</p><time class="post-date">' + escapeHtml(formatKoreanTime(post.created_at)) + '</time></a></article>';
-    }).join('') + '</div>' : ''}<div class="accordion"><div class="accordion-header" onclick="toggleAccordion()"><div class="accordion-title"><span class="accordion-icon" id="accordion-icon">▶</span><span>Previous Posts</span></div></div><div class="accordion-content" id="accordion-content"><div class="accordion-body">${previousPosts.length > 0 ?
+    }).join('') + '</div>' : ''}<div class="accordion"><div class="accordion-header" onclick="toggleAccordion()"><div class="accordion-title"><span class="accordion-icon" id="accordion-icon">??/span><span>Previous Posts</span></div></div><div class="accordion-content" id="accordion-content"><div class="accordion-body">${previousPosts.length > 0 ?
         '<table class="previous-posts-table"><thead><tr><th>Title</th><th>Date</th></tr></thead><tbody id="previous-posts-list">' + previousPosts.map(p => {
-            // URL에서 도메인 부분 제거하고 경로만 추출
+            // URL?먯꽌 ?꾨찓??遺遺??쒓굅?섍퀬 寃쎈줈留?異붿텧
             let pUrl = p.url || '';
             if (pUrl.includes('/post?id=')) {
                 pUrl = pUrl.substring(pUrl.indexOf('/post?id='));
             }
             return '<tr onclick="window.location.href=\'' + pUrl + '\'"><td class="previous-post-title">' + escapeHtml(p.title) + '</td><td class="previous-post-date">' + escapeHtml(formatKoreanTime(p.created_at)) + '</td></tr>';
         }).join('') + '</tbody></table><div class="load-more-container"><button class="load-more-btn" id="load-more-btn" onclick="loadMorePosts()">Load More</button></div>'
-        : '<div style="text-align:center;padding:40px 20px;color:#718096;">아직 포스팅이 없습니다</div>'
+        : '<div style="text-align:center;padding:40px 20px;color:#718096;">?꾩쭅 ?ъ뒪?낆씠 ?놁뒿?덈떎</div>'
         }</div></div></div></section>
 
 
@@ -1466,11 +1465,11 @@ async function generateClientPage(client, debugInfo, env) {
 
             <div class="footer-info">
 
-                ${client.address ? '<div class="footer-item"><span>📍</span><span>' + escapeHtml(client.address) + '</span></div>' : ''}
+                ${client.address ? '<div class="footer-item"><span>?뱧</span><span>' + escapeHtml(client.address) + '</span></div>' : ''}
 
-                ${client.phone ? '<div class="footer-item"><span>📞</span><span>' + escapeHtml(client.phone) + '</span></div>' : ''}
+                ${client.phone ? '<div class="footer-item"><span>?뱸</span><span>' + escapeHtml(client.phone) + '</span></div>' : ''}
 
-                ${client.business_hours ? '<div class="footer-item"><span>🕐</span><span>' + escapeHtml(client.business_hours) + '</span></div>' : ''}
+                ${client.business_hours ? '<div class="footer-item"><span>?븧</span><span>' + escapeHtml(client.business_hours) + '</span></div>' : ''}
 
             </div>
 
@@ -1484,7 +1483,7 @@ async function generateClientPage(client, debugInfo, env) {
 
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
 
-        <span class="lightbox-close" onclick="closeLightbox()">×</span>
+        <span class="lightbox-close" onclick="closeLightbox()">횞</span>
 
         <span class="lightbox-nav lightbox-prev" onclick="event.stopPropagation(); prevImage()">&#10094;</span>
 
@@ -1502,7 +1501,7 @@ async function generateClientPage(client, debugInfo, env) {
 
     <script>
 
-        // 전체 이미지 배열
+        // ?꾩껜 ?대?吏 諛곗뿴
 
         const allInfoImages = ${JSON.stringify(allInfoImages)};
 
@@ -1512,8 +1511,7 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-        // 페이지 로드 시 랜덤 6개 선택 및 렌더링
-
+        // ?섏씠吏 濡쒕뱶 ???쒕뜡 6媛??좏깮 諛??뚮뜑留?
         function renderGallery() {
 
             const galleryGrid = document.getElementById('gallery-grid');
@@ -1522,7 +1520,7 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-            // 랜덤으로 섞고 최대 6개 선택
+            // ?쒕뜡?쇰줈 ?욊퀬 理쒕? 6媛??좏깮
 
             displayedImages = allInfoImages.length > 6 
 
@@ -1532,8 +1530,7 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-            // 갤러리 렌더링
-
+            // 媛ㅻ윭由??뚮뜑留?
             galleryGrid.innerHTML = displayedImages.map((img, index) => 
 
                 \`<div class="gallery-item" onclick="openLightbox(\${index})">
@@ -1592,7 +1589,7 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-        // ESC 키로 닫기
+        // ESC ?ㅻ줈 ?リ린
 
         document.addEventListener('keydown', function(e) {
 
@@ -1610,8 +1607,7 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-        // 페이지 로드 시 갤러리 렌더링
-
+        // ?섏씠吏 濡쒕뱶 ??媛ㅻ윭由??뚮뜑留?
         if (document.readyState === 'loading') {
 
             document.addEventListener('DOMContentLoaded', renderGallery);

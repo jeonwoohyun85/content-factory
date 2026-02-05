@@ -352,37 +352,6 @@ functions.http('main', async (req, res) => {
       }
     }
 
-    // IP 테스트 (디버깅용)
-    if (pathname === '/test-ip') {
-      const { getClientIP, getCountryCode } = require('./modules/analytics.js');
-      const ip = getClientIP(req);
-      const country = getCountryCode(req);
-      return res.json({
-        ip,
-        country,
-        headers: {
-          'x-forwarded-for': req.headers['x-forwarded-for'],
-          'x-real-ip': req.headers['x-real-ip'],
-          'cf-ipcountry': req.headers['cf-ipcountry']
-        }
-      });
-    }
-
-    // 통계 페이지
-    if (pathname === '/stats') {
-      const { getStats, getTodayVisitors } = require('./modules/analytics.js');
-      const { generateStatsHTML } = require('./modules/stats-page.js');
-
-      const { client } = await getClientFromSheets(subdomain, env);
-      if (!client) return res.status(404).send('Client not found');
-
-      const stats = await getStats(subdomain);
-      const todayVisitors = await getTodayVisitors(subdomain);
-
-      const html = generateStatsHTML(client.business_name, stats, todayVisitors);
-      res.set('Content-Type', 'text/html; charset=utf-8');
-      return res.send(html);
-    }
 
     // 포스트 상세 페이지
     if (pathname === '/post') {
@@ -451,10 +420,6 @@ functions.http('main', async (req, res) => {
     const { client, debugInfo } = await getClientFromSheets(subdomain, env);
     console.log('[DEBUG] Client found:', !!client);
     if (!client) return res.status(404).send('Not found');
-
-    // 방문 추적
-    const { trackVisit } = require('./modules/analytics.js');
-    trackVisit(subdomain, req).catch(err => console.error('Track visit error:', err));
 
     const html = await generateClientPage(client, debugInfo, env);
     cache.setCachedHTML(subdomain, html, env);
