@@ -282,13 +282,13 @@ const LANGUAGE_TEXTS = {
 
     phone: 'โทร',
 
-    instagram: 'Instagram',
+    instagram: 'อินสตาแกรม',
 
-    youtube: 'YouTube',
+    youtube: 'ยูทูบ',
 
-    facebook: 'Facebook',
+    facebook: 'เฟซบุ๊ก',
 
-    kakao: 'KakaoTalk',
+    kakao: 'คาคาโอทอล์ก',
 
     blog: 'บล็อก',
 
