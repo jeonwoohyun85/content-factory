@@ -26,19 +26,12 @@ async function generateClientPage(client, debugInfo, env) {
         .map(url => getLinkInfo(url, texts))
         .filter(l => l);
 
-    // Umami 통계 버튼 (우마미_공유 컬럼 사용)
-    if (client.umami_share) {
-        // 전체 URL이면 그대로, Share ID만 있으면 URL 생성
-        const shareUrl = client.umami_share.includes('http')
-            ? client.umami_share
-            : `https://cloud.umami.is/share/${client.umami_share}`;
-
-        links.push({
-            icon: '📊',
-            text: texts.stats,
-            url: shareUrl
-        });
-    }
+    // Firestore 통계 버튼
+    links.push({
+        icon: '📊',
+        text: texts.stats,
+        url: '/stats'
+    });
 
     // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환 (전체 이미지 포함, 제한 없음)
 
