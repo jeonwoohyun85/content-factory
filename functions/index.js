@@ -457,21 +457,18 @@ ${urls}
         return pId === postId;
       });
 
-      // 최신 포스팅에 없으면 Firestore archive에서 찾기
+      // 최신 포스팅에 없으면 Firestore archive에서 찾기 (최적화: postId 직접 쿼리)
       if (!post) {
         try {
           const snapshot = await firestore.collection('posts_archive')
             .where('subdomain', '==', subdomain)
+            .where('postId', '==', postId)
+            .limit(1)
             .get();
 
-          const archivePost = snapshot.docs.find(doc => {
-            const data = doc.data();
-            const archiveId = data.url ? data.url.split('id=')[1] : '';
-            return archiveId === postId;
-          });
-
-          if (archivePost) {
-            post = archivePost.data();
+          if (!snapshot.empty) {
+            post = snapshot.docs[0].data();
+            console.log(`[POST] Archive 조회 성공 (최적화): ${postId}`);
           }
         } catch (error) {
           console.error('Archive search error:', error);

@@ -87,12 +87,16 @@ async function saveToLatestPostingSheet(client, postData, normalizedSubdomain, f
         // TTL: 1년 후 자동 삭제
         const expireAt = new Date(new Date(timestamp).getTime() + (365 * 24 * 60 * 60 * 1000));
 
+        // URL에서 postId 추출 (검색 최적화용)
+        const postId = existingData['URL'] ? existingData['URL'].split('id=')[1] : null;
+
         await env.POSTING_KV.collection('posts_archive').doc(archiveId).set({
           subdomain: normalizedSubdomain,
           domain: existingData['도메인'],
           business_name: existingData['상호명'],
           title: existingData['제목'],
           url: existingData['URL'],
+          postId: postId,  // 검색 최적화: 개별 조회용
           created_at: existingData['생성일시'],
           language: existingData['언어'],
           industry: existingData['업종'],

@@ -573,6 +573,24 @@ functions/modules/
 - 검색엔진: 365개 전체 크롤링 가능
 - 사용자 경험: 페이지네이션으로 전체 이력 탐색 가능
 
+**4-2. 개별 포스트 조회 최적화 (2026-02-06)**
+- ✅ postId 필드 추가
+  - posts_archive에 postId 필드 추가
+  - URL에서 자동 추출 (post-saver.js)
+  - 기존 32개 문서 마이그레이션 완료
+- ✅ 직접 쿼리로 변경
+  - 기존: where(subdomain) → 365개 조회 → find()
+  - 개선: where(subdomain).where(postId).limit(1) → 1개만 조회
+  - Firestore 읽기: 365 reads → 1 read (364배 절감)
+- ✅ Firestore 복합 인덱스
+  - Fields: subdomain (ASC) + postId (ASC)
+  - 개별 포스트 조회 성능 최적화
+
+**검색엔진 크롤링 비용 (거래처 100개, 1년):**
+- 기존: 365 posts × 365 reads × 4회/월 = 532,900 reads = $0.32/월
+- 개선: 365 posts × 1 read × 4회/월 = 1,460 reads = **$0.001/월**
+- **절감: $0.319/월 (99.7% 절감)**
+
 **5. 리소스 최적화**
 - ✅ 메모리 축소 (512MB → 256MB)
   - 비용 50% 절감
