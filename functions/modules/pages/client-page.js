@@ -7,8 +7,43 @@ const { formatKoreanTime } = require('../utils/time-utils.js');
 const { LANGUAGE_TEXTS } = require('../config.js');
 const { getOrCreateUmamiWebsite, getUmamiScriptUrl } = require('../umami-manager.js');
 
-function getLanguageTexts(lang) {
-    return LANGUAGE_TEXTS[lang] || LANGUAGE_TEXTS.ko;
+async function getLanguageTexts(lang, env) {
+    // 하드코딩된 언어가 있으면 반환
+    if (LANGUAGE_TEXTS[lang]) {
+        return LANGUAGE_TEXTS[lang];
+    }
+
+    // 없으면 한국어를 Gemini로 번역
+    try {
+        const { callVertexGemini } = require('../gemini-api.js');
+        const koTexts = LANGUAGE_TEXTS.ko;
+        const textsToTranslate = Object.entries(koTexts).map(([key, value]) => `${key}: ${value}`).join('\n');
+
+        const prompt = `다음 UI 텍스트를 ${lang} 언어로 번역해주세요. 형식은 "key: 번역된텍스트" 형태로 유지해주세요.\n\n${textsToTranslate}`;
+
+        const translation = await callVertexGemini(prompt, 'gemini-2.5-flash', 1000, 0.3, null, env.GEMINI_API_KEY, false);
+
+        // 파싱
+        const translatedTexts = {};
+        translation.split('\n').forEach(line => {
+            const match = line.match(/^(\w+):\s*(.+)$/);
+            if (match) {
+                translatedTexts[match[1]] = match[2];
+            }
+        });
+
+        // 누락된 키는 한국어 사용
+        Object.keys(koTexts).forEach(key => {
+            if (!translatedTexts[key]) {
+                translatedTexts[key] = koTexts[key];
+            }
+        });
+
+        return translatedTexts;
+    } catch (error) {
+        console.error('Dynamic translation failed:', error);
+        return LANGUAGE_TEXTS.ko;
+    }
 }
 
 async function generateClientPage(client, debugInfo, env) {
