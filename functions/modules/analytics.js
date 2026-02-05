@@ -2,7 +2,7 @@
 // Firestore 기반 방문 통계 수집
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
-const geoip = require('geoip-lite');
+const geoip = require('geoip-country');
 const firestore = new Firestore({
   projectId: process.env.GCP_PROJECT || 'content-factory-1770105623'
 });
