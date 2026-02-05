@@ -88,9 +88,11 @@ async function generateClientPage(client, debugInfo, env) {
 
     // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
-    const links = (client.links || '').split(',')
-        .map(l => extractUrlFromMarkdown(l.trim()))
-        .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL 제외
+    const links = (client.links || '')
+        .split(',')
+        .map(l => l.trim())
+        .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL 제외 먼저 수행
+        .map(l => extractUrlFromMarkdown(l))
         .map(url => getLinkInfo(url, texts))
         .filter(l => l);
 
