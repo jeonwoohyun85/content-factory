@@ -37,9 +37,21 @@ function getClientIP(req) {
          'unknown';
 }
 
-// 국가 코드 추출 (Cloudflare 헤더 사용)
+// 국가 코드 추출 (Google Cloud CDN 기반)
 function getCountryCode(req) {
-  return req.headers['cf-ipcountry'] || 'UNKNOWN';
+  // Cloud CDN X-Client-Geo-Location 헤더 (country=KR 형식)
+  const geoHeader = req.headers['x-client-geo-location'];
+  if (geoHeader) {
+    const match = geoHeader.match(/country=([A-Z]{2})/i);
+    if (match) return match[1].toUpperCase();
+  }
+
+  // Cloudflare 헤더 (호환성)
+  if (req.headers['cf-ipcountry']) {
+    return req.headers['cf-ipcountry'];
+  }
+
+  return 'UNKNOWN';
 }
 
 // 디바이스 타입 추출
