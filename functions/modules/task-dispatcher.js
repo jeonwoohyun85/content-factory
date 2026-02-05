@@ -25,7 +25,7 @@ async function createPostingTask(subdomain, projectId, location, queue, function
       },
       body: Buffer.from(JSON.stringify({ subdomain })).toString('base64'),
       oidcToken: {
-        serviceAccountEmail: `${projectId}@appspot.gserviceaccount.com`,
+        serviceAccountEmail: '753166847054-compute@developer.gserviceaccount.com',
       },
     },
   };

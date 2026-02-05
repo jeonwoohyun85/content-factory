@@ -82,6 +82,35 @@ functions.http('main', async (req, res) => {
       console.log('[CRON AUTH] Authorized: Cloud Scheduler');
 
       try {
+        // 동시 실행 방지: Firestore 락 (KST 날짜 기준)
+        const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+        const kstDateStr = kstNow.toISOString().split('T')[0];
+        const lockKey = `cron_lock_${kstDateStr}`;
+        const lockRef = firestore.collection('cron_locks').doc(lockKey);
+
+        const lockDoc = await lockRef.get();
+        if (lockDoc.exists) {
+          const lockData = lockDoc.data();
+          const lockAge = Date.now() - lockData.locked_at;
+
+          // 락이 30분 이내면 중복 실행으로 간주
+          if (lockAge < 30 * 60 * 1000) {
+            console.log(`[CRON] 중복 실행 방지: ${lockKey} (${Math.floor(lockAge / 1000)}초 전 실행됨)`);
+            return res.status(409).json({
+              error: 'Cron already running',
+              lockKey,
+              lockedAt: lockData.locked_at
+            });
+          }
+        }
+
+        // 락 설정
+        await lockRef.set({
+          locked_at: Date.now(),
+          locked_date: kstDateStr
+        });
+        console.log(`[CRON] 락 설정: ${lockKey}`);
+
         const startTime = Date.now();
         const activeClients = await getActiveClients(env);
 
@@ -207,24 +236,31 @@ functions.http('main', async (req, res) => {
 
         if (!sessionsSnapshot.empty) {
           const sessionDoc = sessionsSnapshot.docs[0];
-          const sessionData = sessionDoc.data();
           const sessionRef = firestore.collection('cron_sessions').doc(sessionDoc.id);
 
+          // Firestore Transaction으로 경쟁 상태 방지
           const isSuccess = result.success;
-          const newCompleted = (sessionData.completed || 0) + 1;
-          const newSucceeded = (sessionData.succeeded || 0) + (isSuccess ? 1 : 0);
-          const newFailed = (sessionData.failed || 0) + (isSuccess ? 0 : 1);
+          let newCompleted, newSucceeded, newFailed, sessionData;
 
-          await sessionRef.update({
-            completed: newCompleted,
-            succeeded: newSucceeded,
-            failed: newFailed,
-            results: [...(sessionData.results || []), {
-              subdomain,
-              success: isSuccess,
-              error: result.error || null,
-              timestamp: new Date()
-            }]
+          await firestore.runTransaction(async (transaction) => {
+            const doc = await transaction.get(sessionRef);
+            sessionData = doc.data();
+
+            newCompleted = (sessionData.completed || 0) + 1;
+            newSucceeded = (sessionData.succeeded || 0) + (isSuccess ? 1 : 0);
+            newFailed = (sessionData.failed || 0) + (isSuccess ? 0 : 1);
+
+            transaction.update(sessionRef, {
+              completed: newCompleted,
+              succeeded: newSucceeded,
+              failed: newFailed,
+              results: [...(sessionData.results || []), {
+                subdomain,
+                success: isSuccess,
+                error: result.error || null,
+                timestamp: new Date()
+              }]
+            });
           });
 
           console.log(`[TASK] 세션 업데이트: ${newCompleted}/${sessionData.total}`);

@@ -13,7 +13,7 @@ async function getClientFromSheetsForPosting(subdomain, env) {
 
   try {
 
-    const response = await fetchWithTimeout(SHEET_URL, {}, 10000);
+    const response = await fetchWithTimeout(SHEET_URL, {}, 30000); // 10초 → 30초 증가
 
 
 
