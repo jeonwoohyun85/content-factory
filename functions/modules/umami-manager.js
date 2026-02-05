@@ -53,22 +53,28 @@ async function createUmamiWebsite(token, domain, name) {
     return await response.json();
 }
 
-// Share URL 활성화 (시도)
+// Share URL 활성화 (랜덤 shareId 생성)
 async function enableShareUrl(token, websiteId) {
     try {
-        const response = await fetch(`${UMAMI_BASE_URL}/api/websites/${websiteId}/share`, {
+        // 랜덤 shareId 생성 (8자 영숫자)
+        const shareId = Math.random().toString(36).substring(2, 10);
+
+        const response = await fetch(`${UMAMI_BASE_URL}/api/websites/${websiteId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: '{}'
+            body: JSON.stringify({ shareId })
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            return data.shareId || null;
+        if (!response.ok) {
+            console.warn(`Failed to enable share URL for ${websiteId}: ${response.status}`);
+            return null;
         }
+
+        const data = await response.json();
+        return data.shareId || shareId;
     } catch (error) {
         console.warn(`Failed to enable share URL for ${websiteId}:`, error.message);
     }
