@@ -4,7 +4,8 @@ const { escapeHtml } = require('../utils/html-utils.js');
 const { normalizeLanguage } = require('../utils/normalize.js');
 const { getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown } = require('../utils/url-utils.js');
 const { formatKoreanTime } = require('../utils/time-utils.js');
-const { UMAMI_WEBSITE_ID, LANGUAGE_TEXTS } = require('../config.js');
+const { LANGUAGE_TEXTS } = require('../config.js');
+const { getOrCreateUmamiWebsite, getUmamiScriptUrl } = require('../umami-manager.js');
 
 function getLanguageTexts(lang) {
     return LANGUAGE_TEXTS[lang] || LANGUAGE_TEXTS.ko;
@@ -16,7 +17,8 @@ async function generateClientPage(client, debugInfo, env) {
 
     const texts = await getLanguageTexts(langCode, env);
 
-
+    // Umami 웹사이트 자동 생성 또는 조회
+    const umami = await getOrCreateUmamiWebsite(client.domain, client.business_name);
 
     // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
@@ -26,17 +28,12 @@ async function generateClientPage(client, debugInfo, env) {
         .map(url => getLinkInfo(url, texts))
         .filter(l => l);
 
-    // Umami 통계 버튼 (우마미_공유 컬럼 사용)
-    if (client.umami_share) {
-        // 전체 URL이면 그대로, Share ID만 있으면 URL 생성
-        const shareUrl = client.umami_share.includes('http')
-            ? client.umami_share
-            : `https://umami-analytics-753166847054.asia-northeast3.run.app/share/${client.umami_share}`;
-
+    // Umami 통계 버튼 (자동 생성된 Share URL 사용)
+    if (umami.shareUrl) {
         links.push({
             icon: '📊',
             text: texts.stats,
-            url: shareUrl
+            url: umami.shareUrl
         });
     }
 
@@ -120,8 +117,7 @@ async function generateClientPage(client, debugInfo, env) {
     <title>${escapeHtml(client.business_name)}</title>
 
     <!-- Umami Self-Hosted Analytics -->
-
-    <script defer src="https://umami-analytics-753166847054.asia-northeast3.run.app/script.js" data-website-id="${client.umami_id || UMAMI_WEBSITE_ID}"></script>
+    ${umami.websiteId ? `<script defer src="${getUmamiScriptUrl()}" data-website-id="${umami.websiteId}"></script>` : '<!-- Umami tracking disabled -->'}
 
     <style>
 
