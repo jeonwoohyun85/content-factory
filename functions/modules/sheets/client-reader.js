@@ -123,35 +123,7 @@ async function getClientFromSheets(clientId, env) {
       client.business_name = removeLanguageSuffixFromBusinessName(client.business_name);
     }
 
-    // Sheets 데이터 번역 (언어가 한국어가 아닐 때)
-    if (client && client.language) {
-      const langCode = normalizeLanguage(client.language);
-      if (langCode !== 'ko') {
-        // 번역할 필드 수집
-        const fieldsToTranslate = [];
-        if (client.business_name) fieldsToTranslate.push({ key: 'business_name', value: client.business_name });
-        if (client.address) fieldsToTranslate.push({ key: 'address', value: client.address });
-        if (client.business_hours) fieldsToTranslate.push({ key: 'business_hours', value: client.business_hours });
-        if (client.contact) fieldsToTranslate.push({ key: 'contact', value: client.contact });
-        if (client.description) fieldsToTranslate.push({ key: 'description', value: client.description });
-
-        if (fieldsToTranslate.length > 0) {
-          try {
-            const subdomain = normalizeSubdomain(client.subdomain);
-            const translations = await translateWithCache(fieldsToTranslate, langCode, subdomain, env);
-
-            if (translations.business_name) client.business_name = translations.business_name;
-            if (translations.address) client.address = translations.address;
-            if (translations.business_hours) client.business_hours = translations.business_hours;
-            if (translations.contact) client.contact = translations.contact;
-            if (translations.description) client.description = translations.description;
-          } catch (error) {
-            console.error('Translation error:', error);
-            // 번역 실패 시 원본 유지
-          }
-        }
-      }
-    }
+    // 번역 로직 제거: 모든 거래처는 Sheets 원본 데이터 그대로 표시 (항상 한국어)
 
     // Firestore 캐시 저장
     if (client) {
