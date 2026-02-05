@@ -2,6 +2,7 @@
 // Firestore 기반 방문 통계 수집
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const geoip = require('geoip-lite');
 const firestore = new Firestore({
   projectId: process.env.GCP_PROJECT || 'content-factory-1770105623'
 });
@@ -37,18 +38,25 @@ function getClientIP(req) {
          'unknown';
 }
 
-// 국가 코드 추출 (Google Cloud CDN 기반)
+// 국가 코드 추출 (GeoIP 기반)
 function getCountryCode(req) {
-  // Cloud CDN X-Client-Geo-Location 헤더 (country=KR 형식)
-  const geoHeader = req.headers['x-client-geo-location'];
-  if (geoHeader) {
-    const match = geoHeader.match(/country=([A-Z]{2})/i);
-    if (match) return match[1].toUpperCase();
-  }
-
-  // Cloudflare 헤더 (호환성)
+  // Cloudflare 헤더 우선 (있으면)
   if (req.headers['cf-ipcountry']) {
     return req.headers['cf-ipcountry'];
+  }
+
+  // IP 주소로 GeoIP 조회
+  const ip = getClientIP(req);
+
+  // 로컬/내부 IP는 UNKNOWN
+  if (ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+    return 'UNKNOWN';
+  }
+
+  // GeoIP Lite로 국가 조회
+  const geo = geoip.lookup(ip);
+  if (geo && geo.country) {
+    return geo.country;
   }
 
   return 'UNKNOWN';
