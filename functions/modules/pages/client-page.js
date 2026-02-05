@@ -1875,9 +1875,19 @@ async function generateClientPage(client, debugInfo, env) {
 
                         data.posts.forEach(post => {
 
+                            // URL에서 도메인 부분 제거하고 경로만 추출
+
+                            let pUrl = post.url || '';
+
+                            if (pUrl.includes('/post?id=')) {
+
+                                pUrl = pUrl.substring(pUrl.indexOf('/post?id='));
+
+                            }
+
                             const row = document.createElement('tr');
 
-                            row.onclick = () => window.location.href = post.url;
+                            row.onclick = () => window.location.href = pUrl;
 
                             row.innerHTML = \`
 
