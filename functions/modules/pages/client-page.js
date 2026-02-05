@@ -1996,10 +1996,6 @@ async function generateClientPage(client, debugInfo, env) {
 
     </script>
 
-    <!-- DEBUG CLIENT: ${JSON.stringify(client)} -->
-
-    <!-- DEBUG HEADERS: ${JSON.stringify(debugInfo)} -->
-
 </body>
 
 </html>`;
