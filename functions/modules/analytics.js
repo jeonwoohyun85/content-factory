@@ -1,7 +1,10 @@
 // Analytics 추적 모듈
 // Firestore 기반 방문 통계 수집
 
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { Firestore, FieldValue } = require('@google-cloud/firestore');
+const firestore = new Firestore({
+  projectId: process.env.GCP_PROJECT || 'content-factory-1770105623'
+});
 
 // KST 시간 헬퍼
 function getKSTNow() {
@@ -83,7 +86,7 @@ function getReferrer(req) {
 
 // 방문 추적
 async function trackVisit(subdomain, req) {
-  const db = getFirestore();
+  const db = firestore;
   const ip = getClientIP(req);
   const today = getKSTDateString();
   const month = getKSTMonthString();
@@ -165,7 +168,7 @@ async function trackVisit(subdomain, req) {
 
 // 통계 데이터 조회
 async function getStats(subdomain) {
-  const db = getFirestore();
+  const db = firestore;
   const analyticsRef = db.collection('analytics').doc(subdomain);
 
   try {
@@ -192,7 +195,7 @@ async function getStats(subdomain) {
 
 // 오늘 방문자 조회
 async function getTodayVisitors(subdomain) {
-  const db = getFirestore();
+  const db = firestore;
   const today = getKSTDateString();
 
   try {
