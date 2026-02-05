@@ -84,7 +84,7 @@ async function generateClientPage(client, debugInfo, env) {
 
     // Umami 웹사이트 자동 생성 또는 조회 (Sheets 원본 이름 사용)
     const umamiBusinessName = client.business_name_original || client.business_name;
-    const umami = await getOrCreateUmamiWebsite(fullDomain, umamiBusinessName);
+    const umami = await getOrCreateUmamiWebsite(fullDomain, umamiBusinessName, env);
 
     // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
@@ -1643,11 +1643,11 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-            // 랜덤으로 섞고 최대 6개 선택
+            // 랜덤으로 섞고 최대 6개 선택 (crypto 기반)
+            const crypto = require('crypto');
+            displayedImages = allInfoImages.length > 6
 
-            displayedImages = allInfoImages.length > 6 
-
-                ? [...allInfoImages].sort(() => Math.random() - 0.5).slice(0, 6)
+                ? [...allInfoImages].sort(() => crypto.randomInt(-1, 2)).slice(0, 6)
 
                 : [...allInfoImages];
 

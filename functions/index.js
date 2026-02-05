@@ -12,7 +12,7 @@ let secretsCache = {};
 
 async function loadSecrets() {
   if (Object.keys(secretsCache).length > 0) return secretsCache;
-  const secretNames = ['GEMINI_API_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
+  const secretNames = ['GEMINI_API_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'UMAMI_USERNAME', 'UMAMI_PASSWORD'];
   const projectId = process.env.GCP_PROJECT || 'content-factory-1770105623';
   for (const name of secretNames) {
     try {
@@ -32,7 +32,11 @@ async function createEnv() {
   return {
     POSTING_KV: firestore,
     GEMINI_API_KEY: secretsCache.GEMINI_API_KEY,
-    SHEETS_ID: '1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU'
+    SHEETS_ID: process.env.SHEETS_ID || '1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU',
+    DRIVE_FOLDER_ID: process.env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt',
+    UMAMI_USERNAME: secretsCache.UMAMI_USERNAME,
+    UMAMI_PASSWORD: secretsCache.UMAMI_PASSWORD,
+    GOOGLE_SHEETS_CSV_URL: process.env.GOOGLE_SHEETS_CSV_URL
   };
 }
 

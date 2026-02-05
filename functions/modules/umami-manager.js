@@ -3,8 +3,6 @@
 const { Firestore } = require('@google-cloud/firestore');
 
 const UMAMI_BASE_URL = 'https://umami-analytics-753166847054.asia-northeast3.run.app';
-const UMAMI_USERNAME = 'admin';
-const UMAMI_PASSWORD = 'umami';
 const CACHE_TTL = 365 * 24 * 60 * 60; // 1년 (웹사이트는 영구적)
 
 let firestore;
@@ -17,13 +15,17 @@ function getFirestore() {
 }
 
 // Umami API 로그인
-async function getUmamiToken() {
+async function getUmamiToken(env) {
+    if (!env.UMAMI_USERNAME || !env.UMAMI_PASSWORD) {
+        throw new Error('Umami credentials not configured');
+    }
+
     const response = await fetch(`${UMAMI_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            username: UMAMI_USERNAME,
-            password: UMAMI_PASSWORD
+            username: env.UMAMI_USERNAME,
+            password: env.UMAMI_PASSWORD
         })
     });
 
@@ -59,8 +61,9 @@ async function createUmamiWebsite(token, domain, name) {
 // Share URL 활성화 (랜덤 shareId 생성)
 async function enableShareUrl(token, websiteId) {
     try {
-        // 랜덤 shareId 생성 (8자 영숫자)
-        const shareId = Math.random().toString(36).substring(2, 10);
+        // 랜덤 shareId 생성 (8자 영숫자, crypto 기반)
+        const crypto = require('crypto');
+        const shareId = crypto.randomBytes(4).toString('hex').substring(0, 8);
 
         const response = await fetch(`${UMAMI_BASE_URL}/api/websites/${websiteId}`, {
             method: 'POST',
@@ -121,7 +124,7 @@ async function cacheUmamiWebsite(domain, websiteId, shareId) {
 }
 
 // 메인 함수: Umami 웹사이트 자동 생성 또는 조회
-async function getOrCreateUmamiWebsite(domain, businessName) {
+async function getOrCreateUmamiWebsite(domain, businessName, env) {
     try {
         // 1. Firestore 캐시 확인
         const cached = await getCachedUmamiWebsite(domain);
@@ -137,7 +140,7 @@ async function getOrCreateUmamiWebsite(domain, businessName) {
         console.log(`[Umami] Cache miss for ${domain}, creating new website...`);
 
         // 2. Umami API 로그인
-        const token = await getUmamiToken();
+        const token = await getUmamiToken(env);
 
         // 3. 웹사이트 생성
         const website = await createUmamiWebsite(token, domain, businessName);

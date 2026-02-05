@@ -110,11 +110,11 @@ async function getFolderImagesForPosting(subdomain, folderName, accessToken, env
 
 
 
-    // 최대 이미지 개수 초과 시 랜덤 선택
+    // 최대 이미지 개수 초과 시 랜덤 선택 (crypto 기반)
 
     if (imageFiles.length > MAX_IMAGES_PER_POSTING) {
-
-        imageFiles = imageFiles.sort(() => Math.random() - 0.5).slice(0, MAX_IMAGES_PER_POSTING);
+        const crypto = require('crypto');
+        imageFiles = imageFiles.sort(() => crypto.randomInt(-1, 2)).slice(0, MAX_IMAGES_PER_POSTING);
 
         logs.push(`${MAX_IMAGES_PER_POSTING}개 초과: 랜덤 ${imageFiles.length}개 선택`);
 
