@@ -37,13 +37,16 @@ async function getUmamiToken() {
 
 // Umami 웹사이트 생성
 async function createUmamiWebsite(token, domain, name) {
+    // 도메인을 name에 포함 (http 제외)
+    const displayName = `${name} (${domain})`;
+
     const response = await fetch(`${UMAMI_BASE_URL}/api/websites`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ domain, name })
+        body: JSON.stringify({ domain, name: displayName })
     });
 
     if (!response.ok) {
