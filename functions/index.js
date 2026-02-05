@@ -328,6 +328,14 @@ functions.http('main', async (req, res) => {
       if (!sub) return res.status(400).json({ error: 'Subdomain required' });
 
       try {
+        // 총 개수 조회
+        const countSnapshot = await firestore.collection('posts_archive')
+          .where('subdomain', '==', sub)
+          .count()
+          .get();
+        const total = countSnapshot.data().count;
+
+        // 페이지 데이터 조회
         const snapshot = await firestore.collection('posts_archive')
           .where('subdomain', '==', sub)
           .orderBy('created_at', 'desc')
@@ -344,7 +352,7 @@ functions.http('main', async (req, res) => {
           };
         });
 
-        return res.json({ success: true, posts });
+        return res.json({ success: true, posts, total });
       } catch (error) {
         console.error('API posts error:', error);
         return res.status(500).json({ error: error.message });

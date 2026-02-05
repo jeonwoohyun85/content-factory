@@ -895,13 +895,19 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-        .load-more-container {
+        .pagination {
 
-            text-align: center;
+            display: flex;
 
-            margin-top: 20px;
+            justify-content: center;
 
-            padding-top: 20px;
+            align-items: center;
+
+            gap: 8px;
+
+            margin-top: 32px;
+
+            padding: 20px 0;
 
             border-top: 1px solid #e2e8f0;
 
@@ -909,55 +915,91 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-        .load-more-btn {
+        .pagination-btn {
 
-            padding: 12px 24px;
+            min-width: 40px;
 
-            background: #667eea;
+            height: 40px;
 
-            color: white;
+            padding: 0 12px;
 
-            border: none;
+            border: 1px solid #e2e8f0;
 
-            border-radius: 8px;
+            background: #fff;
+
+            color: #4a5568;
 
             font-size: 14px;
 
-            font-weight: 600;
+            font-weight: 500;
+
+            border-radius: 8px;
 
             cursor: pointer;
 
             transition: all 0.2s;
 
-        }
+            display: flex;
 
+            align-items: center;
 
-
-        .load-more-btn:hover {
-
-            background: #5568d3;
-
-            transform: translateY(-1px);
-
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            justify-content: center;
 
         }
 
 
 
-        .load-more-btn:active {
+        .pagination-btn:hover {
 
-            transform: translateY(0);
+            border-color: #667eea;
+
+            color: #667eea;
+
+            background: #f7fafc;
 
         }
 
 
 
-        .load-more-btn:disabled {
+        .pagination-btn.active {
 
-            opacity: 0.5;
+            background: #667eea;
+
+            color: #fff;
+
+            border-color: #667eea;
+
+        }
+
+
+
+        .pagination-btn:disabled {
+
+            opacity: 0.4;
 
             cursor: not-allowed;
+
+        }
+
+
+
+        .pagination-btn:disabled:hover {
+
+            border-color: #e2e8f0;
+
+            color: #4a5568;
+
+            background: #fff;
+
+        }
+
+
+
+        .pagination-ellipsis {
+
+            padding: 0 8px;
+
+            color: #a0aec0;
 
         }
 
@@ -1450,7 +1492,7 @@ async function generateClientPage(client, debugInfo, env) {
                 pUrl = pUrl.substring(pUrl.indexOf('/post?id='));
             }
             return '<tr onclick="window.location.href=\'' + pUrl + '\'"><td class="previous-post-title">' + escapeHtml(p.title) + '</td><td class="previous-post-date">' + escapeHtml(formatKoreanTime(p.created_at)) + '</td></tr>';
-        }).join('') + '</tbody></table><div class="load-more-container"><button class="load-more-btn" id="load-more-btn" onclick="loadMorePosts()">Load More</button></div>'
+        }).join('') + '</tbody></table><div class="pagination" id="pagination"></div>'
         : '<div style="text-align:center;padding:40px 20px;color:#718096;">아직 포스팅이 없습니다</div>'
         }</div></div></div></section>
 
@@ -1658,75 +1700,209 @@ async function generateClientPage(client, debugInfo, env) {
 
 
 
-        async function loadMorePosts() {
+        let currentPage = 1;
 
-            const btn = document.getElementById('load-more-btn');
+        let totalPosts = 0;
 
-            const list = document.getElementById('previous-posts-list');
-
-
-
-            btn.disabled = true;
-
-            btn.textContent = 'Loading...';
+        const postsPerPage = 10;
 
 
+
+        // 초기 총 개수 가져오기
+
+        async function fetchTotalPosts() {
 
             try {
 
-                const response = await fetch(\`/api/posts?subdomain=\${subdomain}&offset=\${currentOffset}&limit=10\`);
+                const response = await fetch(\`/api/posts?subdomain=\${subdomain}&offset=0&limit=1\`);
 
                 const data = await response.json();
 
+                if (data.total !== undefined) {
 
+                    totalPosts = data.total;
 
-                if (data.posts && data.posts.length > 0) {
-
-                    data.posts.forEach(post => {
-
-                        const row = document.createElement('tr');
-
-                        row.onclick = () => window.location.href = post.url;
-
-                        row.innerHTML = \`
-
-                            <td class="previous-post-title">\${escapeHtml(post.title)}</td>
-
-                            <td class="previous-post-date">\${escapeHtml(post.created_at)}</td>
-
-                        \`;
-
-                        list.appendChild(row);
-
-                    });
-
-
-
-                    currentOffset += 10;
-
-                    btn.disabled = false;
-
-                    btn.textContent = 'Load More';
-
-                } else {
-
-                    btn.textContent = 'No More Posts';
-
-                    btn.disabled = true;
+                    updatePagination();
 
                 }
 
             } catch (error) {
 
-                console.error('Load more error:', error);
-
-                btn.disabled = false;
-
-                btn.textContent = 'Load More';
+                console.error('Fetch total posts error:', error);
 
             }
 
         }
+
+
+
+        async function changePage(page) {
+
+            if (page < 1) return;
+
+            const totalPages = Math.ceil(totalPosts / postsPerPage);
+
+            if (page > totalPages) return;
+
+
+
+            currentPage = page;
+
+            const offset = (page - 1) * postsPerPage;
+
+
+
+            // API에서 해당 페이지 데이터 가져오기
+
+            try {
+
+                const response = await fetch(\`/api/posts?subdomain=\${subdomain}&offset=\${offset}&limit=\${postsPerPage}\`);
+
+                const data = await response.json();
+
+
+
+                if (data.success) {
+
+                    if (data.total !== undefined) {
+
+                        totalPosts = data.total;
+
+                    }
+
+
+
+                    const list = document.getElementById('previous-posts-list');
+
+                    list.innerHTML = '';
+
+
+
+                    if (data.posts && data.posts.length > 0) {
+
+                        data.posts.forEach(post => {
+
+                            const row = document.createElement('tr');
+
+                            row.onclick = () => window.location.href = post.url;
+
+                            row.innerHTML = \`
+
+                                <td class="previous-post-title">\${escapeHtml(post.title)}</td>
+
+                                <td class="previous-post-date">\${escapeHtml(post.created_at)}</td>
+
+                            \`;
+
+                            list.appendChild(row);
+
+                        });
+
+                    }
+
+
+
+                    updatePagination();
+
+                    window.scrollTo({ top: document.getElementById('accordion-content').offsetTop - 100, behavior: 'smooth' });
+
+                }
+
+            } catch (error) {
+
+                console.error('Page change error:', error);
+
+            }
+
+        }
+
+
+
+        function updatePagination() {
+
+            const pagination = document.getElementById('pagination');
+
+            const totalPages = Math.ceil(totalPosts / postsPerPage);
+
+            let html = '';
+
+
+
+            // 이전 버튼
+
+            html += \`<button class="pagination-btn" onclick="changePage(\${currentPage - 1})" \${currentPage === 1 ? 'disabled' : ''}>◀</button>\`;
+
+
+
+            // 페이지 번호들
+
+            const maxVisible = 5;
+
+            let startPage = Math.max(1, currentPage - 2);
+
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+
+
+            if (endPage - startPage < maxVisible - 1) {
+
+                startPage = Math.max(1, endPage - maxVisible + 1);
+
+            }
+
+
+
+            if (startPage > 1) {
+
+                html += \`<button class="pagination-btn" onclick="changePage(1)">1</button>\`;
+
+                if (startPage > 2) {
+
+                    html += \`<span class="pagination-ellipsis">...</span>\`;
+
+                }
+
+            }
+
+
+
+            for (let i = startPage; i <= endPage; i++) {
+
+                html += \`<button class="pagination-btn \${i === currentPage ? 'active' : ''}" onclick="changePage(\${i})">\${i}</button>\`;
+
+            }
+
+
+
+            if (endPage < totalPages) {
+
+                if (endPage < totalPages - 1) {
+
+                    html += \`<span class="pagination-ellipsis">...</span>\`;
+
+                }
+
+                html += \`<button class="pagination-btn" onclick="changePage(\${totalPages})">\${totalPages}</button>\`;
+
+            }
+
+
+
+            // 다음 버튼
+
+            html += \`<button class="pagination-btn" onclick="changePage(\${currentPage + 1})" \${currentPage === totalPages ? 'disabled' : ''}>▶</button>\`;
+
+
+
+            pagination.innerHTML = html;
+
+        }
+
+
+
+        // 초기 페이지네이션 렌더링
+
+        fetchTotalPosts();
 
 
 
