@@ -352,6 +352,22 @@ functions.http('main', async (req, res) => {
       }
     }
 
+    // IP 테스트 (디버깅용)
+    if (pathname === '/test-ip') {
+      const { getClientIP, getCountryCode } = require('./modules/analytics.js');
+      const ip = getClientIP(req);
+      const country = getCountryCode(req);
+      return res.json({
+        ip,
+        country,
+        headers: {
+          'x-forwarded-for': req.headers['x-forwarded-for'],
+          'x-real-ip': req.headers['x-real-ip'],
+          'cf-ipcountry': req.headers['cf-ipcountry']
+        }
+      });
+    }
+
     // 통계 페이지
     if (pathname === '/stats') {
       const { getStats, getTodayVisitors } = require('./modules/analytics.js');

@@ -252,5 +252,7 @@ module.exports = {
   getStats,
   getTodayVisitors,
   getKSTNow,
-  getKSTDateString
+  getKSTDateString,
+  getClientIP,
+  getCountryCode
 };
