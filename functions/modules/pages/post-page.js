@@ -51,7 +51,7 @@ async function generatePostPage(client, post, env) {
 
         if (i < imageUrls.length) {
 
-            contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="${texts.postImage}" class="post-image">`;
+            contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="${texts.postImage}" class="post-image" loading="lazy">`;
 
         }
 
