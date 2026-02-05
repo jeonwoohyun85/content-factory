@@ -13,7 +13,22 @@ async function getLanguageTexts(lang, env) {
         return LANGUAGE_TEXTS[lang];
     }
 
-    // 없으면 한국어를 Gemini로 번역
+    // Firestore 캐시 확인
+    const cacheKey = `ui_texts:${lang}`;
+    try {
+        const docRef = env.POSTING_KV.collection('translation-cache').doc(cacheKey);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            console.log(`[UI Translation Cache] HIT: ${lang}`);
+            return doc.data().texts;
+        }
+    } catch (cacheError) {
+        console.error('[UI Translation Cache] Error:', cacheError.message);
+    }
+
+    // 캐시 없음 - Gemini로 번역
+    console.log(`[UI Translation Cache] MISS: ${lang}`);
     try {
         const { callVertexGemini } = require('../gemini-api.js');
         const koTexts = LANGUAGE_TEXTS.ko;
@@ -38,6 +53,17 @@ async function getLanguageTexts(lang, env) {
                 translatedTexts[key] = koTexts[key];
             }
         });
+
+        // Firestore에 캐싱 (영구)
+        try {
+            await env.POSTING_KV.collection('translation-cache').doc(cacheKey).set({
+                texts: translatedTexts,
+                cached_at: Date.now()
+            });
+            console.log(`[UI Translation Cache] SAVE: ${lang}`);
+        } catch (saveError) {
+            console.error('[UI Translation Cache] Save Error:', saveError.message);
+        }
 
         return translatedTexts;
     } catch (error) {
