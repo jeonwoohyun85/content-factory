@@ -21,8 +21,9 @@ async function generateClientPage(client, debugInfo, env) {
     // 전체 도메인 생성
     const fullDomain = client.subdomain.includes('.') ? client.subdomain : `${client.subdomain}.make-page.com`;
 
-    // Umami 웹사이트 자동 생성 또는 조회
-    const umami = await getOrCreateUmamiWebsite(fullDomain, client.business_name);
+    // Umami 웹사이트 자동 생성 또는 조회 (Sheets 원본 이름 사용)
+    const umamiBusinessName = client.business_name_original || client.business_name;
+    const umami = await getOrCreateUmamiWebsite(fullDomain, umamiBusinessName);
 
     // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
