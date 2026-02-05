@@ -2,7 +2,6 @@
 // Firestore 기반 방문 통계 수집
 
 const { Firestore, FieldValue } = require('@google-cloud/firestore');
-const geoip = require('geoip-country');
 const firestore = new Firestore({
   projectId: process.env.GCP_PROJECT || 'content-factory-1770105623'
 });
@@ -38,25 +37,41 @@ function getClientIP(req) {
          'unknown';
 }
 
-// 국가 코드 추출 (GeoIP 기반)
+// 국가 코드 추출 (IP 범위 기반)
 function getCountryCode(req) {
-  // Cloudflare 헤더 우선 (있으면)
+  // Cloudflare 헤더 우선
   if (req.headers['cf-ipcountry']) {
     return req.headers['cf-ipcountry'];
   }
 
-  // IP 주소로 GeoIP 조회
   const ip = getClientIP(req);
 
-  // 로컬/내부 IP는 UNKNOWN
+  // 로컬/내부 IP
   if (ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
     return 'UNKNOWN';
   }
 
-  // GeoIP Lite로 국가 조회
-  const geo = geoip.lookup(ip);
-  if (geo && geo.country) {
-    return geo.country;
+  // IP 첫 옥텟으로 간단 판별
+  const first = parseInt(ip.split('.')[0]);
+
+  // 한국 주요 ISP (KT, SK, LG)
+  if ([1, 14, 27, 39, 49, 58, 59, 60, 61, 101, 103, 106, 110, 112, 113, 114, 115, 116, 117, 118, 119, 121, 122, 123, 124, 125, 168, 175, 180, 182, 183, 203, 210, 211, 218, 220, 221, 222].includes(first)) {
+    return 'KR';
+  }
+
+  // 미국
+  if ([3, 4, 6, 7, 8, 9, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 32, 33, 34, 35, 38, 40, 44, 45, 47, 48, 50, 52, 53, 54, 55, 56, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 96, 97, 98, 99, 100, 104, 107, 108, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138, 139, 140, 142, 143, 144, 146, 147, 148, 149, 150, 151, 152, 153, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 169, 170, 172, 173, 174, 184, 192, 198, 199, 204, 205, 206, 207, 208, 209, 216].includes(first)) {
+    return 'US';
+  }
+
+  // 일본
+  if ([126, 133, 153, 202, 210, 218, 219, 220, 221].includes(first)) {
+    return 'JP';
+  }
+
+  // 중국
+  if ([36, 42, 58, 59, 60, 61, 101, 103, 106, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 175, 180, 182, 183, 202, 203, 210, 211, 218, 219, 220, 221, 222].includes(first)) {
+    return 'CN';
   }
 
   return 'UNKNOWN';
