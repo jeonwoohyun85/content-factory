@@ -1653,11 +1653,11 @@ async function generateClientPage(client, debugInfo, env) {
 
             // 갤러리 렌더링
 
-            galleryGrid.innerHTML = displayedImages.map((img, index) => 
+            galleryGrid.innerHTML = displayedImages.map((img, index) =>
 
                 \`<div class="gallery-item" onclick="openLightbox(\${index})">
 
-                    <img src="\${img}" alt="${texts.galleryImage}" class="gallery-image">
+                    <img src="\${img}" alt="${texts.galleryImage}" class="gallery-image" loading="lazy" onerror="this.parentElement.style.display='none'">
 
                 </div>\`
 
@@ -1740,6 +1740,20 @@ async function generateClientPage(client, debugInfo, env) {
             renderGallery();
 
         }
+
+
+
+        // 자동 새로고침 (10분마다, 백그라운드일 때만)
+
+        setInterval(() => {
+
+            if (document.visibilityState === 'hidden') {
+
+                location.reload();
+
+            }
+
+        }, 10 * 60 * 1000);
 
 
 
