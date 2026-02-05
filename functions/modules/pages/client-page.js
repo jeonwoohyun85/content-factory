@@ -17,8 +17,11 @@ async function generateClientPage(client, debugInfo, env) {
 
     const texts = await getLanguageTexts(langCode, env);
 
+    // 전체 도메인 생성
+    const fullDomain = client.subdomain.includes('.') ? client.subdomain : `${client.subdomain}.make-page.com`;
+
     // Umami 웹사이트 자동 생성 또는 조회
-    const umami = await getOrCreateUmamiWebsite(client.domain, client.business_name);
+    const umami = await getOrCreateUmamiWebsite(fullDomain, client.business_name);
 
     // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
 
@@ -28,12 +31,13 @@ async function generateClientPage(client, debugInfo, env) {
         .map(url => getLinkInfo(url, texts))
         .filter(l => l);
 
-    // Umami 통계 버튼 (자동 생성된 Share URL 사용)
-    if (umami.shareUrl) {
+    // Umami 통계 버튼 (Share URL 또는 기본 대시보드)
+    if (umami.websiteId) {
+        const statsUrl = umami.shareUrl || `https://umami-analytics-753166847054.asia-northeast3.run.app/websites/${umami.websiteId}`;
         links.push({
             icon: '📊',
             text: texts.stats,
-            url: umami.shareUrl
+            url: statsUrl
         });
     }
 
