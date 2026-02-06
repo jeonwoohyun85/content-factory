@@ -20,6 +20,8 @@ async function getUmamiToken(env) {
         throw new Error('Umami credentials not configured');
     }
 
+    console.log(`[Umami Debug] Username length: ${env.UMAMI_USERNAME?.length}, Password length: ${env.UMAMI_PASSWORD?.length}`);
+
     const response = await fetch(`${UMAMI_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,6 +32,8 @@ async function getUmamiToken(env) {
     });
 
     if (!response.ok) {
+        const responseText = await response.text();
+        console.log(`[Umami Debug] Login response: ${responseText}`);
         throw new Error(`Umami login failed: ${response.status}`);
     }
 
