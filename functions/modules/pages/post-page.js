@@ -39,19 +39,19 @@ async function generatePostPage(client, post, env) {
 
     for (let i = 0; i < maxLength; i++) {
 
-        // 문단 먼저 추가 (텍스트가 위로)
-
-        if (i < paragraphs.length) {
-
-            contentHtml += `<p class="post-paragraph">${escapeHtml(paragraphs[i])}</p>`;
-
-        }
-
-        // 이미지 다음 추가 (문단 아래)
+        // 이미지 먼저 추가 (사진이 위로)
 
         if (i < imageUrls.length) {
 
             contentHtml += `<img src="${escapeHtml(imageUrls[i])}" alt="${texts.postImage}" class="post-image" loading="lazy">`;
+
+        }
+
+        // 문단 다음 추가 (텍스트가 아래)
+
+        if (i < paragraphs.length) {
+
+            contentHtml += `<p class="post-paragraph">${escapeHtml(paragraphs[i])}</p>`;
 
         }
 

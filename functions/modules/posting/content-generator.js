@@ -12,7 +12,12 @@ async function generatePostWithClaudeForPosting(client, trendsData, images, env)
   const monthName = monthNames[month - 1];
   const currentDate = `${year}년 ${monthName}`;
 
-  // 단일 프롬프트 (이미지와 무관하게 자유 창작)
+  // 이미지 개수에 맞춰 문단 개수 결정 (최소 5개, 최대 10개)
+  const paragraphCount = Math.max(5, Math.min(10, images.length));
+  const totalChars = 3500;
+  const charsPerParagraph = Math.floor(totalChars / paragraphCount);
+
+  // 단일 프롬프트 (이미지 개수 기반 동적 문단 생성)
   const prompt = `
 
 [거래처 정보]
@@ -49,15 +54,15 @@ ${trendsData}
    - 다양한 톤 사용 (질문형, 숫자형, 서술형, 감탄형 등)
    - 매번 완전히 새롭고 다른 스타일로 작성
 
-2. 본문 전체 글자수: **공백 포함 2800~3200자** (필수)
+2. 본문 전체 글자수: **공백 포함 3400~3600자** (필수)
 
-3. 본문 구조: **8~10개의 문단으로 작성**
+3. 본문 구조: **정확히 ${paragraphCount}개의 문단으로 작성** (필수)
    - [트렌드 정보]와 [거래처 정보]를 자연스럽게 조합
    - 거래처의 업종과 특징을 고려한 자유로운 창작
    - 스토리텔링 중심 (고객 경험, 감성적 묘사, 실용적 정보)
 
 4. 각 문단:
-   - **각 문단은 공백 포함 약 280~320자 내외로 작성**
+   - **각 문단은 공백 포함 약 ${charsPerParagraph}자 내외로 자유롭게 작성**
    - **[트렌드 정보]를 적극 활용하여 풍부한 내용 구성** (중심)
    - **[거래처 정보]의 description은 자연스럽게 흐름에 녹여냄** (강제 반영 금지)
    - 각 문단이 독립적이되 전체적으로 하나의 이야기처럼 연결

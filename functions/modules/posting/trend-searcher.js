@@ -12,7 +12,7 @@ async function searchWithClaudeForPosting(client, env) {
 
 
 
-다음 정보를 1000자 이내로 작성:
+다음 정보를 1500자 이내로 작성:
 
 1. ${client.language} 시장의 최신 트렌드 (구체적 예시 포함)
 
