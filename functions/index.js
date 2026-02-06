@@ -51,7 +51,8 @@ functions.http('main', async (req, res) => {
     const posting = require('./modules/posting.js');
     const { checkRateLimit, getRateLimitHeaders } = require('./modules/rate-limiter.js');
 
-    const host = req.headers.host || 'make-page.com';
+    // X-Forwarded-Host 우선 사용 (Load Balancer를 통한 접속 시 원본 Host)
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'make-page.com';
     const pathname = req.path;
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
 
