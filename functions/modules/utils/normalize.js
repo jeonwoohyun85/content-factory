@@ -44,6 +44,8 @@ function normalizeClient(client) {
   normalized.umami_id = findValue(['우마미']) || normalized.umami_id;
   normalized.umami_share = findValue(['우마미_공유']) || normalized.umami_share;
   normalized.links = findValue(['바로가기']) || normalized.links;
+  normalized.info = findValue(['Info', 'info']) || normalized.info;
+  normalized.video = findValue(['Video', 'video']) || normalized.video;
 
   return normalized;
 }
