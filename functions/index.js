@@ -56,6 +56,14 @@ functions.http('main', async (req, res) => {
     const pathname = req.path;
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
 
+    // 디버그: 헤더 확인
+    console.log('[DEBUG HEADERS]', {
+      'x-forwarded-host': req.headers['x-forwarded-host'],
+      'host': req.headers.host,
+      'resolved host': host,
+      'pathname': pathname
+    });
+
     // pathname에서 subdomain 추출 (/00001 형식) 또는 host에서 추출
     let subdomain = host.split('.')[0];
     if (pathname.match(/^\/\d{5}/)) {
