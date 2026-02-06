@@ -21,21 +21,29 @@ function normalizeClient(client) {
   // 완전 동적: 모든 컬럼을 그대로 유지하되 별칭만 추가
   const normalized = { ...client };
 
-  // 영문 별칭 추가 (기존 코드 호환성)
-  if (client['도메인']) normalized.subdomain = client['도메인'];
-  if (client['서브도메인']) normalized.subdomain = client['서브도메인'];
-  if (client['상호명']) normalized.business_name = client['상호명'];
-  if (client['주소']) normalized.address = client['주소'];
-  if (client['언어']) normalized.language = client['언어'];
-  if (client['연락처']) normalized.phone = client['연락처'];
-  if (client['영업시간']) normalized.business_hours = client['영업시간'];
-  if (client['거래처_정보']) normalized.description = client['거래처_정보'];
-  if (client['업종']) normalized.industry = client['업종'];
-  if (client['구독']) normalized.subscription = client['구독'];
-  if (client['폴더명']) normalized.folder_name = client['폴더명'];
-  if (client['우마미']) normalized.umami_id = client['우마미'];
-  if (client['우마미_공유']) normalized.umami_share = client['우마미_공유'];
-  if (client['바로가기']) normalized.links = client['바로가기'];
+  // 부분 매칭 헬퍼: 여러 키워드 중 하나라도 포함된 키 찾기
+  const findValue = (keywords) => {
+    for (const keyword of keywords) {
+      const key = Object.keys(client).find(k => k && k.includes(keyword));
+      if (key && client[key]) return client[key];
+    }
+    return null;
+  };
+
+  // 영문 별칭 추가 (기존 코드 호환성, 부분 매칭)
+  normalized.subdomain = findValue(['도메인', '서브도메인']) || normalized.subdomain;
+  normalized.business_name = findValue(['상호명']) || normalized.business_name;
+  normalized.address = findValue(['주소']) || normalized.address;
+  normalized.language = findValue(['언어']) || normalized.language;
+  normalized.phone = findValue(['연락처']) || normalized.phone;
+  normalized.business_hours = findValue(['영업시간']) || normalized.business_hours;
+  normalized.description = findValue(['거래처 정보', '거래처_정보', '정보']) || normalized.description;
+  normalized.industry = findValue(['업종']) || normalized.industry;
+  normalized.subscription = findValue(['구독']) || normalized.subscription;
+  normalized.folder_name = findValue(['폴더명']) || normalized.folder_name;
+  normalized.umami_id = findValue(['우마미']) || normalized.umami_id;
+  normalized.umami_share = findValue(['우마미_공유']) || normalized.umami_share;
+  normalized.links = findValue(['바로가기']) || normalized.links;
 
   return normalized;
 }
