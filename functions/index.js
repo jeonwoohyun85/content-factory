@@ -352,6 +352,34 @@ functions.http('main', async (req, res) => {
       return res.json(result);
     }
 
+    if (pathname === '/debug-drive') {
+      try {
+        const { getGoogleAccessTokenForPosting } = require('./modules/drive-manager.js');
+        const accessToken = await getGoogleAccessTokenForPosting(env);
+        const DRIVE_FOLDER_ID = env.DRIVE_FOLDER_ID || '1JiVmIkliR9YrPIUPOn61G8Oh7h9HTMEt';
+
+        const query = `mimeType = 'application/vnd.google-apps.folder' and '${DRIVE_FOLDER_ID}' in parents and trashed = false`;
+        const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&orderBy=name`;
+
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+
+        const data = await response.json();
+        return res.json({
+          success: true,
+          driveFolder: DRIVE_FOLDER_ID,
+          folders: data.files || [],
+          count: (data.files || []).length
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
     if (pathname === '/refresh') {
       const rateLimitResult = await checkRateLimit(clientIp, pathname, env);
       const headers = getRateLimitHeaders(rateLimitResult);
