@@ -19,7 +19,7 @@ async function loadSecrets() {
       const [version] = await secretClient.accessSecretVersion({
         name: 'projects/' + projectId + '/secrets/' + name + '/versions/latest'
       });
-      secretsCache[name] = version.payload.data.toString('utf8');
+      secretsCache[name] = version.payload.data.toString('utf8').trim();
     } catch (error) {
       console.error('Secret ' + name + ' error:', error.message);
     }
