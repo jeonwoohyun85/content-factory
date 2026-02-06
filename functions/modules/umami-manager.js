@@ -20,8 +20,6 @@ async function getUmamiToken(env) {
         throw new Error('Umami credentials not configured');
     }
 
-    console.log(`[Umami Debug] Username length: ${env.UMAMI_USERNAME?.length}, Password length: ${env.UMAMI_PASSWORD?.length}`);
-
     const response = await fetch(`${UMAMI_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,13 +30,45 @@ async function getUmamiToken(env) {
     });
 
     if (!response.ok) {
-        const responseText = await response.text();
-        console.log(`[Umami Debug] Login response: ${responseText}`);
         throw new Error(`Umami login failed: ${response.status}`);
     }
 
     const data = await response.json();
     return data.token;
+}
+
+// Umami 기존 웹사이트 조회 (도메인 기준)
+async function findExistingWebsite(token, domain) {
+    try {
+        const response = await fetch(`${UMAMI_BASE_URL}/api/websites`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.warn(`Failed to fetch websites: ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json();
+        const websites = data.data || [];
+
+        // 동일 도메인 웹사이트 찾기 (가장 최근 것)
+        const matches = websites.filter(w => w.domain === domain);
+        if (matches.length > 0) {
+            // 최신순 정렬 (createdAt 기준)
+            matches.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            return matches[0];
+        }
+
+        return null;
+    } catch (error) {
+        console.warn(`Failed to find existing website for ${domain}:`, error.message);
+        return null;
+    }
 }
 
 // Umami 웹사이트 생성
@@ -141,21 +171,34 @@ async function getOrCreateUmamiWebsite(domain, businessName, env) {
             };
         }
 
-        console.log(`[Umami] Cache miss for ${domain}, creating new website...`);
+        console.log(`[Umami] Cache miss for ${domain}, checking existing websites...`);
 
         // 2. Umami API 로그인
         const token = await getUmamiToken(env);
 
-        // 3. 웹사이트 생성
-        const website = await createUmamiWebsite(token, domain, businessName);
-        const websiteId = website.id;
+        // 3. 기존 웹사이트 조회 (재사용)
+        let website = await findExistingWebsite(token, domain);
+        let websiteId;
 
-        console.log(`[Umami] Created website ${websiteId} for ${domain}`);
+        if (website) {
+            websiteId = website.id;
+            console.log(`[Umami] Reusing existing website ${websiteId} for ${domain}`);
+        } else {
+            // 4. 없으면 새로 생성
+            website = await createUmamiWebsite(token, domain, businessName);
+            websiteId = website.id;
+            console.log(`[Umami] Created new website ${websiteId} for ${domain}`);
+        }
 
-        // 4. Share URL 활성화 시도
-        const shareId = await enableShareUrl(token, websiteId);
+        // 5. Share URL 확인 또는 활성화
+        let shareId = website.shareId || null;
 
-        // 5. Firestore 캐시 저장
+        // shareId 없으면 생성 시도
+        if (!shareId) {
+            shareId = await enableShareUrl(token, websiteId);
+        }
+
+        // 6. Firestore 캐시 저장
         await cacheUmamiWebsite(domain, websiteId, shareId);
 
         return {
