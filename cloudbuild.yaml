@@ -16,6 +16,7 @@ steps:
       - --max-instances=50
       - --memory=512MB
       - --timeout=300s
+      - --set-secrets=UMAMI_USERNAME=UMAMI_USERNAME:latest,UMAMI_PASSWORD=UMAMI_PASSWORD:latest
     timeout: 600s
 
 options:
