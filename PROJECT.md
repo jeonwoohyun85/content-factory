@@ -759,6 +759,8 @@ Gemini API (generativelanguage.googleapis.com):
 ├─ 거래처 4개: ✅ 성공
 ├─ 거래처 100개: ✅ 무료
 └─ 비용: $0
+
+**계정 등급: Tier 1 (유료 결제 등록)**
 ```
 
 **변경 사항:**
