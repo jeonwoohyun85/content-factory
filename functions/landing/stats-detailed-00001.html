@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>방문 통계</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 24px;
+            text-align: center;
+        }
+        .stat-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat-change {
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .stat-change.up {
+            color: #10b981;
+        }
+        .stat-change.down {
+            color: #ef4444;
+        }
+        .chart-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        .list-label {
+            font-size: 14px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .list-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        .link-icon {
+            font-size: 18px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .empty-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .back-link:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .chart-section {
+                grid-template-columns: 1fr;
+            }
+            .bottom-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="pageTitle">📊 통계 로딩 중...</h1>
+            <p class="subtitle" id="pageSubtitle">데이터를 불러오는 중입니다</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-label">총 방문자</div>
+                <div class="stat-value" id="totalVisitors">-</div>
+                <div class="stat-change" id="visitorChange"></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📄</div>
+                <div class="stat-label">페이지뷰</div>
+                <div class="stat-value" id="totalPageViews">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔗</div>
+                <div class="stat-label">링크 클릭</div>
+                <div class="stat-value" id="totalClicks">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📱</div>
+                <div class="stat-label">평균 일 방문</div>
+                <div class="stat-value" id="avgDaily">-</div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-card">
+                <div class="chart-title">📈 일별 방문자 추이</div>
+                <canvas id="lineChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">🍩 기기별 비율</div>
+                <canvas id="doughnutChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bottom-grid">
+            <div class="chart-card">
+                <div class="chart-title">🔗 바로가기 링크 클릭</div>
+                <div id="linkClickList" class="loading">로딩 중...</div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">📊 통계 요약</div>
+                <div id="statsSummary" class="loading">로딩 중...</div>
+            </div>
+        </div>
+
+        <a href="/" class="back-link">← 홈으로 돌아가기</a>
+    </div>
+
+    <script>
+        // URL에서 subdomain 파라미터 추출
+        const urlParams = new URLSearchParams(window.location.search);
+        const subdomain = urlParams.get('subdomain');
+        const days = parseInt(urlParams.get('days')) || 30;
+
+        if (!subdomain) {
+            alert('거래처 정보가 없습니다');
+            window.location.href = '/';
+        }
+
+        // 링크 타입별 아이콘
+        const linkIcons = {
+            naver_blog: '📝',
+            instagram: '📷',
+            facebook: '👥',
+            youtube: '▶️',
+            naver_place: '📍',
+            smartstore: '🛒',
+            kakaotalk: '💬',
+            phone: '📞',
+            email: '✉️',
+            other: '🔗'
+        };
+
+        // 링크 타입별 한글 이름
+        const linkLabels = {
+            naver_blog: '네이버 블로그',
+            instagram: '인스타그램',
+            facebook: '페이스북',
+            youtube: '유튜브',
+            naver_place: '네이버 플레이스',
+            smartstore: '스마트스토어',
+            kakaotalk: '카카오톡',
+            phone: '전화',
+            email: '이메일',
+            other: '기타'
+        };
+
+        // URL에서 링크 타입 감지
+        function detectLinkType(url) {
+            if (url.includes('blog.naver.com')) return 'naver_blog';
+            if (url.includes('instagram.com')) return 'instagram';
+            if (url.includes('facebook.com')) return 'facebook';
+            if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+            if (url.includes('map.naver.com') || url.includes('place.map')) return 'naver_place';
+            if (url.includes('smartstore.naver.com')) return 'smartstore';
+            if (url.includes('kakaotalk') || url.includes('kakao.com')) return 'kakaotalk';
+            if (url.includes('tel:')) return 'phone';
+            if (url.includes('mailto:')) return 'email';
+            return 'other';
+        }
+
+        // 시트에서 거래처 바로가기 링크 조회
+        async function fetchClientLinks() {
+            try {
+                const sheetUrl = `https://docs.google.com/spreadsheets/d/1KrzLFi8Wt9GTGT97gcMoXnbZ3OJ04NsP4lncJyIdyhU/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('관리자')}`;
+                const response = await fetch(sheetUrl);
+                const csv = await response.text();
+
+                const lines = csv.split('\n').filter(line => line.trim());
+                if (lines.length < 2) return { name: subdomain, links: [] };
+
+                const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+                const linksIndex = headers.indexOf('거래처 바로가기');
+                const nameIndex = headers.indexOf('거래처 상호명');
+                const domainIndex = headers.indexOf('도메인');
+
+                if (linksIndex === -1) return { name: subdomain, links: [] };
+
+                for (let i = 1; i < lines.length; i++) {
+                    const cells = lines[i].split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                    const domain = cells[domainIndex] || '';
+
+                    if (domain.startsWith(subdomain)) {
+                        const linksStr = cells[linksIndex] || '';
+                        const name = cells[nameIndex] || subdomain;
+
+                        const links = linksStr
+                            .split(',')
+                            .map(url => url.trim())
+                            .filter(url => url && url.startsWith('http'))
+                            .filter(url => !url.includes('umami.is')); // 우마미 제외
+
+                        return { name, links };
+                    }
+                }
+
+                return { name: subdomain, links: [] };
+            } catch (error) {
+                console.error('Failed to fetch client links:', error);
+                return { name: subdomain, links: [] };
+            }
+        }
+
+        // Firestore 통계 데이터 조회
+        async function fetchStatsData() {
+            try {
+                const response = await fetch(`/api/stats-data?subdomain=${subdomain}&days=${days}`);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Failed to fetch stats data:', error);
+                return null;
+            }
+        }
+
+        // 통계 렌더링
+        async function renderStats() {
+            // 병렬로 데이터 조회
+            const [clientData, statsData] = await Promise.all([
+                fetchClientLinks(),
+                fetchStatsData()
+            ]);
+
+            if (!statsData) {
+                alert('통계 데이터를 불러올 수 없습니다');
+                return;
+            }
+
+            const { visitStats, linkClickStats } = statsData;
+
+            // 제목 업데이트
+            document.getElementById('pageTitle').textContent = `📊 ${clientData.name} - 방문 통계`;
+            document.getElementById('pageSubtitle').textContent = `거래처 ${subdomain} | 최근 ${days}일`;
+
+            // 통계 카드 업데이트
+            document.getElementById('totalVisitors').textContent = visitStats.uniqueVisitors.toLocaleString();
+            document.getElementById('totalPageViews').textContent = visitStats.totalPageViews.toLocaleString();
+            document.getElementById('totalClicks').textContent = linkClickStats.totalClicks.toLocaleString();
+            document.getElementById('avgDaily').textContent = Math.round(visitStats.uniqueVisitors / days);
+
+            // 전일 대비 증감률
+            const recentDays = visitStats.dailyData.slice(-7);
+            if (recentDays.length >= 2) {
+                const yesterday = recentDays[recentDays.length - 2].visitors;
+                const today = recentDays[recentDays.length - 1].visitors;
+                const change = yesterday > 0 ? (((today - yesterday) / yesterday) * 100).toFixed(1) : 0;
+                const changeEl = document.getElementById('visitorChange');
+                changeEl.textContent = `${change >= 0 ? '▲' : '▼'} ${Math.abs(change)}%`;
+                changeEl.className = `stat-change ${change >= 0 ? 'up' : 'down'}`;
+            }
+
+            // 일별 방문자 차트
+            const dailyLabels = recentDays.map(d => {
+                const date = new Date(d.date);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            });
+            const dailyVisitors = recentDays.map(d => d.visitors);
+
+            const lineCtx = document.getElementById('lineChart').getContext('2d');
+            new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [{
+                        label: '방문자',
+                        data: dailyVisitors,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // 기기별 비율 차트 (더미 - 추후 실제 데이터로 교체)
+            const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+            new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['모바일', 'PC', '태블릿'],
+                    datasets: [{
+                        data: [68, 25, 7],
+                        backgroundColor: ['#667eea', '#764ba2', '#f093fb']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // 링크별 클릭 통계 매핑
+            const clicksMap = {};
+            linkClickStats.linkStats.forEach(stat => {
+                clicksMap[stat.type] = stat.clicks;
+            });
+
+            // 바로가기 링크 클릭 통계 렌더링
+            const linkClickList = document.getElementById('linkClickList');
+            if (clientData.links.length > 0) {
+                const linkItems = clientData.links.map(url => {
+                    const type = detectLinkType(url);
+                    const label = linkLabels[type] || type;
+                    const icon = linkIcons[type] || '🔗';
+                    const clicks = clicksMap[type] || 0;
+
+                    return `
+                        <div class="list-item">
+                            <span class="list-label">
+                                <span class="link-icon">${icon}</span>
+                                ${label}
+                            </span>
+                            <span class="list-value">${clicks}회</span>
+                        </div>
+                    `;
+                }).join('');
+                linkClickList.innerHTML = linkItems;
+            } else {
+                linkClickList.innerHTML = '<div class="empty-message">바로가기 링크가 없습니다</div>';
+            }
+
+            // 통계 요약 렌더링
+            const statsSummary = document.getElementById('statsSummary');
+            statsSummary.innerHTML = `
+                <div class="list-item">
+                    <span class="list-label">총 방문자</span>
+                    <span class="list-value">${visitStats.uniqueVisitors.toLocaleString()}</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">총 페이지뷰</span>
+                    <span class="list-value">${visitStats.totalPageViews.toLocaleString()}</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">총 링크 클릭</span>
+                    <span class="list-value">${linkClickStats.totalClicks.toLocaleString()}</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">집계 기간</span>
+                    <span class="list-value">${days}일</span>
+                </div>
+            `;
+        }
+
+        // 페이지 로드 시 실행
+        renderStats();
+    </script>
+</body>
+</html>

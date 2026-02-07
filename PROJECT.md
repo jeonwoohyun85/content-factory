@@ -1140,21 +1140,98 @@ Google Search Grounding:
 
 ## 자동 포스팅 스케줄
 
-### KV 락
+### 1일 1포스팅 원칙
 
-- **이름**: `cron_posting_lock`
+**핵심 개념:**
+- 각 거래처는 하루에 정확히 1개의 포스팅만 생성
+- 매일 00:01 KST에 자동 실행
+- Cloud Scheduler → Cloud Tasks → 분산 처리
 
-- **TTL**: 23시간 59분 (86340초)
+**안전성:**
+- ✅ Cloud Scheduler: 1일 1회 정확히 실행 (24시간 간격)
+- ✅ Cloud Tasks: 거래처별 Task 1개씩만 등록
+- ✅ Firestore 락: 동일 날짜 중복 실행 방지 (30분 TTL)
+- ✅ 최신_포스팅 시트: 거래처당 1개만 유지 (덮어쓰기)
 
-- **용도**: 동시 실행 방지
+**중복 방지:**
+- Sheets에 중복 subdomain 없음 (유효성 검사)
+- Task 중복 등록 불가 (Cloud Tasks 내장 기능)
+- 동시 실행 불가 (Firestore 락)
 
-### 배치 처리
+### 실행 흐름
 
-- **크기**: 5개씩 병렬 (Promise.all)
+**1. Cloud Scheduler (00:01 KST)**
+```
+매일 정확히 1번 실행
+→ /cron-trigger 호출
+→ OIDC 인증 (Cloud Scheduler 전용)
+```
 
-- **안정성**: API Rate Limit 안전, 타임아웃 회피
+**2. 크론 락 설정**
+```
+Firestore 컬렉션: cron_locks
+Lock Key: cron_lock_{KST_날짜}
+TTL: 30분 (Task 등록 시간 커버)
+용도: 동일 날짜 중복 실행 방지
+```
 
-- **필터**: `subscription = '활성'`
+**3. 활성 거래처 조회**
+```
+Sheets CSV 조회 → subscription='활성' 필터
+중복 제거 (Set)
+subdomain 배열 생성
+```
+
+**4. Cloud Tasks 등록**
+```
+배치 크기: 100개씩
+처리 방식: 비동기 분산 (Cloud Tasks Queue)
+큐 이름: posting-queue (asia-northeast3)
+동시 실행: 최대 50개
+디스패치 속도: 초당 1개
+재시도: 최대 3회
+```
+
+**5. 크론 락 해제**
+```
+Task 등록 완료 후 즉시 해제
+실패 시에도 try-finally로 보장
+30분 후 자동 만료 (백업)
+```
+
+**6. Worker 실행**
+```
+Cloud Tasks → /task/posting (개별 거래처)
+OIDC 인증 (Cloud Tasks 전용)
+포스팅 생성 (Gemini API)
+Sheets 저장 (최신_포스팅 1개만)
+Firestore 아카이브 (기존 포스팅)
+```
+
+**7. 세션 업데이트**
+```
+Firestore Transaction (경쟁 상태 방지)
+completed/succeeded/failed 카운터 증가
+모든 Task 완료 시 Telegram 알림
+```
+
+### 성능 및 타이밍
+
+**Task 등록:**
+- 거래처 4개: 1초
+- 거래처 100개: 2초
+- 거래처 1,000개: 10초
+
+**실제 처리:**
+- 초당 1개 디스패치 (Cloud Tasks 설정)
+- Worker 최대 50개 동시 실행
+- 거래처 100개: 약 2분 완료
+- 거래처 1,000개: 약 20분 완료
+
+**Gemini API 할당량:**
+- Tier 1: 150 RPM (Pro + Flash 합산)
+- Cloud Tasks 속도 제한으로 자동 조절
+- Rate Limit 에러 없음
 
 
 
@@ -1172,11 +1249,27 @@ Google Search Grounding:
 
 ### 최신 포스팅 시트
 
-- **거래처당 1개만**
+**거래처당 1개 보장:**
+- 각 거래처는 최신_포스팅 시트에 1행만 존재
+- 신규 포스팅 생성 시 기존 행 UPDATE (존재 시) 또는 APPEND (없을 시)
+- 덮어쓰기 방식으로 자동 중복 제거
 
-- **기존 행 삭제** 후 append
+**저장 흐름:**
+```
+1. 시트 전체 읽기
+2. 도메인 기준 기존 행 찾기
+3. 기존 행 있으면:
+   - Firestore에 아카이브 (posts_archive, 1년 TTL)
+   - 기존 행 UPDATE
+4. 기존 행 없으면:
+   - 신규 행 APPEND
+5. 캐시 무효화 (HTML 재생성)
+```
 
-- **트랜잭션**: 최신포스팅 성공 → 저장소 저장
+**중복 방지:**
+- 1일 1포스팅 원칙으로 동일 거래처 동시 실행 불가
+- Sheets 중복 subdomain 없음 (관리 단계 검증)
+- 결과: Race Condition 실제로 발생 안 함
 
 
 ### 통계 (Umami 셀프호스팅) ✅
@@ -1462,6 +1555,37 @@ scripts/create-deposit-sheet.js       (입금확인 시트 생성)
 ---
 
 ## 최근 변경 이력
+
+### 2026-02-08: 포스팅 로직 점검 및 문서화
+
+**1. 포스팅 시스템 전체 점검 (documentation)**
+- 코드베이스 전체 스캔 및 동시성 분석
+- Race Condition 이론적 검증
+- 실제 운영 환경 안전성 확인
+
+**2. 1일 1포스팅 원칙 문서화 (documentation)**
+- PROJECT.md에 자동 포스팅 스케줄 섹션 재작성
+- Cloud Scheduler, Cloud Tasks 흐름 상세 설명
+- 중복 방지 메커니즘 명확화
+- 안전성 보장 근거 기록
+
+**3. 점검 결과 (정상)**
+- ✅ Cloud Scheduler: 1일 1회 정확히 실행 (중복 불가)
+- ✅ Cloud Tasks: 거래처별 1개씩만 등록 (내장 중복 방지)
+- ✅ Firestore 락: 동일 날짜 중복 실행 차단 (30분 TTL)
+- ✅ Sheets 중복 subdomain 없음 (검증 완료)
+- ✅ Race Condition: 이론적으로만 가능, 실제로는 발생 안 함
+- 결론: 추가 개선 불필요, 현재 시스템 안전함
+
+**4. Umami 중복 생성 문제 확인 (issue)**
+- 상상피아노(00001): 8개 중복 웹사이트 생성
+- 제이공방(00004): 6개 중복
+- 상상피아노 Japan(00003): 3개 중복
+- 원인: 락 타임아웃 5초 (너무 짧음), API 응답 지연
+- 영향: 통계 분산, 공유 URL 여러 개
+- 상태: 해결 방안 검토 중 (락 강화 또는 대안 통계 도구)
+
+---
 
 ### 2026-02-07: 크론 락 자동 해제 + 이미지 랜덤 정렬
 

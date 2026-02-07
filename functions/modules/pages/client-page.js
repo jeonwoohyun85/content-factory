@@ -5,7 +5,8 @@ const { normalizeLanguage } = require('../utils/normalize.js');
 const { getLinkInfo, convertToEmbedUrl, extractUrlFromMarkdown } = require('../utils/url-utils.js');
 const { formatKoreanTime } = require('../utils/time-utils.js');
 const { LANGUAGE_TEXTS } = require('../config.js');
-const { getOrCreateUmamiWebsite, getUmamiScriptUrl } = require('../umami-manager.js');
+const { generateTrackingScript } = require('../stats/tracking-script.js');
+const { generateLinkTrackingScript } = require('../stats/link-tracking.js');
 
 async function getLanguageTexts(lang, env) {
     // 하드코딩된 언어가 있으면 반환
@@ -82,29 +83,23 @@ async function generateClientPage(client, debugInfo, env) {
     // 전체 도메인 생성
     const fullDomain = client.subdomain.includes('.') ? client.subdomain : `${client.subdomain}.make-page.com`;
 
-    // Umami 웹사이트 자동 생성 또는 조회 (Sheets 원본 이름 사용)
-    const umamiBusinessName = client.business_name_original || client.business_name;
-    const umami = await getOrCreateUmamiWebsite(fullDomain, umamiBusinessName, env);
-
     // Links 파싱 (쉼표 구분) - 마크다운 형식 처리 후 언어 텍스트 전달
-
     const links = (client.links || '')
         .split(',')
         .map(l => l.trim())
-        .filter(l => l && !l.includes('cloud.umami.is'))  // Umami URL 제외 먼저 수행
+        .filter(l => l)
+        .filter(l => !l.includes('umami.is')) // Umami 링크 제외
         .map(l => extractUrlFromMarkdown(l))
         .map(url => getLinkInfo(url, texts))
         .filter(l => l);
 
-    // Umami 통계 버튼 (Share URL 또는 기본 대시보드)
-    if (umami.websiteId) {
-        const statsUrl = umami.shareUrl || `https://umami-analytics-753166847054.asia-northeast3.run.app/websites/${umami.websiteId}`;
-        links.push({
-            icon: '📊',
-            text: texts.stats,
-            url: statsUrl
-        });
-    }
+    // 통계 버튼 추가
+    const subdomain = client.subdomain.replace('.make-page.com', '');
+    links.push({
+        icon: '📊',
+        text: texts.stats,
+        url: `/stats-detailed?subdomain=${subdomain}`
+    });
 
     // Info 이미지 파싱 (쉼표 구분) + Google Drive URL 변환 (전체 이미지 포함, 제한 없음)
 
@@ -184,8 +179,9 @@ async function generateClientPage(client, debugInfo, env) {
 
     <title>${escapeHtml(client.business_name)}</title>
 
-    <!-- Umami Self-Hosted Analytics -->
-    ${umami.websiteId ? `<script defer src="${getUmamiScriptUrl()}" data-website-id="${umami.websiteId}"></script>` : '<!-- Umami tracking disabled -->'}
+    <!-- Firestore Analytics -->
+    ${generateTrackingScript(subdomain)}
+    ${generateLinkTrackingScript(subdomain)}
 
     <style>
 

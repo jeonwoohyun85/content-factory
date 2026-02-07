@@ -411,6 +411,119 @@ functions.http('main', async (req, res) => {
       return res.json({ success: true });
     }
 
+    // 방문 추적 API
+    if (pathname === '/api/track-visit') {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+
+      try {
+        const { subdomain, timestamp, userAgent, referrer, path } = req.body;
+        if (!subdomain) {
+          return res.status(400).json({ error: 'Subdomain required' });
+        }
+
+        await firestore.collection('visits').add({
+          subdomain,
+          timestamp: timestamp || Date.now(),
+          userAgent: userAgent || 'unknown',
+          referrer: referrer || 'direct',
+          path: path || '/',
+          created_at: new Date()
+        });
+
+        return res.json({ success: true });
+      } catch (error) {
+        console.error('Track visit error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    // 링크 클릭 추적 API
+    if (pathname === '/api/track-link') {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+
+      try {
+        const { subdomain, link_type, link_url, timestamp } = req.body;
+        if (!subdomain || !link_type || !link_url) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        await firestore.collection('link_clicks').add({
+          subdomain,
+          link_type,
+          link_url,
+          timestamp: timestamp || Date.now(),
+          created_at: new Date()
+        });
+
+        return res.json({ success: true });
+      } catch (error) {
+        console.error('Track link error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    // 통계 데이터 API
+    if (pathname === '/api/stats-data') {
+      const sub = req.query.subdomain;
+      if (!sub) {
+        return res.status(400).json({ error: 'Subdomain required' });
+      }
+
+      try {
+        const { getVisitStats, getLinkClickStats } = require('./modules/stats/stats-reader.js');
+        const days = parseInt(req.query.days) || 30;
+
+        const visitStats = await getVisitStats(sub, env, days);
+        const linkClickStats = await getLinkClickStats(sub, env, days);
+
+        return res.json({
+          visitStats,
+          linkClickStats
+        });
+      } catch (error) {
+        console.error('Stats data API error:', error);
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    // 통계 페이지 (간단)
+    if (pathname === '/stats') {
+      const sub = req.query.subdomain || subdomain;
+      if (!sub) {
+        return res.status(400).send('Subdomain required');
+      }
+
+      try {
+        const { generateStatsPage } = require('./modules/stats/stats-page.js');
+        const days = parseInt(req.query.days) || 30;
+        const html = await generateStatsPage(sub, env, days);
+
+        res.set('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+      } catch (error) {
+        console.error('Stats page error:', error);
+        return res.status(500).send('Stats page generation failed');
+      }
+    }
+
+    // 상세 통계 페이지 (동적 클라이언트 사이드)
+    if (pathname === '/stats-detailed') {
+      try {
+        const htmlPath = path.join(__dirname, 'landing', 'stats-detailed-00001.html');
+        const html = fs.readFileSync(htmlPath, 'utf-8');
+
+        res.set('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+      } catch (error) {
+        console.error('Detailed stats page error:', error);
+        return res.status(500).send('Stats page not found');
+      }
+    }
+
     // Previous Posts AJAX API
     if (pathname === '/api/posts') {
       const sub = req.query.subdomain;

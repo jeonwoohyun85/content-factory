@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>방문 통계 - 상세 버전</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 24px;
+            text-align: center;
+        }
+        .stat-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat-change {
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .stat-change.up {
+            color: #10b981;
+        }
+        .stat-change.down {
+            color: #ef4444;
+        }
+        .chart-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        .list-label {
+            font-size: 14px;
+            color: #555;
+        }
+        .list-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        .info-box {
+            background: #f0f9ff;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            margin-top: 20px;
+        }
+        .info-box p {
+            color: #1e40af;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .chart-section {
+                grid-template-columns: 1fr;
+            }
+            .bottom-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 방문 통계 대시보드</h1>
+            <p class="subtitle">상세 버전 - 차트와 상세 분석 포함</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-label">총 방문자</div>
+                <div class="stat-value">1,234</div>
+                <div class="stat-change up">▲ 12.5%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📄</div>
+                <div class="stat-label">페이지뷰</div>
+                <div class="stat-value">3,456</div>
+                <div class="stat-change up">▲ 8.3%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-label">평균 체류시간</div>
+                <div class="stat-value">2:34</div>
+                <div class="stat-change down">▼ 5.1%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📱</div>
+                <div class="stat-label">모바일 비율</div>
+                <div class="stat-value">68%</div>
+                <div class="stat-change up">▲ 3.2%</div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-card">
+                <div class="chart-title">📈 일별 방문자 추이</div>
+                <canvas id="lineChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">🍩 기기별 비율</div>
+                <canvas id="doughnutChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bottom-grid">
+            <div class="chart-card">
+                <div class="chart-title">🌍 국가별 방문자</div>
+                <div class="list-item">
+                    <span class="list-label">🇰🇷 대한민국</span>
+                    <span class="list-value">856</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">🇺🇸 미국</span>
+                    <span class="list-value">234</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">🇯🇵 일본</span>
+                    <span class="list-value">89</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-label">🇨🇳 중국</span>
+                    <span class="list-value">55</span>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">🕐 시간대별 방문</div>
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <p><strong>💡 상세 버전 특징:</strong>
+            실시간 차트, 국가별/기기별/시간대별 분석, 트렌드 비교, 상세 통계 제공.
+            Chart.js 라이브러리 사용 (76KB), Firestore 쿼리 증가로 약간의 비용 발생.</p>
+        </div>
+    </div>
+
+    <script>
+        // 일별 방문자 추이 차트
+        const lineCtx = document.getElementById('lineChart').getContext('2d');
+        new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: ['1일', '2일', '3일', '4일', '5일', '6일', '7일'],
+                datasets: [{
+                    label: '방문자',
+                    data: [120, 190, 150, 220, 180, 240, 210],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 기기별 비율 차트
+        const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+        new Chart(doughnutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['모바일', 'PC', '태블릿'],
+                datasets: [{
+                    data: [68, 25, 7],
+                    backgroundColor: ['#667eea', '#764ba2', '#f093fb']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // 시간대별 방문 차트
+        const barCtx = document.getElementById('barChart').getContext('2d');
+        new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: ['0시', '6시', '12시', '18시', '24시'],
+                datasets: [{
+                    label: '방문',
+                    data: [30, 50, 120, 180, 90],
+                    backgroundColor: '#667eea'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
