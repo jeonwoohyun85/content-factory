@@ -90,13 +90,14 @@ functions.http('main', async (req, res) => {
 
       console.log('[CRON AUTH] Authorized: Cloud Scheduler');
 
-      try {
-        // 동시 실행 방지: Firestore 락 (KST 날짜 기준)
-        const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
-        const kstDateStr = kstNow.toISOString().split('T')[0];
-        const lockKey = `cron_lock_${kstDateStr}`;
-        const lockRef = firestore.collection('cron_locks').doc(lockKey);
+      // 동시 실행 방지: Firestore 락 (KST 날짜 기준)
+      const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+      const kstDateStr = kstNow.toISOString().split('T')[0];
+      const lockKey = `cron_lock_${kstDateStr}`;
+      const lockRef = firestore.collection('cron_locks').doc(lockKey);
+      let lockAcquired = false;
 
+      try {
         const lockDoc = await lockRef.get();
         if (lockDoc.exists) {
           const lockData = lockDoc.data();
@@ -118,6 +119,7 @@ functions.http('main', async (req, res) => {
           locked_at: Date.now(),
           locked_date: kstDateStr
         });
+        lockAcquired = true;
         console.log(`[CRON] 락 설정: ${lockKey}`);
 
         const startTime = Date.now();
@@ -211,6 +213,16 @@ functions.http('main', async (req, res) => {
           error: error.message,
           stack: error.stack?.substring(0, 500)
         });
+      } finally {
+        // 락 해제 (에러 발생해도 무조건 실행)
+        if (lockAcquired) {
+          try {
+            await lockRef.delete();
+            console.log(`[CRON] 락 해제: ${lockKey}`);
+          } catch (cleanupError) {
+            console.error(`[CRON] 락 해제 실패: ${cleanupError.message}`);
+          }
+        }
       }
     }
 
