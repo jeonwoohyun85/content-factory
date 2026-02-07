@@ -1477,3 +1477,24 @@ scripts/create-deposit-sheet.js       (입금확인 시트 생성)
 - 파일: `functions/modules/drive-manager.js`
 - 효과: 매 포스팅마다 다른 순서로 이미지 표시
 
+
+### 2026-02-07: CDN 캐시 자동 무효화 + 환불 정책 개선
+
+**1. CDN 캐시 자동 무효화 (improvement)**
+- 문제: 배포 완료 후에도 CDN 캐시로 인해 변경사항 즉시 반영 안 됨
+- 해결: Cloud Build에 CDN 캐시 무효화 단계 추가
+- 파일: `cloudbuild.yaml`
+- 효과: 배포 완료 즉시 변경사항 반영, 수동 캐시 무효화 불필요
+
+**2. 환불 정책 개선 (improvement)**
+- 변경 전: 전액 환불 가능
+- 변경 후: 중도 환불 불가, 해당 월 만료일까지 서비스 유지
+- 파일: `functions/landing/terms.html`
+- 효과: B2B 구독 서비스 업계 표준에 맞춤
+
+**3. FAQ 섹션 추가 (feature)**
+- 자주 묻는 질문 10개 추가
+- 결제/가입/세금계산서, 사진/영상 전달, 네이버 노출 정책 등
+- 파일: `functions/landing/index.html`
+- 효과: 사용자 문의 사전 대응
+
