@@ -27,7 +27,7 @@ steps:
       - url-maps
       - invalidate-cdn-cache
       - content-factory-urlmap
-      - --path=/*
+      - '--path=/*'
       - --async
     timeout: 60s
 
