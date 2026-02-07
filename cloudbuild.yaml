@@ -19,5 +19,17 @@ steps:
       - --set-secrets=UMAMI_USERNAME=UMAMI_USERNAME:latest,UMAMI_PASSWORD=UMAMI_PASSWORD:latest
     timeout: 600s
 
+  # CDN 캐시 무효화 (배포 직후 즉시 반영)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - gcloud
+      - compute
+      - url-maps
+      - invalidate-cdn-cache
+      - content-factory-urlmap
+      - --path=/*
+      - --async
+    timeout: 60s
+
 options:
   logging: CLOUD_LOGGING_ONLY
