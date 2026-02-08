@@ -5,11 +5,15 @@ async function getVisitStats(subdomain, env, days = 30) {
   const now = Date.now();
   const startTime = now - (days * 24 * 60 * 60 * 1000);
 
+  console.log(`[Visit Stats] subdomain=${subdomain}, days=${days}, startTime=${startTime}, now=${now}`);
+
   try {
     const snapshot = await env.POSTING_KV.collection('visits')
       .where('subdomain', '==', subdomain)
       .where('timestamp', '>=', startTime)
       .get();
+
+    console.log(`[Visit Stats] Query result: ${snapshot.docs.length} documents`);
 
     const visits = snapshot.docs.map(doc => doc.data());
 
