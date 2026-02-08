@@ -22,7 +22,6 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy content-factory
-        id: deploy
         run: |
           gcloud functions deploy content-factory \
             --gen2 \
