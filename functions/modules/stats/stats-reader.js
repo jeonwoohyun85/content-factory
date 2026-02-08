@@ -2,36 +2,52 @@
 // 방문자 수, 페이지뷰, 바로가기 링크 클릭 수 조회
 
 async function getVisitStats(subdomain, env, days = 30) {
-  const now = Date.now();
-  const startTime = now - (days * 24 * 60 * 60 * 1000);
-
-  console.log(`[Visit Stats] subdomain=${subdomain}, days=${days}, startTime=${startTime}, now=${now}`);
-
   try {
-    const snapshot = await env.POSTING_KV.collection('visits')
+    // 전체 누적 통계
+    const allSnapshot = await env.POSTING_KV.collection('visits')
       .where('subdomain', '==', subdomain)
-      .where('timestamp', '>=', startTime)
       .get();
 
-    console.log(`[Visit Stats] Query result: ${snapshot.docs.length} documents`);
+    const allVisits = allSnapshot.docs.map(doc => doc.data());
 
-    const visits = snapshot.docs.map(doc => doc.data());
+    // KST 기준 오늘 시작 시간 (00:00)
+    const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+    const todayStart = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate());
+    const todayStartTimestamp = todayStart.getTime() - (9 * 60 * 60 * 1000);
 
-    // 총 방문 수 (페이지뷰)
-    const totalPageViews = visits.length;
+    // 오늘 방문 필터링
+    const todayVisits = allVisits.filter(v => v.timestamp >= todayStartTimestamp);
 
-    // 고유 방문자 수 (User-Agent + Referrer 조합으로 추정)
-    const uniqueVisitors = new Set(visits.map(v => `${v.userAgent}:${v.referrer}`)).size;
+    // 전체 방문자 (고유 IP)
+    const uniqueVisitors = new Set(allVisits.map(v => v.ip).filter(ip => ip && ip !== 'unknown')).size;
 
-    // 날짜별 방문 수
+    // 전체 방문 횟수
+    const totalPageViews = allVisits.length;
+
+    // 일간 방문 횟수 (오늘)
+    const dailyPageViews = todayVisits.length;
+
+    // 체류 시간 누적 합계 (밀리초 → 분)
+    const totalDuration = allVisits
+      .filter(v => v.duration)
+      .reduce((sum, v) => sum + v.duration, 0);
+    const totalDurationMinutes = Math.round(totalDuration / 60000);
+
+    // 날짜별 방문 수 (최근 30일, 차트용)
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const recentVisits = allVisits.filter(v => v.timestamp >= thirtyDaysAgo);
+
     const dailyStats = {};
-    visits.forEach(visit => {
-      const date = new Date(visit.timestamp).toISOString().split('T')[0];
+    recentVisits.forEach(visit => {
+      const kstDate = new Date(visit.timestamp + (9 * 60 * 60 * 1000));
+      const date = kstDate.toISOString().split('T')[0];
       if (!dailyStats[date]) {
         dailyStats[date] = { pageViews: 0, visitors: new Set() };
       }
       dailyStats[date].pageViews++;
-      dailyStats[date].visitors.add(`${visit.userAgent}:${visit.referrer}`);
+      if (visit.ip && visit.ip !== 'unknown') {
+        dailyStats[date].visitors.add(visit.ip);
+      }
     });
 
     const dailyData = Object.keys(dailyStats).map(date => ({
@@ -41,15 +57,19 @@ async function getVisitStats(subdomain, env, days = 30) {
     })).sort((a, b) => a.date.localeCompare(b.date));
 
     return {
-      totalPageViews,
       uniqueVisitors,
+      totalPageViews,
+      dailyPageViews,
+      totalDurationMinutes,
       dailyData
     };
   } catch (error) {
     console.error('Visit stats error:', error);
     return {
-      totalPageViews: 0,
       uniqueVisitors: 0,
+      totalPageViews: 0,
+      dailyPageViews: 0,
+      totalDurationMinutes: 0,
       dailyData: []
     };
   }

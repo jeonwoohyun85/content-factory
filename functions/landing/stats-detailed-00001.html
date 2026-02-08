@@ -168,30 +168,28 @@
     <div class="container">
         <div class="header">
             <h1 id="pageTitle">📊 통계 로딩 중...</h1>
-            <p class="subtitle" id="pageSubtitle">데이터를 불러오는 중입니다</p>
         </div>
 
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon">👥</div>
-                <div class="stat-label">총 방문자</div>
+                <div class="stat-label">전체 방문자</div>
                 <div class="stat-value" id="totalVisitors">-</div>
-                <div class="stat-change" id="visitorChange"></div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">📄</div>
-                <div class="stat-label">페이지뷰</div>
+                <div class="stat-label">누적 방문 횟수</div>
                 <div class="stat-value" id="totalPageViews">-</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon">🔗</div>
-                <div class="stat-label">링크 클릭</div>
-                <div class="stat-value" id="totalClicks">-</div>
+                <div class="stat-icon">📅</div>
+                <div class="stat-label">일일 방문 횟수</div>
+                <div class="stat-value" id="dailyPageViews">-</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon">📱</div>
-                <div class="stat-label">평균 일 방문</div>
-                <div class="stat-value" id="avgDaily">-</div>
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-label">체류 시간</div>
+                <div class="stat-value" id="totalDuration">-</div>
             </div>
         </div>
 
@@ -344,24 +342,17 @@
 
             // 제목 업데이트
             document.getElementById('pageTitle').textContent = `📊 ${clientData.name} - 방문 통계`;
-            document.getElementById('pageSubtitle').textContent = `거래처 ${subdomain} | 최근 ${days}일`;
 
             // 통계 카드 업데이트
             document.getElementById('totalVisitors').textContent = visitStats.uniqueVisitors.toLocaleString();
             document.getElementById('totalPageViews').textContent = visitStats.totalPageViews.toLocaleString();
-            document.getElementById('totalClicks').textContent = linkClickStats.totalClicks.toLocaleString();
-            document.getElementById('avgDaily').textContent = Math.round(visitStats.uniqueVisitors / days);
+            document.getElementById('dailyPageViews').textContent = visitStats.dailyPageViews.toLocaleString();
 
-            // 전일 대비 증감률
-            const recentDays = visitStats.dailyData.slice(-7);
-            if (recentDays.length >= 2) {
-                const yesterday = recentDays[recentDays.length - 2].visitors;
-                const today = recentDays[recentDays.length - 1].visitors;
-                const change = yesterday > 0 ? (((today - yesterday) / yesterday) * 100).toFixed(1) : 0;
-                const changeEl = document.getElementById('visitorChange');
-                changeEl.textContent = `${change >= 0 ? '▲' : '▼'} ${Math.abs(change)}%`;
-                changeEl.className = `stat-change ${change >= 0 ? 'up' : 'down'}`;
-            }
+            // 체류 시간 포맷 (분 → 시:분)
+            const hours = Math.floor(visitStats.totalDurationMinutes / 60);
+            const minutes = visitStats.totalDurationMinutes % 60;
+            const durationText = hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+            document.getElementById('totalDuration').textContent = durationText;
 
             // 일별 방문자 차트
             const dailyLabels = recentDays.map(d => {

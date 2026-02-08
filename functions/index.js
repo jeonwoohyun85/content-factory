@@ -418,19 +418,30 @@ functions.http('main', async (req, res) => {
       }
 
       try {
-        const { subdomain, timestamp, userAgent, referrer, path } = req.body;
+        const { subdomain, timestamp, userAgent, referrer, path, duration } = req.body;
         if (!subdomain) {
           return res.status(400).json({ error: 'Subdomain required' });
         }
 
-        await firestore.collection('visits').add({
+        // IP 주소 추출 (Load Balancer 경유 시 X-Forwarded-For 사용)
+        const ip = (req.headers['x-forwarded-for'] || req.ip || 'unknown').split(',')[0].trim();
+
+        const visitData = {
           subdomain,
           timestamp: timestamp || Date.now(),
           userAgent: userAgent || 'unknown',
           referrer: referrer || 'direct',
           path: path || '/',
+          ip: ip,
           created_at: new Date()
-        });
+        };
+
+        // 체류 시간이 있으면 추가
+        if (duration) {
+          visitData.duration = duration;
+        }
+
+        await firestore.collection('visits').add(visitData);
 
         return res.json({ success: true });
       } catch (error) {
