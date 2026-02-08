@@ -56,12 +56,36 @@ async function getVisitStats(subdomain, env, days = 30) {
       visitors: dailyStats[date].visitors.size
     })).sort((a, b) => a.date.localeCompare(b.date));
 
+    // OS별 통계
+    const osStats = {};
+    allVisits.forEach(visit => {
+      const os = parseOS(visit.userAgent);
+      osStats[os] = (osStats[os] || 0) + 1;
+    });
+
+    // 브라우저별 통계
+    const browserStats = {};
+    allVisits.forEach(visit => {
+      const browser = parseBrowser(visit.userAgent);
+      browserStats[browser] = (browserStats[browser] || 0) + 1;
+    });
+
+    // 기기별 통계
+    const deviceStats = {};
+    allVisits.forEach(visit => {
+      const device = parseDevice(visit.userAgent);
+      deviceStats[device] = (deviceStats[device] || 0) + 1;
+    });
+
     return {
       uniqueVisitors,
       totalPageViews,
       dailyPageViews,
       totalDurationMinutes,
-      dailyData
+      dailyData,
+      osStats,
+      browserStats,
+      deviceStats
     };
   } catch (error) {
     console.error('Visit stats error:', error);
@@ -114,6 +138,52 @@ async function getLinkClickStats(subdomain, env, days = 30) {
       linkStats: []
     };
   }
+}
+
+// User-Agent 파싱 함수들
+function parseOS(userAgent) {
+  if (!userAgent) return 'other';
+  const ua = userAgent.toLowerCase();
+
+  if (ua.includes('android')) return 'Android';
+  if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) return 'iOS';
+  if (ua.includes('windows')) return 'Windows';
+  if (ua.includes('macintosh') || ua.includes('mac os')) return 'macOS';
+  if (ua.includes('linux') && !ua.includes('android')) return 'Linux';
+
+  return 'other';
+}
+
+function parseBrowser(userAgent) {
+  if (!userAgent) return 'other';
+  const ua = userAgent.toLowerCase();
+
+  // 순서 중요: Edge를 Chrome보다 먼저 체크
+  if (ua.includes('samsungbrowser')) return 'Samsung Internet';
+  if (ua.includes('edg/') || ua.includes('edge/')) return 'Edge';
+  if (ua.includes('firefox')) return 'Firefox';
+  if (ua.includes('chrome') && !ua.includes('edg')) return 'Chrome';
+  if (ua.includes('safari') && !ua.includes('chrome')) return 'Safari';
+
+  return 'other';
+}
+
+function parseDevice(userAgent) {
+  if (!userAgent) return 'other';
+  const ua = userAgent.toLowerCase();
+
+  if (ua.includes('ipad') || ua.includes('tablet') || (ua.includes('android') && !ua.includes('mobile'))) {
+    return 'tablet';
+  }
+  if (ua.includes('mobile') || ua.includes('iphone') || ua.includes('ipod')) {
+    return 'mobile';
+  }
+  if (ua.includes('smarttv') || ua.includes('tizen') || ua.includes('webos') ||
+      ua.includes('playstation') || ua.includes('xbox') || ua.includes('nintendo')) {
+    return 'other';
+  }
+
+  return 'pc';
 }
 
 // 링크 타입 한글 이름 매핑
