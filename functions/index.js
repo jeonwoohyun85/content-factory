@@ -521,10 +521,10 @@ functions.http('main', async (req, res) => {
       }
     }
 
-    // 상세 통계 페이지 (동적 클라이언트 사이드)
+    // 상세 통계 페이지 (모든 거래처 공통)
     if (pathname === '/stats-detailed') {
       try {
-        const htmlPath = path.join(__dirname, 'landing', 'stats-detailed-00001.html');
+        const htmlPath = path.join(__dirname, 'landing', 'stats-detailed.html');
         const html = fs.readFileSync(htmlPath, 'utf-8');
 
         res.set('Content-Type', 'text/html; charset=utf-8');
